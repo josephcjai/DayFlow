@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DayFlow — 30-Minute Schedule & Focus Tracker</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/css/styles.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo-icon">⏳</div>
+        <div class="brand-text">
+          <h1>DayFlow</h1>
+          <span class="badge">v2.1 Web</span>
+        </div>
+      </div>
+
+      <!-- Navigation Views -->
+      <nav class="view-nav">
+        <button class="nav-btn active" data-view="grid">
+          <span class="icon">📅</span> Schedule Grid
+        </button>
+        <button class="nav-btn" data-view="habits">
+          <span class="icon">⚡</span> Habit Ledger
+        </button>
+        <button class="nav-btn" data-view="analytics">
+          <span class="icon">📊</span> Focus Analytics
+        </button>
+        <button class="nav-btn" data-view="notes">
+          <span class="icon">📝</span> Notes & Todo
+        </button>
+      </nav>
+
+      <!-- Quick Actions -->
+      <div class="header-actions">
+        <button id="exportBtn" class="btn btn-outline" title="Export Schedule JSON">
+          <span>📤</span> Export
+        </button>
+        <button id="importBtn" class="btn btn-outline" title="Import Schedule JSON">
+          <span>📥</span> Import
+        </button>
+        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+      </div>
+    </header>
+
+    <!-- Sub-Header / Controls -->
+    <div class="controls-bar">
+      <!-- Week Navigation & Calendar Picker -->
+      <div class="week-picker">
+        <button id="prevWeekBtn" class="icon-btn" title="Previous Week">◀</button>
+        
+        <!-- Calendar Picker Control -->
+        <div class="calendar-picker-wrapper" title="Pick any date to open that week (Mon-Sun)">
+          <span class="cal-icon">🗓️</span>
+          <input type="date" id="weekDatePicker" class="date-picker-input">
+        </div>
+
+        <div id="currentWeekRange" class="week-range-text">Mon, Aug 03 – Sun, Aug 09, 2026</div>
+        <button id="nextWeekBtn" class="icon-btn" title="Next Week">▶</button>
+        <button id="todayBtn" class="btn btn-sm btn-secondary">Current Week</button>
+      </div>
+
+      <!-- Category Filter -->
+      <div class="filter-group">
+        <label for="categoryFilter">Filter Category:</label>
+        <select id="categoryFilter" class="select-input">
+          <option value="ALL">All Categories</option>
+          <option value="Learning">Learning (WPF/WCF/React/Angular)</option>
+          <option value="Work">Work / Job Tasks</option>
+          <option value="Household">Household & Daily Chores</option>
+          <option value="Family">Family & Personal</option>
+          <option value="Health">Health & Meals</option>
+          <option value="Travel">Travel & Commute</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Main Content Body -->
+    <main class="main-content">
+      <!-- VIEW 1: 30-MIN SCHEDULE GRID -->
+      <section id="view-grid" class="view-panel active">
+        <div class="grid-wrapper">
+          <div class="timeline-table-container">
+            <table class="schedule-table" id="scheduleTable">
+              <thead>
+                <tr>
+                  <th class="time-col">Time (30m)</th>
+                  <th class="day-col" data-day="1">MON <span class="day-date" id="date-1"></span></th>
+                  <th class="day-col" data-day="2">TUE <span class="day-date" id="date-2"></span></th>
+                  <th class="day-col" data-day="3">WED <span class="day-date" id="date-3"></span></th>
+                  <th class="day-col" data-day="4">THU <span class="day-date" id="date-4"></span></th>
+                  <th class="day-col" data-day="5">FRI <span class="day-date" id="date-5"></span></th>
+                  <th class="day-col" data-day="6">SAT <span class="day-date" id="date-6"></span></th>
+                  <th class="day-col" data-day="7">SUN <span class="day-date" id="date-7"></span></th>
+                </tr>
+              </thead>
+              <tbody id="scheduleTableBody">
+                <!-- Dynamically generated 30-minute interval rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: HABIT LEDGER -->
+      <section id="view-habits" class="view-panel">
+        <div class="habits-container">
+          <div class="panel-header">
+            <h2>Habit & Discipline Ledger</h2>
+            <p>Log instant trigger actions, post-meal habits, and discipline rewards.</p>
+          </div>
+
+          <!-- Quick Action Triggers -->
+          <div class="habit-quick-actions">
+            <button class="habit-btn" data-habit="Meal Logged" data-pts="5">
+              <span class="icon">🍽️</span> Log Meal & Cleaned Hands <span class="pts">+5 pts</span>
+            </button>
+            <button class="habit-btn" data-habit="Non-Working Hours Logged" data-pts="10">
+              <span class="icon">🛋️</span> Log Non-Working Hours <span class="pts">+10 pts</span>
+            </button>
+            <button class="habit-btn" data-habit="Disciplined Focus Session" data-pts="15">
+              <span class="icon">🎯</span> 2-Hour Deep Work Complete <span class="pts">+15 pts</span>
+            </button>
+            <button class="habit-btn" data-habit="Skill Practice Complete" data-pts="10">
+              <span class="icon">💻</span> WPF / WCF Coding Session <span class="pts">+10 pts</span>
+            </button>
+          </div>
+
+          <!-- Custom Habit Log Form -->
+          <div class="habit-form-card">
+            <h3>Log Custom Action</h3>
+            <form id="customHabitForm" class="form-row">
+              <input type="text" id="habitNameInput" placeholder="Action name (e.g. Drank Water, Exercise)" required class="text-input">
+              <input type="number" id="habitPointsInput" placeholder="Points (+/-)" value="5" class="number-input">
+              <input type="text" id="habitNotesInput" placeholder="Notes (optional)" class="text-input">
+              <button type="submit" class="btn btn-primary">Log Action</button>
+            </form>
+          </div>
+
+          <!-- Log History Table -->
+          <div class="habit-history-card">
+            <div class="card-header">
+              <h3>Habit History Log</h3>
+              <span id="totalPointsBadge" class="total-pts-badge">Total Score: 0 pts</span>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Habit / Action</th>
+                  <th>Points</th>
+                  <th>Notes</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="habitLogTableBody">
+                <!-- Log entries -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: FOCUS ANALYTICS -->
+      <section id="view-analytics" class="view-panel">
+        <div class="analytics-container">
+          <div class="panel-header">
+            <h2>Focus & Time Aggregation Analytics</h2>
+            <p>Planned vs. Actual hours spent per category for the selected week.</p>
+          </div>
+
+          <!-- Overview Cards -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">📅</div>
+              <div class="stat-info">
+                <span class="stat-label">Total Planned Hours</span>
+                <span class="stat-value" id="statPlannedHours">0.0 hrs</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⏱️</div>
+              <div class="stat-info">
+                <span class="stat-label">Total Actual Hours Logged</span>
+                <span class="stat-value" id="statActualHours">0.0 hrs</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🎯</div>
+              <div class="stat-info">
+                <span class="stat-label">Execution Score</span>
+                <span class="stat-value" id="statScore">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category Comparison Chart / Progress -->
+          <div class="analytics-card">
+            <h3>Category Breakdown (Planned vs. Actual)</h3>
+            <div id="categoryBarsContainer" class="category-bars-list">
+              <!-- Dynamically populated progress bars -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: NOTES & TODO -->
+      <section id="view-notes" class="view-panel">
+        <div class="notes-container">
+          <div class="notes-grid">
+            <!-- Weekly Checklist -->
+            <div class="todo-card">
+              <div class="card-header">
+                <h2>Weekly Priorities & Todo</h2>
+              </div>
+              <form id="addTodoForm" class="form-row">
+                <input type="text" id="todoInput" placeholder="Add a new goal or action item..." required class="text-input">
+                <button type="submit" class="btn btn-primary">Add</button>
+              </form>
+              <ul id="todoList" class="todo-item-list">
+                <!-- Todo items -->
+              </ul>
+            </div>
+
+            <!-- Freeform Notes -->
+            <div class="notes-card">
+              <div class="card-header">
+                <h2>Weekly Journal & Scratchpad</h2>
+              </div>
+              <textarea id="weeklyNotesTextarea" class="notes-textarea" placeholder="Record weekly reflections, tech notes, reminders, or observations..."></textarea>
+              <div class="card-footer">
+                <span id="notesSavedStatus" class="status-text">Saved</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- TASK EDITOR MODAL -->
+  <div id="taskModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Edit 30-Min Time Slot</h3>
+        <button id="closeModalBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-meta" id="modalSlotMeta">
+          <span class="meta-badge" id="modalSlotDay">Monday</span>
+          <span class="meta-badge" id="modalSlotTime">08:00 AM</span>
+        </div>
+
+        <form id="taskForm">
+          <!-- Planned Task Field -->
+          <div class="form-group">
+            <label for="plannedTaskInput">Planned Task *</label>
+            <input type="text" id="plannedTaskInput" placeholder="e.g. Learn WPF, SP1 Feature Work" required class="text-input">
+            <span id="plannedLockMsg" class="field-lock-msg" style="display: none;">🔒 Baseline plan locked (Scheduled time has passed)</span>
+          </div>
+
+          <!-- Actual Task Field -->
+          <div class="form-group">
+            <label for="actualTaskInput">Actual Task Executed *</label>
+            <input type="text" id="actualTaskInput" placeholder="e.g. Learn WPF - Debugging, SP1 Feature Work" required class="text-input">
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="taskCategorySelect">Category Tag *</label>
+              <select id="taskCategorySelect" class="select-input">
+                <option value="Learning">Learning (WPF/WCF/React/Angular)</option>
+                <option value="Work">Work / Job Tasks</option>
+                <option value="Household">Household & Daily Chores</option>
+                <option value="Family">Family & Personal</option>
+                <option value="Health">Health & Meals</option>
+                <option value="Travel">Travel & Commute</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="taskStatusSelect">Status *</label>
+              <select id="taskStatusSelect" class="select-input">
+                <option value="Pending">⚪ Pending (Planned)</option>
+                <option value="Done">✅ Done (Completed)</option>
+                <option value="Partially Done">🟡 Partially Done</option>
+                <option value="Not Done">❌ Not Done</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="plannedDurationInput">Planned Duration (mins)</label>
+              <input type="number" id="plannedDurationInput" value="30" min="5" max="180" step="5" class="number-input">
+            </div>
+
+            <div class="form-group">
+              <label for="actualDurationInput">Actual Time Spent (mins)</label>
+              <input type="number" id="actualDurationInput" value="30" min="0" max="180" step="5" class="number-input">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="taskNotesInput">Notes / Details</label>
+            <textarea id="taskNotesInput" rows="2" class="text-input" placeholder="Additional observations, blocker info, or meal detail..."></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="deleteTaskBtn" class="btn btn-danger">Clear Slot</button>
+            <button type="submit" class="btn btn-primary">Save Slot Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/js/app.js"></script>
+</body>
+</html>
