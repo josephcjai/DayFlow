@@ -1,24 +1,25 @@
 /**
  * DayFlow Main Entry Point & Router
- * Enforces mandatory login screen gate & user-isolated database sync
+ * Enforces mandatory login screen gate, multi-view (Day/Week/Month) switching, and user-isolated PostgreSQL sync
  */
 import {
   STATE,
   getMonday,
   getWeekDates,
   getWeekKey,
+  formatDateISO,
   loadStateFromStorage,
   syncWeekDataWithApi,
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js';
-import { ApiClient } from './apiClient.js';
-import { renderGrid } from './grid.js';
-import { initModal } from './modal.js';
-import { renderHabits, addHabitLog } from './habits.js';
-import { renderAnalytics } from './analytics.js';
-import { renderNotes } from './notes.js';
+} from './state.js?v=2.3';
+import { ApiClient } from './apiClient.js?v=2.3';
+import { renderGrid } from './grid.js?v=2.3';
+import { initModal } from './modal.js?v=2.3';
+import { renderHabits, addHabitLog } from './habits.js?v=2.3';
+import { renderAnalytics } from './analytics.js?v=2.3';
+import { renderNotes } from './notes.js?v=2.3';
 
 const DOM = {};
 
@@ -39,6 +40,8 @@ function cacheDomElements() {
 
   DOM.navBtns = document.querySelectorAll('.nav-btn');
   DOM.viewPanels = document.querySelectorAll('.view-panel');
+
+  DOM.viewModeBtns = document.querySelectorAll('.view-mode-btn');
 
   DOM.prevWeekBtn = document.getElementById('prevWeekBtn');
   DOM.nextWeekBtn = document.getElementById('nextWeekBtn');
@@ -202,6 +205,7 @@ function switchLandingTab(tab) {
 }
 
 function bindEvents() {
+  // Navigation Tabs
   DOM.navBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       DOM.navBtns.forEach(b => b.classList.remove('active'));
@@ -214,34 +218,74 @@ function bindEvents() {
     });
   });
 
+  // Schedule View Granularity Selector (Day / Week / Month)
+  DOM.viewModeBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      DOM.viewModeBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      STATE.scheduleViewMode = btn.dataset.mode;
+      renderAll();
+      await syncWeekDataWithApi(renderAll);
+    });
+  });
+
+  // Prev Button (Day / Week / Month)
   DOM.prevWeekBtn.addEventListener('click', async () => {
-    const cur = STATE.currentWeekStart;
-    STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - 7));
+    if (STATE.scheduleViewMode === 'day') {
+      const cur = STATE.selectedDate || new Date();
+      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - 1);
+      STATE.currentWeekStart = getMonday(STATE.selectedDate);
+    } else if (STATE.scheduleViewMode === 'month') {
+      const cur = STATE.selectedDate || new Date();
+      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth() - 1, 1);
+      STATE.currentWeekStart = getMonday(STATE.selectedDate);
+    } else {
+      const cur = STATE.currentWeekStart;
+      STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - 7));
+      STATE.selectedDate = STATE.currentWeekStart;
+    }
     ensureSampleDataForCurrentWeek();
     renderAll();
     await syncWeekDataWithApi(renderAll);
   });
 
+  // Next Button (Day / Week / Month)
   DOM.nextWeekBtn.addEventListener('click', async () => {
-    const cur = STATE.currentWeekStart;
-    STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 7));
+    if (STATE.scheduleViewMode === 'day') {
+      const cur = STATE.selectedDate || new Date();
+      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
+      STATE.currentWeekStart = getMonday(STATE.selectedDate);
+    } else if (STATE.scheduleViewMode === 'month') {
+      const cur = STATE.selectedDate || new Date();
+      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+      STATE.currentWeekStart = getMonday(STATE.selectedDate);
+    } else {
+      const cur = STATE.currentWeekStart;
+      STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 7));
+      STATE.selectedDate = STATE.currentWeekStart;
+    }
     ensureSampleDataForCurrentWeek();
     renderAll();
     await syncWeekDataWithApi(renderAll);
   });
 
+  // Today Button
   DOM.todayBtn.addEventListener('click', async () => {
-    STATE.currentWeekStart = getMonday(new Date());
+    const now = new Date();
+    STATE.selectedDate = now;
+    STATE.currentWeekStart = getMonday(now);
     ensureSampleDataForCurrentWeek();
     renderAll();
     await syncWeekDataWithApi(renderAll);
   });
 
+  // Date Picker
   DOM.weekDatePicker.addEventListener('change', async (e) => {
     const val = e.target.value;
     if (val) {
       const [y, m, d] = val.split('-').map(Number);
       const pickedDate = new Date(y, m - 1, d);
+      STATE.selectedDate = pickedDate;
       STATE.currentWeekStart = getMonday(pickedDate);
       ensureSampleDataForCurrentWeek();
       renderAll();
@@ -251,7 +295,7 @@ function bindEvents() {
 
   DOM.categoryFilter.addEventListener('change', (e) => {
     STATE.selectedCategoryFilter = e.target.value;
-    renderGrid(DOM.scheduleTableBody);
+    renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
     renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
   });
 
@@ -298,32 +342,52 @@ function bindEvents() {
   });
 }
 
+async function handleSwitchToDayView(targetDateStr) {
+  const [y, m, d] = targetDateStr.split('-').map(Number);
+  const targetDate = new Date(y, m - 1, d);
+  STATE.selectedDate = targetDate;
+  STATE.currentWeekStart = getMonday(targetDate);
+  STATE.scheduleViewMode = 'day';
+
+  DOM.viewModeBtns.forEach(b => {
+    if (b.dataset.mode === 'day') b.classList.add('active');
+    else b.classList.remove('active');
+  });
+
+  renderAll();
+  await syncWeekDataWithApi(renderAll);
+}
+
 function renderAll() {
-  renderWeekHeader();
-  if (STATE.activeView === 'grid') renderGrid(DOM.scheduleTableBody);
+  renderHeaderRangeText();
+  if (STATE.activeView === 'grid') renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
   if (STATE.activeView === 'habits') renderHabits(DOM.habitLogTableBody, DOM.totalPointsBadge);
   if (STATE.activeView === 'analytics') renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
   if (STATE.activeView === 'notes') renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
 }
 
-function renderWeekHeader() {
-  const dates = getWeekDates(STATE.currentWeekStart);
-  const monDate = new Date(dates[0] + 'T00:00:00');
-  const sunDate = new Date(dates[6] + 'T00:00:00');
+function renderHeaderRangeText() {
+  const selDate = STATE.selectedDate || new Date();
 
-  const startStr = formatDateShort(monDate);
-  const endStr = formatDateShort(sunDate);
-  const yearStr = sunDate.getFullYear();
+  if (STATE.scheduleViewMode === 'day') {
+    const dayFull = selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    DOM.currentWeekRange.textContent = dayFull;
+    DOM.weekDatePicker.value = formatDateISO(selDate);
+  } else if (STATE.scheduleViewMode === 'month') {
+    const monthFull = selDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    DOM.currentWeekRange.textContent = monthFull;
+    DOM.weekDatePicker.value = formatDateISO(selDate);
+  } else {
+    const dates = getWeekDates(STATE.currentWeekStart);
+    const monDate = new Date(dates[0] + 'T00:00:00');
+    const sunDate = new Date(dates[6] + 'T00:00:00');
 
-  DOM.currentWeekRange.textContent = `Mon, ${startStr} – Sun, ${endStr}, ${yearStr}`;
-  DOM.weekDatePicker.value = dates[0];
+    const startStr = formatDateShort(monDate);
+    const endStr = formatDateShort(sunDate);
+    const yearStr = sunDate.getFullYear();
 
-  for (let i = 1; i <= 7; i++) {
-    const parts = dates[i - 1].split('-');
-    const m = parseInt(parts[1], 10);
-    const d = parseInt(parts[2], 10);
-    const el = document.getElementById(`date-${i}`);
-    if (el) el.textContent = `${m}/${d}`;
+    DOM.currentWeekRange.textContent = `Mon, ${startStr} – Sun, ${endStr}, ${yearStr}`;
+    DOM.weekDatePicker.value = dates[0];
   }
 }
 

@@ -1,16 +1,22 @@
 /**
  * DayFlow State & Storage Manager
- * Ensures entered tasks are preserved in PostgreSQL DB & namespaced user storage
+ * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js';
+import { ApiClient } from './apiClient.js?v=2.3';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
+  selectedDate: new Date(),
+  scheduleViewMode: 'week', // 'day' | 'week' | 'month'
   selectedCategoryFilter: 'ALL',
   activeView: 'grid',
   activeSlotKey: null,
   scheduleData: {},
 };
+
+export function setScheduleViewMode(mode) {
+  STATE.scheduleViewMode = mode;
+}
 
 export function formatDateISO(dateObj) {
   const y = dateObj.getFullYear();
@@ -94,7 +100,6 @@ export async function syncWeekDataWithApi(onRender) {
 
   const apiSlots = await ApiClient.fetchWeekSchedule(weekKey);
   if (apiSlots !== null && typeof apiSlots === 'object') {
-    // Replace current week slots strictly with user's PostgreSQL database slots
     weekData.slots = apiSlots;
     saveStateToStorage();
     if (onRender) onRender();
