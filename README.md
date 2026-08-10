@@ -2,7 +2,7 @@
 
 > A focus-driven, 30-minute time-blocking daily scheduler, habit ledger, and productivity analytics application.
 
-![DayFlow Banner](https://img.shields.shields.io/badge/DayFlow-v2.0.0-blueviolet?style=for-the-badge)
+![DayFlow Banner](https://img.shields.shields.io/badge/DayFlow-v2.2.0-blueviolet?style=for-the-badge)
 ![License](https://img.shields.shields.io/badge/License-MIT-green?style=for-the-badge)
 ![Status](https://img.shields.shields.io/badge/Status-Active_Development-brightgreen?style=for-the-badge)
 
@@ -17,13 +17,14 @@
 ## ✨ Key Features
 
 - ⏰ **30-Minute Time-Blocking Calendar Grid**: Intuitive daily/weekly view with 30-minute slot granularity (04:00 AM – 11:00 PM).
+- 📌 **Planned Task vs. Actual Task Separation**: Explicit baseline plan tracking with editable actual execution history.
+- 🔒 **Scheduled Time-Lock Baseline**: Automatically locks baseline planned tasks once scheduled slot time has passed.
 - ⏱️ **Planned vs. Actual Time Tracking**: Enter planned activities in advance, then log exact minutes spent (0–30+ mins).
-- ✏️ **Fully Editable Task History**: Modify task names, categories, actual durations, and completion statuses anytime—even after completion.
 - 🏷️ **Categorical Tagging & Color Coding**: Organizes tasks across `Learning` (WPF, WCF, React, Angular, COBOL), `Work`, `Household`, `Family`, `Health & Meal`, and `Travel`.
 - 📊 **Focus Analytics Dashboard**: Visual summary of total scheduled vs. actual hours spent per category with productivity scores.
-- 📓 **Habit & Discipline Ledger**: Instant logging for habit enforcement (post-meal logging, non-working hours tracking, discipline rules).
-- 📋 **Weekly Notes & To-Do Checklist**: Dedicated workspace for freeform weekly notes and priority items.
-- 💾 **Local & Offline Persistence**: Automatic sync to browser storage with JSON import/export capabilities.
+- ⚡ **Habit & Discipline Ledger**: Instant logging for habit enforcement (post-meal logging, non-working hours tracking, discipline rules).
+- 📓 **Weekly Notes & To-Do Checklist**: Dedicated workspace for freeform weekly notes and priority items.
+- 🌐 **Express REST API & PostgreSQL Backend**: Scalable backend API server running on port 5000 with offline localStorage fallback.
 
 ---
 
@@ -32,35 +33,41 @@
 ```
 DayFlow/
 ├── doc/
-│   └── TECHNICAL_SPECIFICATION.md   # Comprehensive system architecture & spec
-├── index.html                        # DayFlow Web Application markup
-├── styles.css                        # Design system, glassmorphism & layouts
-├── app.js                            # Core application logic & state engine
-├── README.md                         # Project overview and quickstart guide
+│   ├── TECHNICAL_SPECIFICATION.md   # Comprehensive system architecture & spec
+│   └── DEPLOYMENT_LIGHTSAIL.md      # AWS Lightsail server deployment guide
+├── server/                          # Phase 2: Node.js Express REST API Server
+│   ├── src/
+│   │   ├── db/                     # PostgreSQL pool connection & schema DDL
+│   │   ├── routes/                 # Express REST API route handlers
+│   │   └── server.ts               # Server bootstrap (Port 5000)
+│   ├── package.json
+│   └── tsconfig.json
+├── src/                             # Modular Web Application Assets
+│   ├── css/styles.css
+│   ├── data/initialData.js
+│   └── js/ (app.js, grid.js, modal.js, state.js, habits.js, analytics.js, notes.js, apiClient.js)
+├── index.html                       # Web application entry point
+├── README.md                        # Project overview and quickstart guide
 └── .gitignore                        # Standard git ignore configuration
 ```
 
 ---
 
-## 🚀 Quick Start (Web Application)
+## 🚀 Quick Start
 
-DayFlow Web App runs directly in any modern browser without external build dependencies.
+### 1. Launching the Web Application (Frontend)
+```bash
+python -m http.server 8080
+```
+Navigate to `http://localhost:8080` in your web browser.
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/josephcjai/DayFlow.git
-   cd DayFlow
-   ```
-2. **Open in Browser**:
-   - Simply double click `index.html` or open it with your browser of choice.
-   - Alternatively, serve via a local HTTP server:
-     ```bash
-     npx serve ./
-     ```
-3. **Usage**:
-   - Click on any 30-minute time slot to schedule a task or log actual time.
-   - Use the **Habit Ledger** tab to quickly log daily routine actions.
-   - Open **Focus Analytics** to inspect weekly category breakdowns.
+### 2. Running the Backend API Server (Node.js / Express)
+```bash
+cd server
+npm install
+npm run dev
+```
+The REST API server runs at `http://localhost:5000/api`.
 
 ---
 
@@ -69,8 +76,8 @@ DayFlow Web App runs directly in any modern browser without external build depen
 For in-depth details on the relational database model (PostgreSQL schema), Node.js backend integration, and cross-platform Flutter mobile deployment, refer to the [Technical Specification Document](file:///c:/githubrepo/myrepos/DayFlow/doc/TECHNICAL_SPECIFICATION.md).
 
 ### Roadmap
-- [x] **Phase 1**: Technical Specification & Web Application (Interactive Grid, Editable History, Habit Ledger, Local Storage).
-- [ ] **Phase 2**: Node.js / Express REST API and PostgreSQL database backend.
+- [x] **Phase 1**: Technical Specification & Web Application (Interactive Grid, Planned vs Actual Tasks, Habit Ledger, Local Storage).
+- [x] **Phase 2**: Node.js / Express REST API and PostgreSQL database backend.
 - [ ] **Phase 3**: Cross-platform Flutter Mobile Application (Android & iOS).
 - [ ] **Phase 4**: Real-time cloud sync & notification alerts.
 

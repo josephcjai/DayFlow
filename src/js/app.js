@@ -1,5 +1,6 @@
 /**
  * DayFlow Main Entry Point & Router
+ * Enforces mandatory login screen gate & user-isolated database sync
  */
 import {
   STATE,
@@ -7,10 +8,12 @@ import {
   getWeekDates,
   getWeekKey,
   loadStateFromStorage,
+  syncWeekDataWithApi,
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
 } from './state.js';
+import { ApiClient } from './apiClient.js';
 import { renderGrid } from './grid.js';
 import { initModal } from './modal.js';
 import { renderHabits, addHabitLog } from './habits.js';
@@ -19,16 +22,21 @@ import { renderNotes } from './notes.js';
 
 const DOM = {};
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   cacheDomElements();
   loadStateFromStorage();
-  ensureSampleDataForCurrentWeek();
   initModal(DOM.modalElements, renderAll);
   bindEvents();
-  renderAll();
+  initAuthUI();
+  
+  // Check active user session gate
+  await checkUserSessionGate();
 });
 
 function cacheDomElements() {
+  DOM.loginScreen = document.getElementById('loginScreen');
+  DOM.app = document.getElementById('app');
+
   DOM.navBtns = document.querySelectorAll('.nav-btn');
   DOM.viewPanels = document.querySelectorAll('.view-panel');
 
@@ -63,6 +71,21 @@ function cacheDomElements() {
   DOM.weeklyNotesTextarea = document.getElementById('weeklyNotesTextarea');
   DOM.notesSavedStatus = document.getElementById('notesSavedStatus');
 
+  // Auth Landing Gate Elements
+  DOM.userDisplayName = document.getElementById('userDisplayName');
+  DOM.logoutBtn = document.getElementById('logoutBtn');
+  DOM.tabLandingSignIn = document.getElementById('tabLandingSignIn');
+  DOM.tabLandingRegister = document.getElementById('tabLandingRegister');
+  DOM.landingLoginForm = document.getElementById('landingLoginForm');
+  DOM.landingRegisterForm = document.getElementById('landingRegisterForm');
+  DOM.landingLoginEmail = document.getElementById('landingLoginEmail');
+  DOM.landingLoginPassword = document.getElementById('landingLoginPassword');
+  DOM.landingLoginErrorMsg = document.getElementById('landingLoginErrorMsg');
+  DOM.landingRegisterName = document.getElementById('landingRegisterName');
+  DOM.landingRegisterEmail = document.getElementById('landingRegisterEmail');
+  DOM.landingRegisterPassword = document.getElementById('landingRegisterPassword');
+  DOM.landingRegisterErrorMsg = document.getElementById('landingRegisterErrorMsg');
+
   DOM.modalElements = {
     taskModal: document.getElementById('taskModal'),
     closeModalBtn: document.getElementById('closeModalBtn'),
@@ -82,6 +105,102 @@ function cacheDomElements() {
   };
 }
 
+function initAuthUI() {
+  DOM.tabLandingSignIn.addEventListener('click', () => switchLandingTab('signin'));
+  DOM.tabLandingRegister.addEventListener('click', () => switchLandingTab('register'));
+
+  DOM.landingLoginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    DOM.landingLoginErrorMsg.style.display = 'none';
+    try {
+      const email = DOM.landingLoginEmail.value.trim();
+      const password = DOM.landingLoginPassword.value;
+      const res = await ApiClient.login(email, password);
+      
+      localStorage.setItem('dayflow_token', res.token);
+      localStorage.setItem('dayflow_user', JSON.stringify(res.user));
+      
+      await onAuthSuccess(res.user);
+    } catch (err) {
+      DOM.landingLoginErrorMsg.textContent = err.message;
+      DOM.landingLoginErrorMsg.style.display = 'block';
+    }
+  });
+
+  DOM.landingRegisterForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    DOM.landingRegisterErrorMsg.style.display = 'none';
+    try {
+      const name = DOM.landingRegisterName.value.trim();
+      const email = DOM.landingRegisterEmail.value.trim();
+      const password = DOM.landingRegisterPassword.value;
+      const res = await ApiClient.register(email, password, name);
+
+      localStorage.setItem('dayflow_token', res.token);
+      localStorage.setItem('dayflow_user', JSON.stringify(res.user));
+
+      await onAuthSuccess(res.user);
+    } catch (err) {
+      DOM.landingRegisterErrorMsg.textContent = err.message;
+      DOM.landingRegisterErrorMsg.style.display = 'block';
+    }
+  });
+
+  DOM.logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('dayflow_token');
+    localStorage.removeItem('dayflow_user');
+    STATE.scheduleData = {};
+    showLoginScreen();
+  });
+}
+
+async function checkUserSessionGate() {
+  const token = localStorage.getItem('dayflow_token');
+  const storedUser = localStorage.getItem('dayflow_user');
+
+  if (token && storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      await onAuthSuccess(user);
+      return;
+    } catch (e) {}
+  }
+  
+  // Unauthenticated -> Show Login Screen
+  showLoginScreen();
+}
+
+async function onAuthSuccess(user) {
+  DOM.userDisplayName.textContent = user.displayName || user.email.split('@')[0];
+  DOM.loginScreen.style.display = 'none';
+  DOM.app.style.display = 'flex';
+  
+  STATE.scheduleData = {};
+  ensureSampleDataForCurrentWeek();
+  renderAll();
+  await syncWeekDataWithApi(renderAll);
+}
+
+function showLoginScreen() {
+  DOM.app.style.display = 'none';
+  DOM.loginScreen.style.display = 'flex';
+  switchLandingTab('signin');
+}
+
+function switchLandingTab(tab) {
+  if (tab === 'signin') {
+    DOM.tabLandingSignIn.classList.add('active');
+    DOM.tabLandingRegister.classList.remove('active');
+    DOM.landingLoginForm.style.display = 'block';
+    DOM.landingRegisterForm.style.display = 'none';
+  } else {
+    DOM.tabLandingRegister.classList.add('active');
+    DOM.tabLandingSignIn.classList.remove('active');
+    DOM.landingLoginForm.style.display = 'none';
+    DOM.landingRegisterForm.style.display = 'block';
+  }
+}
+
 function bindEvents() {
   DOM.navBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -95,27 +214,30 @@ function bindEvents() {
     });
   });
 
-  DOM.prevWeekBtn.addEventListener('click', () => {
+  DOM.prevWeekBtn.addEventListener('click', async () => {
     const cur = STATE.currentWeekStart;
     STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - 7));
     ensureSampleDataForCurrentWeek();
     renderAll();
+    await syncWeekDataWithApi(renderAll);
   });
 
-  DOM.nextWeekBtn.addEventListener('click', () => {
+  DOM.nextWeekBtn.addEventListener('click', async () => {
     const cur = STATE.currentWeekStart;
     STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 7));
     ensureSampleDataForCurrentWeek();
     renderAll();
+    await syncWeekDataWithApi(renderAll);
   });
 
-  DOM.todayBtn.addEventListener('click', () => {
+  DOM.todayBtn.addEventListener('click', async () => {
     STATE.currentWeekStart = getMonday(new Date());
     ensureSampleDataForCurrentWeek();
     renderAll();
+    await syncWeekDataWithApi(renderAll);
   });
 
-  DOM.weekDatePicker.addEventListener('change', (e) => {
+  DOM.weekDatePicker.addEventListener('change', async (e) => {
     const val = e.target.value;
     if (val) {
       const [y, m, d] = val.split('-').map(Number);
@@ -123,6 +245,7 @@ function bindEvents() {
       STATE.currentWeekStart = getMonday(pickedDate);
       ensureSampleDataForCurrentWeek();
       renderAll();
+      await syncWeekDataWithApi(renderAll);
     }
   });
 

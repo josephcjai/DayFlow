@@ -11,14 +11,65 @@
   <link rel="stylesheet" href="src/css/styles.css">
 </head>
 <body>
-  <div id="app" class="app-container">
+  <!-- DEDICATED FULL-SCREEN LOGIN / REGISTRATION GATE -->
+  <div id="loginScreen" class="login-screen-container">
+    <div class="login-card-wrapper">
+      <div class="login-brand">
+        <div class="logo-icon-lg">⏳</div>
+        <h2>DayFlow</h2>
+        <p class="tagline">30-Minute Schedule, Habit Ledger & Focus Analytics</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button id="tabLandingSignIn" class="auth-tab-btn active">Sign In</button>
+        <button id="tabLandingRegister" class="auth-tab-btn">Create Account</button>
+      </div>
+
+      <div class="login-card-body">
+        <!-- Sign In Form -->
+        <form id="landingLoginForm">
+          <div class="form-group">
+            <label for="landingLoginEmail">Email Address *</label>
+            <input type="email" id="landingLoginEmail" placeholder="your.email@example.com" required class="text-input">
+          </div>
+          <div class="form-group">
+            <label for="landingLoginPassword">Password *</label>
+            <input type="password" id="landingLoginPassword" placeholder="••••••••" required class="text-input">
+          </div>
+          <div id="landingLoginErrorMsg" class="auth-error-msg" style="display: none;"></div>
+          <button type="submit" class="btn btn-primary btn-block">Sign In & Open Schedule</button>
+        </form>
+
+        <!-- Create Account Form -->
+        <form id="landingRegisterForm" style="display: none;">
+          <div class="form-group">
+            <label for="landingRegisterName">Full Name *</label>
+            <input type="text" id="landingRegisterName" placeholder="e.g. Joseph CJ" required class="text-input">
+          </div>
+          <div class="form-group">
+            <label for="landingRegisterEmail">Email Address *</label>
+            <input type="email" id="landingRegisterEmail" placeholder="your.email@example.com" required class="text-input">
+          </div>
+          <div class="form-group">
+            <label for="landingRegisterPassword">Password *</label>
+            <input type="password" id="landingRegisterPassword" placeholder="Minimum 6 characters" required class="text-input" minlength="6">
+          </div>
+          <div id="landingRegisterErrorMsg" class="auth-error-msg" style="display: none;"></div>
+          <button type="submit" class="btn btn-primary btn-block">Create Account & Enter</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATED DASHBOARD APPLICATION (HIDDEN UNTIL USER SIGN IN) -->
+  <div id="app" class="app-container" style="display: none;">
     <!-- Header -->
     <header class="app-header">
       <div class="brand">
         <div class="logo-icon">⏳</div>
         <div class="brand-text">
           <h1>DayFlow</h1>
-          <span class="badge">v2.1 Web</span>
+          <span class="badge">v2.2 Web</span>
         </div>
       </div>
 
@@ -38,8 +89,15 @@
         </button>
       </nav>
 
-      <!-- Quick Actions -->
+      <!-- User Account & Quick Actions -->
       <div class="header-actions">
+        <div class="user-badge" id="userBadge">
+          <span class="user-icon">👤</span>
+          <span id="userDisplayName">User</span>
+        </div>
+        <button id="logoutBtn" class="btn btn-outline" title="Sign Out">
+          <span>🚪</span> Logout
+        </button>
         <button id="exportBtn" class="btn btn-outline" title="Export Schedule JSON">
           <span>📤</span> Export
         </button>

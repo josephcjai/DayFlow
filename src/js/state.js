@@ -1,7 +1,8 @@
 /**
  * DayFlow State & Storage Manager
- * Ensures entered tasks are preserved and un-entered slots remain blank
+ * Ensures entered tasks are preserved in PostgreSQL DB & namespaced user storage
  */
+import { ApiClient } from './apiClient.js';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -10,6 +11,13 @@ export const STATE = {
   activeSlotKey: null,
   scheduleData: {},
 };
+
+export function formatDateISO(dateObj) {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 export function getMonday(d) {
   const date = new Date(d);
@@ -20,10 +28,7 @@ export function getMonday(d) {
 
 export function getWeekKey(date) {
   const monday = getMonday(date);
-  const y = monday.getFullYear();
-  const m = String(monday.getMonth() + 1).padStart(2, '0');
-  const d = String(monday.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return formatDateISO(monday);
 }
 
 export function getWeekDates(mondayDate) {
@@ -31,19 +36,30 @@ export function getWeekDates(mondayDate) {
   const start = getMonday(mondayDate);
   for (let i = 0; i < 7; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    dates.push(`${y}-${m}-${day}`);
+    dates.push(formatDateISO(d));
   }
   return dates;
 }
 
+export function getUserStorageKey() {
+  const userJson = localStorage.getItem('dayflow_user');
+  if (userJson) {
+    try {
+      const u = JSON.parse(userJson);
+      if (u && u.id) return `dayflow_data_${u.id}`;
+    } catch (e) {}
+  }
+  return 'dayflow_data_guest';
+}
+
 export function loadStateFromStorage() {
   try {
-    const stored = localStorage.getItem('dayflow_v2_data');
+    const key = getUserStorageKey();
+    const stored = localStorage.getItem(key);
     if (stored) {
       STATE.scheduleData = JSON.parse(stored);
+    } else {
+      STATE.scheduleData = {};
     }
   } catch (e) {
     console.error('Failed to load DayFlow state:', e);
@@ -52,7 +68,8 @@ export function loadStateFromStorage() {
 
 export function saveStateToStorage() {
   try {
-    localStorage.setItem('dayflow_v2_data', JSON.stringify(STATE.scheduleData));
+    const key = getUserStorageKey();
+    localStorage.setItem(key, JSON.stringify(STATE.scheduleData));
   } catch (e) {
     console.error('Failed to save DayFlow state:', e);
   }
@@ -69,6 +86,19 @@ export function getCurrentWeekData() {
     };
   }
   return STATE.scheduleData[weekKey];
+}
+
+export async function syncWeekDataWithApi(onRender) {
+  const weekKey = getWeekKey(STATE.currentWeekStart);
+  const weekData = getCurrentWeekData();
+
+  const apiSlots = await ApiClient.fetchWeekSchedule(weekKey);
+  if (apiSlots !== null && typeof apiSlots === 'object') {
+    // Replace current week slots strictly with user's PostgreSQL database slots
+    weekData.slots = apiSlots;
+    saveStateToStorage();
+    if (onRender) onRender();
+  }
 }
 
 export function ensureSampleDataForCurrentWeek() {

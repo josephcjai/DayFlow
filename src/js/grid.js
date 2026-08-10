@@ -1,7 +1,8 @@
 /**
  * DayFlow Schedule Grid Renderer
+ * Automatically highlights and focuses the current active 30-minute time slot
  */
-import { STATE, getWeekDates, getCurrentWeekData } from './state.js';
+import { STATE, getWeekDates, getCurrentWeekData, formatDateISO } from './state.js';
 import { openTaskModal } from './modal.js';
 
 export const TIME_SLOTS = [];
@@ -15,9 +16,20 @@ for (let hour = 4; hour <= 23; hour++) {
   }
 }
 
+export function getCurrentSlotKey() {
+  const now = new Date();
+  const dateStr = formatDateISO(now);
+  const hour = String(now.getHours()).padStart(2, '0');
+  const slotMin = now.getMinutes() < 30 ? '00' : '30';
+  return `${dateStr}_${hour}:${slotMin}`;
+}
+
 export function renderGrid(scheduleTableBody) {
   const weekData = getCurrentWeekData();
   const dates = getWeekDates(STATE.currentWeekStart);
+  const currentSlotKey = getCurrentSlotKey();
+  let currentActiveTd = null;
+
   scheduleTableBody.innerHTML = '';
 
   TIME_SLOTS.forEach(slotInfo => {
@@ -34,12 +46,18 @@ export function renderGrid(scheduleTableBody) {
       const dateStr = dates[dayIdx];
       const slotKey = `${dateStr}_${slotInfo.key}`;
       const slotData = weekData.slots[slotKey];
+      const isCurrentSlot = (slotKey === currentSlotKey);
 
       const td = document.createElement('td');
       td.className = 'slot-cell';
       td.dataset.slotKey = slotKey;
       td.dataset.dayName = getDayName(dayIdx);
       td.dataset.timeLabel = slotInfo.label;
+
+      if (isCurrentSlot) {
+        td.classList.add('current-active-slot');
+        currentActiveTd = td;
+      }
 
       let isFilteredOut = false;
       if (STATE.selectedCategoryFilter !== 'ALL' && slotData) {
@@ -65,7 +83,10 @@ export function renderGrid(scheduleTableBody) {
               <span class="slot-title" title="Actual: ${escapeHtml(actualText)} | Planned: ${escapeHtml(plannedText)}">
                 ${escapeHtml(actualText)}
               </span>
-              <span class="status-indicator">${statusIcon}</span>
+              <span class="status-indicator">
+                ${isCurrentSlot ? '<span class="now-pill">📍 NOW</span>' : ''}
+                ${statusIcon}
+              </span>
             </div>
             ${isDifferent ? `<div class="planned-subtext">Plan: ${escapeHtml(plannedText)}</div>` : ''}
             <div class="slot-footer-row">
@@ -76,6 +97,14 @@ export function renderGrid(scheduleTableBody) {
         `;
       } else {
         td.classList.add('empty');
+        if (isCurrentSlot) {
+          td.innerHTML = `
+            <div class="slot-content current-empty-content">
+              <div class="now-badge-row"><span class="now-pill">📍 NOW</span></div>
+              <div class="now-hint-text">+ Log current task</div>
+            </div>
+          `;
+        }
       }
 
       td.addEventListener('click', () => openTaskModal(slotKey, td.dataset.dayName, slotInfo.label, slotData));
@@ -84,6 +113,21 @@ export function renderGrid(scheduleTableBody) {
 
     scheduleTableBody.appendChild(tr);
   });
+
+  // Auto-Scroll Container Focus to current active 30-minute cell
+  if (currentActiveTd) {
+    setTimeout(() => {
+      const container = document.querySelector('.timeline-table-container');
+      if (container) {
+        const tdTop = currentActiveTd.offsetTop;
+        const containerHeight = container.clientHeight;
+        container.scrollTo({
+          top: Math.max(0, tdTop - containerHeight / 2 + 40),
+          behavior: 'smooth'
+        });
+      }
+    }, 200);
+  }
 }
 
 function formatTimeLabel(hour, min) {

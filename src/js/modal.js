@@ -2,7 +2,8 @@
  * DayFlow Task Editor Modal Controller
  * Implements Planned vs Actual Task distinction & time-lock rules
  */
-import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage } from './state.js';
+import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey } from './state.js';
+import { ApiClient } from './apiClient.js';
 
 let modalElements = {};
 let renderCallback = null;
@@ -36,9 +37,14 @@ export function initModal(elements, onSaveOrDelete) {
 
   modalElements.deleteTaskBtn.addEventListener('click', () => {
     if (STATE.activeSlotKey) {
+      const weekKey = getWeekKey(STATE.currentWeekStart);
       const weekData = getCurrentWeekData();
       delete weekData.slots[STATE.activeSlotKey];
       saveStateToStorage();
+      
+      // Sync delete with PostgreSQL database
+      ApiClient.deleteSlot(weekKey, STATE.activeSlotKey);
+
       closeModal();
       if (renderCallback) renderCallback();
     }
@@ -106,10 +112,11 @@ function saveSlotTask() {
 
   if (!plannedTask && !actualTask) return;
 
+  const weekKey = getWeekKey(STATE.currentWeekStart);
   const weekData = getCurrentWeekData();
   const existing = weekData.slots[STATE.activeSlotKey] || {};
 
-  weekData.slots[STATE.activeSlotKey] = {
+  const slotObject = {
     ...existing,
     plannedTask: modalElements.plannedTaskInput.disabled ? (existing.plannedTask || plannedTask) : plannedTask,
     actualTask: actualTask,
@@ -120,7 +127,13 @@ function saveSlotTask() {
     notes: modalElements.taskNotesInput.value.trim()
   };
 
+  weekData.slots[STATE.activeSlotKey] = slotObject;
+
   saveStateToStorage();
+
+  // Sync save directly with PostgreSQL DB via Express REST API
+  ApiClient.saveSlot(weekKey, STATE.activeSlotKey, slotObject);
+
   closeModal();
   if (renderCallback) renderCallback();
 }
