@@ -118,12 +118,12 @@ export const ApiClient = {
     return null;
   },
 
-  async logHabit(weekStart, name, pts, notes) {
+  async logHabit(weekStart, name, pts, notes, logTime) {
     try {
       await fetch(`${API_BASE}/habits/log`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ weekStart, name, pts, notes })
+        body: JSON.stringify({ weekStart, name, pts, notes, logTime })
       });
     } catch (e) {
       console.log('Logged habit offline');

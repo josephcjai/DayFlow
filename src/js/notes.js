@@ -1,9 +1,9 @@
 /**
  * DayFlow Notes & Todo Checklist Controller
  */
-import { getCurrentWeekData, saveStateToStorage } from './state.js';
-import { ApiClient } from './apiClient.js';
-import { escapeHtml } from './utils.js';
+import { getCurrentWeekData, saveStateToStorage } from './state.js?v=2.3.1';
+import { ApiClient } from './apiClient.js?v=2.3.1';
+import { escapeHtml } from './utils.js?v=2.3.1';
 
 export function renderNotes(todoList, weeklyNotesTextarea) {
   const weekData = getCurrentWeekData();

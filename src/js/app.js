@@ -13,13 +13,13 @@ import {
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js';
-import { ApiClient } from './apiClient.js';
-import { renderGrid } from './grid.js';
-import { initModal } from './modal.js';
-import { renderHabits, addHabitLog } from './habits.js';
-import { renderAnalytics } from './analytics.js';
-import { renderNotes } from './notes.js';
+} from './state.js?v=2.3.1';
+import { ApiClient } from './apiClient.js?v=2.3.1';
+import { renderGrid } from './grid.js?v=2.3.1';
+import { initModal } from './modal.js?v=2.3.1';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.3.1';
+import { renderAnalytics } from './analytics.js?v=2.3.1';
+import { renderNotes } from './notes.js?v=2.3.1';
 
 const DOM = {};
 
@@ -55,8 +55,9 @@ function cacheDomElements() {
 
   DOM.scheduleTableBody = document.getElementById('scheduleTableBody');
 
-  DOM.habitQuickBtns = document.querySelectorAll('.habit-btn');
+  DOM.habitQuickActionsContainer = document.querySelector('.habit-quick-actions');
   DOM.customHabitForm = document.getElementById('customHabitForm');
+  DOM.habitDateInput = document.getElementById('habitDateInput');
   DOM.habitNameInput = document.getElementById('habitNameInput');
   DOM.habitPointsInput = document.getElementById('habitPointsInput');
   DOM.habitNotesInput = document.getElementById('habitNotesInput');
@@ -179,6 +180,9 @@ async function onAuthSuccess(user) {
   DOM.app.style.display = 'flex';
   
   loadStateFromStorage();
+  if (DOM.habitDateInput && !DOM.habitDateInput.value) {
+    DOM.habitDateInput.value = formatDateISO(new Date());
+  }
   ensureSampleDataForCurrentWeek();
   renderAll();
   await syncWeekDataWithApi(renderAll);
@@ -258,19 +262,16 @@ function bindEvents() {
   DOM.importBtn.addEventListener('click', () => DOM.importFileInput.click());
   DOM.importFileInput.addEventListener('change', importDataJson);
 
-  DOM.habitQuickBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      addHabitLog(btn.dataset.habit, parseInt(btn.dataset.pts, 10), "Quick trigger action", DOM.habitLogTableBody, DOM.totalPointsBadge);
-    });
-  });
+
 
   DOM.customHabitForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = DOM.habitNameInput.value.trim();
     const pts = parseInt(DOM.habitPointsInput.value, 10) || 0;
     const notes = DOM.habitNotesInput.value.trim();
+    const selectedDate = (DOM.habitDateInput && DOM.habitDateInput.value) ? DOM.habitDateInput.value : formatDateISO(new Date());
     if (name) {
-      addHabitLog(name, pts, notes, DOM.habitLogTableBody, DOM.totalPointsBadge);
+      addHabitLog(name, pts, notes, DOM.habitLogTableBody, DOM.totalPointsBadge, selectedDate);
       DOM.habitNameInput.value = '';
       DOM.habitNotesInput.value = '';
     }
@@ -356,13 +357,20 @@ async function handleSwitchToDayView(targetDateStr) {
 function renderAll() {
   renderHeaderRangeText();
   if (STATE.activeView === 'grid') renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
-  if (STATE.activeView === 'habits') renderHabits(DOM.habitLogTableBody, DOM.totalPointsBadge);
+  if (STATE.activeView === 'habits') {
+    renderQuickPresetsUI(DOM.habitQuickActionsContainer, DOM.habitLogTableBody, DOM.totalPointsBadge, () => DOM.habitDateInput?.value);
+    renderHabits(DOM.habitLogTableBody, DOM.totalPointsBadge);
+  }
   if (STATE.activeView === 'analytics') renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
   if (STATE.activeView === 'notes') renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
 }
 
 function renderHeaderRangeText() {
   const selDate = STATE.selectedDate || new Date();
+
+  if (DOM.habitDateInput) {
+    DOM.habitDateInput.value = formatDateISO(selDate);
+  }
 
   if (STATE.scheduleViewMode === 'day') {
     const dayFull = selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });

@@ -1,7 +1,7 @@
 /**
  * DayFlow Focus Analytics Calculator
  */
-import { getCurrentWeekData } from './state.js';
+import { getCurrentWeekData } from './state.js?v=2.3.1';
 
 const CATEGORIES = [
   { id: 'Learning', name: 'Learning (WPF/WCF/React/Angular)', color: 'var(--cat-learning)' },

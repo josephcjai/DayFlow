@@ -549,6 +549,61 @@ body {
   border-radius: var(--radius-full);
 }
 
+.preset-btn-wrapper {
+  position: relative;
+  display: flex;
+}
+
+.preset-btn-wrapper .habit-btn {
+  width: 100%;
+}
+
+.remove-preset-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-danger);
+  color: #fff;
+  border: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.preset-btn-wrapper:hover .remove-preset-badge {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.add-preset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border-color);
+  background: rgba(30, 41, 59, 0.4);
+  color: var(--accent-secondary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-preset-btn:hover {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.1);
+  color: #fff;
+}
+
 .habit-form-card, .habit-history-card, .analytics-card, .todo-card, .notes-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);

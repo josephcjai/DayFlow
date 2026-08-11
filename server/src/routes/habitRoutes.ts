@@ -40,9 +40,9 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 router.post('/log', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
-    const { weekStart, name, pts, notes } = req.body;
+    const { weekStart, name, pts, notes, logTime } = req.body;
     const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeStr = logTime || `${weekStart} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
     const newLog = {
       id: Date.now(),
