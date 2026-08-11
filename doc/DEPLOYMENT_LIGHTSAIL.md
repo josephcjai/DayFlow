@@ -90,6 +90,10 @@ sudo -u postgres psql
 CREATE DATABASE dayflow_db;
 CREATE USER dayflow_user WITH ENCRYPTED PASSWORD 'SelectSecurePasswordHere';
 GRANT ALL PRIVILEGES ON DATABASE dayflow_db TO dayflow_user;
+
+-- Migration note for existing instances:
+ALTER TABLE schedule_weeks ADD COLUMN IF NOT EXISTS weekly_notes TEXT;
+ALTER TABLE schedule_weeks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 \q
 ```
 

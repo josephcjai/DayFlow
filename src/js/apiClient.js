@@ -2,23 +2,16 @@
  * DayFlow REST API Client
  * Handles authentication & user-isolated database synchronization
  */
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:5000/api'
+  : '/api';
 
 function getAuthHeaders() {
   const token = localStorage.getItem('dayflow_token');
-  const userJson = localStorage.getItem('dayflow_user');
   const headers = { 'Content-Type': 'application/json' };
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-  }
-  if (userJson) {
-    try {
-      const user = JSON.parse(userJson);
-      if (user && user.id) {
-        headers['x-user-id'] = user.id;
-      }
-    } catch (e) {}
   }
   return headers;
 }
@@ -134,6 +127,83 @@ export const ApiClient = {
       });
     } catch (e) {
       console.log('Logged habit offline');
+    }
+  },
+
+  async deleteHabit(id) {
+    try {
+      await fetch(`${API_BASE}/habits/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+    } catch (e) {
+      console.log('Deleted habit offline');
+    }
+  },
+
+  async fetchTodosAndNotes(weekStart) {
+    try {
+      const res = await fetch(`${API_BASE}/todos/week/${weekStart}`, {
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(2000)
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.log('Using offline storage for todos/notes');
+    }
+    return null;
+  },
+
+  async addTodo(weekStart, text) {
+    try {
+      const res = await fetch(`${API_BASE}/todos/todo`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ weekStart, text })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.log('Saved todo offline');
+    }
+    return null;
+  },
+
+  async toggleTodo(id, completed) {
+    try {
+      await fetch(`${API_BASE}/todos/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ completed })
+      });
+    } catch (e) {
+      console.log('Toggled todo offline');
+    }
+  },
+
+  async deleteTodo(id) {
+    try {
+      await fetch(`${API_BASE}/todos/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+    } catch (e) {
+      console.log('Deleted todo offline');
+    }
+  },
+
+  async saveNotes(weekStart, notes) {
+    try {
+      await fetch(`${API_BASE}/todos/notes`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ weekStart, notes })
+      });
+    } catch (e) {
+      console.log('Saved notes offline');
     }
   }
 };

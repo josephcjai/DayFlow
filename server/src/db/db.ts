@@ -37,7 +37,7 @@ pool.connect((err, client, release) => {
   }
 });
 
-// In-Memory Database Store Fallback
+// In-Memory Database Store Fallback for local development without DB
 const MEMORY_DB: {
   users: any[];
   scheduleWeeks: Record<string, any>;
@@ -55,7 +55,7 @@ export async function executeQuery(text: string, params: any[] = []) {
     return await pool.query(text, params);
   } catch (e: any) {
     console.error('❌ PostgreSQL Query Error:', e.message);
-    return { rows: [] };
+    throw e;
   }
 }
 

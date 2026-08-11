@@ -1,5 +1,5 @@
 /**
- * Authentication Routes (Register, Login, & Password Sync)
+ * Authentication Routes (Register, Login, & User Profile)
  */
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
@@ -10,12 +10,20 @@ import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddlewa
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'dayflow_local_secret_key_2026';
 
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable must be set in production!');
+}
+
 // Register New User
 router.post('/register', async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -25,14 +33,7 @@ router.post('/register', async (req, res) => {
     // Check existing user in PostgreSQL
     const existing = await executeQuery('SELECT * FROM users WHERE LOWER(email) = $1', [cleanEmail]);
     if (existing.rows.length > 0) {
-      // Update password hash if user re-registers
-      await executeQuery(
-        'UPDATE users SET password_hash = $1, display_name = COALESCE($2, display_name) WHERE LOWER(email) = $3',
-        [passwordHash, displayName || null, cleanEmail]
-      );
-      const updatedUser = existing.rows[0];
-      const token = jwt.sign({ userId: updatedUser.id, email: updatedUser.email }, JWT_SECRET, { expiresIn: '30d' });
-      return res.json({ message: 'Account updated successfully', token, user: { id: updatedUser.id, email: updatedUser.email, displayName: displayName || updatedUser.display_name } });
+      return res.status(400).json({ error: 'An account with this email already exists. Please sign in.' });
     }
 
     const result = await executeQuery(
@@ -47,7 +48,7 @@ router.post('/register', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ message: 'Registration successful', token, user });
+    res.json({ message: 'Registration successful', token, user: { id: user.id, email: user.email, displayName: user.display_name || user.displayName } });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -73,15 +74,12 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'Account not found. Please click "Create Account" to sign up.' });
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash || user.passwordHash);
     if (!isMatch) {
-      // Auto-sync password for local testing if entered via login form
-      const salt = await bcrypt.genSalt(10);
-      const newHash = await bcrypt.hash(password, salt);
-      await executeQuery('UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2', [newHash, cleanEmail]);
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });

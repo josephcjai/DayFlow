@@ -4,6 +4,7 @@
  */
 import { STATE, getWeekDates, getCurrentWeekData, formatDateISO } from './state.js';
 import { openTaskModal } from './modal.js';
+import { escapeHtml } from './utils.js';
 
 export const TIME_SLOTS = [];
 for (let hour = 4; hour <= 23; hour++) {
@@ -32,17 +33,17 @@ export function renderGrid(scheduleTableBody, onSwitchToDayView) {
   const mode = STATE.scheduleViewMode || 'week';
 
   if (mode === 'month') {
-    if (gridWrapper) gridWrapper.style.setProperty('display', 'none', 'important');
+    if (gridWrapper) gridWrapper.style.display = 'none';
     if (monthViewContainer) {
-      monthViewContainer.style.setProperty('display', 'block', 'important');
+      monthViewContainer.style.display = 'block';
       renderMonthGrid(monthViewContainer, onSwitchToDayView);
     }
     return;
   }
 
   // Day or Week View Mode
-  if (monthViewContainer) monthViewContainer.style.setProperty('display', 'none', 'important');
-  if (gridWrapper) gridWrapper.style.setProperty('display', 'block', 'important');
+  if (monthViewContainer) monthViewContainer.style.display = 'none';
+  if (gridWrapper) gridWrapper.style.display = 'block';
 
   if (mode === 'day') {
     renderDayGridHeader(scheduleTableHeader);
@@ -130,6 +131,7 @@ function renderWeekGridBody(scheduleTableBody) {
 
         const statusIcon = getStatusIcon(slotData.status);
         const catName = slotData.category || 'General';
+        const escapedCat = escapeHtml(catName);
         
         const plannedText = slotData.plannedTask || slotData.title || '';
         const actualText = slotData.actualTask || slotData.title || plannedText;
@@ -148,7 +150,7 @@ function renderWeekGridBody(scheduleTableBody) {
             </div>
             ${isDifferent ? `<div class="planned-subtext">Plan: ${escapeHtml(plannedText)}</div>` : ''}
             <div class="slot-footer-row">
-              <span class="category-tag ${catName}">${catName}</span>
+              <span class="category-tag ${escapedCat}">${escapedCat}</span>
               <span class="time-dur-badge">${slotData.planned || 30}m | <strong>${slotData.actual || 0}m</strong></span>
             </div>
           </div>
@@ -230,6 +232,7 @@ function renderDayGridBody(scheduleTableBody) {
 
       const statusIcon = getStatusIcon(slotData.status);
       const catName = slotData.category || 'General';
+      const escapedCat = escapeHtml(catName);
       const plannedText = slotData.plannedTask || slotData.title || '';
       const actualText = slotData.actualTask || slotData.title || plannedText;
 
@@ -247,7 +250,7 @@ function renderDayGridBody(scheduleTableBody) {
           ${plannedText && plannedText !== actualText ? `<div class="planned-subtext">Baseline Plan: ${escapeHtml(plannedText)}</div>` : ''}
           ${slotData.notes ? `<div class="slot-notes-preview">📝 ${escapeHtml(slotData.notes)}</div>` : ''}
           <div class="slot-footer-row">
-            <span class="category-tag ${catName}">${catName}</span>
+            <span class="category-tag ${escapedCat}">${escapedCat}</span>
             <span class="time-dur-badge">Planned: ${slotData.planned || 30}m | <strong>Actual: ${slotData.actual || 0}m</strong></span>
           </div>
         </div>
@@ -301,7 +304,7 @@ function renderMonthGrid(container, onSwitchToDayView) {
   let html = `
     <div class="month-grid-wrapper">
       <div class="month-header-bar">
-        <h3>${monthName}</h3>
+        <h3>${escapeHtml(monthName)}</h3>
         <span class="month-subtitle">Click any day card to open Day View</span>
       </div>
       <div class="month-days-header">
@@ -393,14 +396,4 @@ function getStatusIcon(status) {
     case 'Not Done': return '❌';
     default: return '⚪';
   }
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }

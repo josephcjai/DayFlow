@@ -178,7 +178,7 @@ async function onAuthSuccess(user) {
   DOM.loginScreen.style.display = 'none';
   DOM.app.style.display = 'flex';
   
-  STATE.scheduleData = {};
+  loadStateFromStorage();
   ensureSampleDataForCurrentWeek();
   renderAll();
   await syncWeekDataWithApi(renderAll);
@@ -229,55 +229,10 @@ function bindEvents() {
     });
   });
 
-  // Prev Button (Day / Week / Month)
-  DOM.prevWeekBtn.addEventListener('click', async () => {
-    if (STATE.scheduleViewMode === 'day') {
-      const cur = STATE.selectedDate || new Date();
-      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - 1);
-      STATE.currentWeekStart = getMonday(STATE.selectedDate);
-    } else if (STATE.scheduleViewMode === 'month') {
-      const cur = STATE.selectedDate || new Date();
-      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth() - 1, 1);
-      STATE.currentWeekStart = getMonday(STATE.selectedDate);
-    } else {
-      const cur = STATE.currentWeekStart;
-      STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() - 7));
-      STATE.selectedDate = STATE.currentWeekStart;
-    }
-    ensureSampleDataForCurrentWeek();
-    renderAll();
-    await syncWeekDataWithApi(renderAll);
-  });
-
-  // Next Button (Day / Week / Month)
-  DOM.nextWeekBtn.addEventListener('click', async () => {
-    if (STATE.scheduleViewMode === 'day') {
-      const cur = STATE.selectedDate || new Date();
-      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
-      STATE.currentWeekStart = getMonday(STATE.selectedDate);
-    } else if (STATE.scheduleViewMode === 'month') {
-      const cur = STATE.selectedDate || new Date();
-      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
-      STATE.currentWeekStart = getMonday(STATE.selectedDate);
-    } else {
-      const cur = STATE.currentWeekStart;
-      STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 7));
-      STATE.selectedDate = STATE.currentWeekStart;
-    }
-    ensureSampleDataForCurrentWeek();
-    renderAll();
-    await syncWeekDataWithApi(renderAll);
-  });
-
-  // Today Button
-  DOM.todayBtn.addEventListener('click', async () => {
-    const now = new Date();
-    STATE.selectedDate = now;
-    STATE.currentWeekStart = getMonday(now);
-    ensureSampleDataForCurrentWeek();
-    renderAll();
-    await syncWeekDataWithApi(renderAll);
-  });
+  // Navigation Buttons
+  DOM.prevWeekBtn.addEventListener('click', () => navigateDate('prev'));
+  DOM.nextWeekBtn.addEventListener('click', () => navigateDate('next'));
+  DOM.todayBtn.addEventListener('click', () => navigateDate('today'));
 
   // Date Picker
   DOM.weekDatePicker.addEventListener('change', async (e) => {
@@ -321,25 +276,65 @@ function bindEvents() {
     }
   });
 
-  DOM.addTodoForm.addEventListener('submit', (e) => {
+  DOM.addTodoForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = DOM.todoInput.value.trim();
     if (text) {
-      const weekData = getCurrentWeekData();
-      weekData.todos.push({ id: Date.now(), text, completed: false });
+      const weekKey = getWeekKey(STATE.currentWeekStart);
+      const tempId = Date.now();
+      const localTodo = { id: tempId, text, completed: false };
+      weekData.todos.push(localTodo);
       DOM.todoInput.value = '';
       saveStateToStorage();
       renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
+
+      // Sync todo with API and patch server-assigned ID
+      const apiRes = await ApiClient.addTodo(weekKey, text);
+      if (apiRes && apiRes.todo && apiRes.todo.id) {
+        localTodo.id = apiRes.todo.id;
+        saveStateToStorage();
+        renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
+      }
     }
   });
 
   DOM.weeklyNotesTextarea.addEventListener('input', () => {
+    const weekKey = getWeekKey(STATE.currentWeekStart);
     const weekData = getCurrentWeekData();
     weekData.notes = DOM.weeklyNotesTextarea.value;
     saveStateToStorage();
     DOM.notesSavedStatus.textContent = 'Saving...';
+    
+    // Sync notes with API
+    ApiClient.saveNotes(weekKey, weekData.notes);
     setTimeout(() => DOM.notesSavedStatus.textContent = 'Saved', 500);
   });
+}
+
+async function navigateDate(direction) {
+  if (direction === 'today') {
+    const now = new Date();
+    STATE.selectedDate = now;
+    STATE.currentWeekStart = getMonday(now);
+  } else {
+    const step = direction === 'next' ? 1 : -1;
+    if (STATE.scheduleViewMode === 'day') {
+      const cur = STATE.selectedDate || new Date();
+      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + step);
+      STATE.currentWeekStart = getMonday(STATE.selectedDate);
+    } else if (STATE.scheduleViewMode === 'month') {
+      const cur = STATE.selectedDate || new Date();
+      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth() + step, 1);
+      STATE.currentWeekStart = getMonday(STATE.selectedDate);
+    } else {
+      const cur = STATE.currentWeekStart;
+      STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + (step * 7)));
+      STATE.selectedDate = STATE.currentWeekStart;
+    }
+  }
+  ensureSampleDataForCurrentWeek();
+  renderAll();
+  await syncWeekDataWithApi(renderAll);
 }
 
 async function handleSwitchToDayView(targetDateStr) {
