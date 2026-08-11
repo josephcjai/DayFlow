@@ -13,13 +13,13 @@ import {
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js?v=2.3';
-import { ApiClient } from './apiClient.js?v=2.3';
-import { renderGrid } from './grid.js?v=2.3';
-import { initModal } from './modal.js?v=2.3';
-import { renderHabits, addHabitLog } from './habits.js?v=2.3';
-import { renderAnalytics } from './analytics.js?v=2.3';
-import { renderNotes } from './notes.js?v=2.3';
+} from './state.js';
+import { ApiClient } from './apiClient.js';
+import { renderGrid } from './grid.js';
+import { initModal } from './modal.js';
+import { renderHabits, addHabitLog } from './habits.js';
+import { renderAnalytics } from './analytics.js';
+import { renderNotes } from './notes.js';
 
 const DOM = {};
 

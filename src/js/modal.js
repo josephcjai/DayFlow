@@ -1,6 +1,6 @@
 /**
  * DayFlow Task Editor Modal Controller
- * Implements Planned vs Actual Task distinction & time-lock rules
+ * Implements Planned vs Actual Task distinction, clear slot button, & time-lock rules
  */
 import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey } from './state.js';
 import { ApiClient } from './apiClient.js';
@@ -30,25 +30,29 @@ export function initModal(elements, onSaveOrDelete) {
     if (e.target === modalElements.taskModal) closeModal();
   });
 
-  modalElements.taskForm.addEventListener('submit', (e) => {
+  modalElements.taskForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    saveSlotTask();
+    await saveSlotTask();
   });
 
-  modalElements.deleteTaskBtn.addEventListener('click', () => {
-    if (STATE.activeSlotKey) {
-      const weekKey = getWeekKey(STATE.currentWeekStart);
-      const weekData = getCurrentWeekData();
-      delete weekData.slots[STATE.activeSlotKey];
-      saveStateToStorage();
-      
-      // Sync delete with PostgreSQL database
-      ApiClient.deleteSlot(weekKey, STATE.activeSlotKey);
-
-      closeModal();
-      if (renderCallback) renderCallback();
-    }
+  modalElements.deleteTaskBtn.addEventListener('click', async () => {
+    await deleteActiveSlot();
   });
+}
+
+async function deleteActiveSlot() {
+  if (STATE.activeSlotKey) {
+    const weekKey = getWeekKey(STATE.currentWeekStart);
+    const weekData = getCurrentWeekData();
+    delete weekData.slots[STATE.activeSlotKey];
+    saveStateToStorage();
+    
+    closeModal();
+    if (renderCallback) renderCallback();
+
+    // Sync delete directly with PostgreSQL database
+    await ApiClient.deleteSlot(weekKey, STATE.activeSlotKey);
+  }
 }
 
 export function openTaskModal(slotKey, dayName, timeLabel, existingData) {
@@ -60,6 +64,9 @@ export function openTaskModal(slotKey, dayName, timeLabel, existingData) {
 
   const isPast = isSlotTimePassed(slotKey);
 
+  // Clear Slot button is ALWAYS available to clear any task
+  modalElements.deleteTaskBtn.style.display = 'inline-flex';
+
   if (existingData) {
     modalElements.modalTitle.textContent = 'Edit 30-Min Time Slot';
     modalElements.plannedTaskInput.value = existingData.plannedTask || existingData.title || '';
@@ -69,7 +76,6 @@ export function openTaskModal(slotKey, dayName, timeLabel, existingData) {
     modalElements.plannedDurationInput.value = existingData.planned || 30;
     modalElements.actualDurationInput.value = existingData.actual !== undefined ? existingData.actual : 30;
     modalElements.taskNotesInput.value = existingData.notes || '';
-    modalElements.deleteTaskBtn.style.display = 'inline-flex';
   } else {
     modalElements.modalTitle.textContent = 'Schedule 30-Min Time Slot';
     modalElements.plannedTaskInput.value = '';
@@ -79,10 +85,9 @@ export function openTaskModal(slotKey, dayName, timeLabel, existingData) {
     modalElements.plannedDurationInput.value = 30;
     modalElements.actualDurationInput.value = 30;
     modalElements.taskNotesInput.value = '';
-    modalElements.deleteTaskBtn.style.display = 'none';
   }
 
-  // Enforce Time-Lock Rule on Planned Task
+  // Enforce Time-Lock Rule on Planned Task for past slots
   if (isPast) {
     modalElements.plannedTaskInput.disabled = true;
     modalElements.plannedTaskInput.classList.add('input-locked');
@@ -104,13 +109,17 @@ export function closeModal() {
   STATE.activeSlotKey = null;
 }
 
-function saveSlotTask() {
+async function saveSlotTask() {
   if (!STATE.activeSlotKey) return;
 
   const plannedTask = modalElements.plannedTaskInput.value.trim();
-  const actualTask = modalElements.actualTaskInput.value.trim() || plannedTask;
+  const actualTask = modalElements.actualTaskInput.value.trim();
 
-  if (!plannedTask && !actualTask) return;
+  // If user cleared both fields and saved, delete the slot entry
+  if (!plannedTask && !actualTask) {
+    await deleteActiveSlot();
+    return;
+  }
 
   const weekKey = getWeekKey(STATE.currentWeekStart);
   const weekData = getCurrentWeekData();
@@ -119,7 +128,7 @@ function saveSlotTask() {
   const slotObject = {
     ...existing,
     plannedTask: modalElements.plannedTaskInput.disabled ? (existing.plannedTask || plannedTask) : plannedTask,
-    actualTask: actualTask,
+    actualTask: actualTask || plannedTask,
     category: modalElements.taskCategorySelect.value,
     status: modalElements.taskStatusSelect.value,
     planned: parseInt(modalElements.plannedDurationInput.value, 10) || 30,
@@ -128,12 +137,11 @@ function saveSlotTask() {
   };
 
   weekData.slots[STATE.activeSlotKey] = slotObject;
-
   saveStateToStorage();
-
-  // Sync save directly with PostgreSQL DB via Express REST API
-  ApiClient.saveSlot(weekKey, STATE.activeSlotKey, slotObject);
 
   closeModal();
   if (renderCallback) renderCallback();
+
+  // Sync save directly with PostgreSQL DB via Express REST API
+  await ApiClient.saveSlot(weekKey, STATE.activeSlotKey, slotObject);
 }
