@@ -512,6 +512,87 @@ body {
 .panel-header h2 { font-size: 1.5rem; font-weight: 800; }
 .panel-header p { color: var(--text-secondary); font-size: 0.9rem; }
 
+/* Habit Target Log Date Bar */
+.habit-date-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.date-bar-left, .date-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.date-bar-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.date-quick-pills {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.date-pill {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.date-pill:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.date-pill.active {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--accent-primary);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.custom-date-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.habit-date-picker {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.65rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.habit-date-picker:focus {
+  border-color: var(--accent-primary);
+}
+
 .habit-quick-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

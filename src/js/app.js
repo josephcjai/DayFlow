@@ -13,13 +13,13 @@ import {
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js?v=2.3.4';
-import { ApiClient } from './apiClient.js?v=2.3.4';
-import { renderGrid } from './grid.js?v=2.3.4';
-import { initModal } from './modal.js?v=2.3.4';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.3.4';
-import { renderAnalytics } from './analytics.js?v=2.3.4';
-import { renderNotes } from './notes.js?v=2.3.4';
+} from './state.js?v=2.3.5';
+import { ApiClient } from './apiClient.js?v=2.3.5';
+import { renderGrid } from './grid.js?v=2.3.5';
+import { initModal } from './modal.js?v=2.3.5';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.3.5';
+import { renderAnalytics } from './analytics.js?v=2.3.5';
+import { renderNotes } from './notes.js?v=2.3.5';
 
 const DOM = {};
 
@@ -46,8 +46,9 @@ function cacheDomElements() {
   DOM.prevWeekBtn = document.getElementById('prevWeekBtn');
   DOM.nextWeekBtn = document.getElementById('nextWeekBtn');
   DOM.todayBtn = document.getElementById('todayBtn');
-  DOM.weekDatePicker = document.getElementById('weekDatePicker');
   DOM.currentWeekRange = document.getElementById('currentWeekRange');
+  DOM.weekDatePicker = document.getElementById('weekDatePicker');
+
   DOM.categoryFilter = document.getElementById('categoryFilter');
   DOM.exportBtn = document.getElementById('exportBtn');
   DOM.importBtn = document.getElementById('importBtn');
@@ -56,8 +57,12 @@ function cacheDomElements() {
   DOM.scheduleTableBody = document.getElementById('scheduleTableBody');
 
   DOM.habitQuickActionsContainer = document.querySelector('.habit-quick-actions');
+  DOM.habitQuickBtns = document.querySelectorAll('.habit-btn');
   DOM.customHabitForm = document.getElementById('customHabitForm');
   DOM.habitDateInput = document.getElementById('habitDateInput');
+  DOM.habitDateTodayBtn = document.getElementById('habitDateTodayBtn');
+  DOM.habitDateYesterdayBtn = document.getElementById('habitDateYesterdayBtn');
+  DOM.habitDatePrevDayBtn = document.getElementById('habitDatePrevDayBtn');
   DOM.habitNameInput = document.getElementById('habitNameInput');
   DOM.habitPointsInput = document.getElementById('habitPointsInput');
   DOM.habitNotesInput = document.getElementById('habitNotesInput');
@@ -264,6 +269,39 @@ function bindEvents() {
 
 
 
+  // Habit Target Date Quick Pills & Picker
+  if (DOM.habitDateTodayBtn) {
+    DOM.habitDateTodayBtn.addEventListener('click', () => {
+      setHabitLogDate(new Date());
+    });
+  }
+
+  if (DOM.habitDateYesterdayBtn) {
+    DOM.habitDateYesterdayBtn.addEventListener('click', () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      setHabitLogDate(yesterday);
+    });
+  }
+
+  if (DOM.habitDatePrevDayBtn) {
+    DOM.habitDatePrevDayBtn.addEventListener('click', () => {
+      const prevDay = new Date();
+      prevDay.setDate(prevDay.getDate() - 2);
+      setHabitLogDate(prevDay);
+    });
+  }
+
+  if (DOM.habitDateInput) {
+    DOM.habitDateInput.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val) {
+        const [y, m, d] = val.split('-').map(Number);
+        setHabitLogDate(new Date(y, m - 1, d));
+      }
+    });
+  }
+
   DOM.customHabitForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = DOM.habitNameInput.value.trim();
@@ -365,11 +403,44 @@ function renderAll() {
   if (STATE.activeView === 'notes') renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
 }
 
+function updateHabitDatePillStates(dateStr) {
+  const todayStr = formatDateISO(new Date());
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = formatDateISO(yesterday);
+  const prevDay = new Date();
+  prevDay.setDate(prevDay.getDate() - 2);
+  const prevDayStr = formatDateISO(prevDay);
+
+  if (DOM.habitDateTodayBtn) DOM.habitDateTodayBtn.classList.toggle('active', dateStr === todayStr);
+  if (DOM.habitDateYesterdayBtn) DOM.habitDateYesterdayBtn.classList.toggle('active', dateStr === yesterdayStr);
+  if (DOM.habitDatePrevDayBtn) DOM.habitDatePrevDayBtn.classList.toggle('active', dateStr === prevDayStr);
+}
+
+function setHabitLogDate(targetDate) {
+  const dateStr = formatDateISO(targetDate);
+  if (DOM.habitDateInput) {
+    DOM.habitDateInput.value = dateStr;
+  }
+  updateHabitDatePillStates(dateStr);
+
+  // If in Day view mode, synchronize the schedule view date as well
+  if (STATE.scheduleViewMode === 'day') {
+    STATE.selectedDate = targetDate;
+    STATE.currentWeekStart = getMonday(targetDate);
+    ensureSampleDataForCurrentWeek();
+    renderAll();
+  }
+}
+
 function renderHeaderRangeText() {
   const selDate = STATE.selectedDate || new Date();
 
-  if (DOM.habitDateInput) {
+  if (DOM.habitDateInput && !DOM.habitDateInput.value) {
     DOM.habitDateInput.value = formatDateISO(selDate);
+    updateHabitDatePillStates(DOM.habitDateInput.value);
+  } else if (DOM.habitDateInput) {
+    updateHabitDatePillStates(DOM.habitDateInput.value);
   }
 
   if (STATE.scheduleViewMode === 'day') {

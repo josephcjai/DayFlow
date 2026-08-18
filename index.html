@@ -177,6 +177,22 @@
             <p>Log instant trigger actions, post-meal habits, and discipline rewards.</p>
           </div>
 
+          <!-- Prominent Habit Target Log Date Bar -->
+          <div class="habit-date-bar">
+            <div class="date-bar-left">
+              <span class="date-bar-label">📅 Logging Date:</span>
+              <div class="date-quick-pills">
+                <button type="button" id="habitDateTodayBtn" class="date-pill active">Today</button>
+                <button type="button" id="habitDateYesterdayBtn" class="date-pill">Yesterday</button>
+                <button type="button" id="habitDatePrevDayBtn" class="date-pill">Day Before</button>
+              </div>
+            </div>
+            <div class="date-bar-right">
+              <label for="habitDateInput" class="custom-date-label">Custom Date:</label>
+              <input type="date" id="habitDateInput" class="date-picker-input habit-date-picker" title="Select custom logging date">
+            </div>
+          </div>
+
           <!-- Quick Action Triggers -->
           <div class="habit-quick-actions">
             <button class="habit-btn" data-habit="Meal Logged" data-pts="5">
@@ -197,10 +213,9 @@
           <div class="habit-form-card">
             <h3>Log Custom Action</h3>
             <form id="customHabitForm" class="form-row">
-              <input type="date" id="habitDateInput" class="date-input" title="Log Date (Supports Yesterday / Past Dates)">
-              <input type="text" id="habitNameInput" placeholder="Action name (e.g. Drank Water, Exercise)" required class="text-input">
-              <input type="number" id="habitPointsInput" placeholder="Points (+/-)" value="5" class="number-input">
-              <input type="text" id="habitNotesInput" placeholder="Notes (optional)" class="text-input">
+              <input type="text" id="habitNameInput" placeholder="Action name (e.g. Drank Water, Exercise)" required class="text-input" style="flex: 2;">
+              <input type="number" id="habitPointsInput" placeholder="Points (+/-)" value="5" class="number-input" style="width: 90px;">
+              <input type="text" id="habitNotesInput" placeholder="Notes (optional)" class="text-input" style="flex: 2;">
               <button type="submit" class="btn btn-primary">Log Action</button>
             </form>
           </div>
@@ -485,6 +500,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.3.4"></script>
+  <script type="module" src="src/js/app.js?v=2.3.5"></script>
 </body>
 </html>

@@ -6,9 +6,9 @@
  * 3. Confirmation warning before deleting a habit history log entry
  * Robust row deletion, date & time logging for past dates, and Day/Week view filtering
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.3.4';
-import { ApiClient } from './apiClient.js?v=2.3.4';
-import { escapeHtml } from './utils.js?v=2.3.4';
+import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.3.5';
+import { ApiClient } from './apiClient.js?v=2.3.5';
+import { escapeHtml } from './utils.js?v=2.3.5';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🍽️', name: 'Meal Logged', pts: 5, label: 'Log Meal & Cleaned Hands' },
