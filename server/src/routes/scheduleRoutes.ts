@@ -73,8 +73,8 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
       plannedTask: plannedTask || '',
       actualTask: actualTask || plannedTask || '',
       category: category || 'General',
-      planned: planned || 30,
-      actual: actual !== undefined ? actual : 30,
+      planned: isNaN(parseInt(planned, 10)) ? 30 : parseInt(planned, 10),
+      actual: actual !== undefined && !isNaN(parseInt(actual, 10)) ? parseInt(actual, 10) : 0,
       status: status || 'Pending',
       notes: notes || ''
     };
@@ -107,7 +107,8 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
              planned_duration = EXCLUDED.planned_duration,
              actual_duration = EXCLUDED.actual_duration,
              status = EXCLUDED.status,
-             notes = EXCLUDED.notes`,
+             notes = EXCLUDED.notes,
+             updated_at = CURRENT_TIMESTAMP`,
         [weekId, slotKey, slotObj.plannedTask, slotObj.actualTask, slotObj.category, slotObj.planned, slotObj.actual, slotObj.status, slotObj.notes]
       );
     }

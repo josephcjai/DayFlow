@@ -13,13 +13,13 @@ import {
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js?v=2.3.5';
-import { ApiClient } from './apiClient.js?v=2.3.5';
-import { renderGrid } from './grid.js?v=2.3.5';
-import { initModal } from './modal.js?v=2.3.5';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.3.5';
-import { renderAnalytics } from './analytics.js?v=2.3.5';
-import { renderNotes } from './notes.js?v=2.3.5';
+} from './state.js?v=2.4.0';
+import { ApiClient } from './apiClient.js?v=2.4.0';
+import { renderGrid } from './grid.js?v=2.4.0';
+import { initModal } from './modal.js?v=2.4.0';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.4.0';
+import { renderAnalytics } from './analytics.js?v=2.4.0';
+import { renderNotes } from './notes.js?v=2.4.0';
 
 const DOM = {};
 
@@ -72,7 +72,14 @@ function cacheDomElements() {
   DOM.statPlannedHours = document.getElementById('statPlannedHours');
   DOM.statActualHours = document.getElementById('statActualHours');
   DOM.statScore = document.getElementById('statScore');
+  DOM.statHabitPoints = document.getElementById('statHabitPoints');
   DOM.categoryBarsContainer = document.getElementById('categoryBarsContainer');
+  DOM.habitTotalActionsCount = document.getElementById('habitTotalActionsCount');
+  DOM.habitBreakdownContainer = document.getElementById('habitBreakdownContainer');
+  DOM.habitDailyTrendContainer = document.getElementById('habitDailyTrendContainer');
+  DOM.analyticsSubtitle = document.getElementById('analyticsSubtitle');
+  DOM.analyticsTrendHeading = document.getElementById('analyticsTrendHeading');
+  DOM.analyticsTrendSubtitle = document.getElementById('analyticsTrendSubtitle');
 
   DOM.addTodoForm = document.getElementById('addTodoForm');
   DOM.todoInput = document.getElementById('todoInput');
@@ -216,7 +223,7 @@ function switchLandingTab(tab) {
 function bindEvents() {
   // Navigation Tabs
   DOM.navBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       DOM.navBtns.forEach(b => b.classList.remove('active'));
       DOM.viewPanels.forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
@@ -224,6 +231,7 @@ function bindEvents() {
       STATE.activeView = view;
       document.getElementById(`view-${view}`).classList.add('active');
       renderAll();
+      await syncWeekDataWithApi(renderAll);
     });
   });
 
@@ -399,7 +407,21 @@ function renderAll() {
     renderQuickPresetsUI(DOM.habitQuickActionsContainer, DOM.habitLogTableBody, DOM.totalPointsBadge, () => DOM.habitDateInput?.value);
     renderHabits(DOM.habitLogTableBody, DOM.totalPointsBadge);
   }
-  if (STATE.activeView === 'analytics') renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  if (STATE.activeView === 'analytics') {
+    renderAnalytics(
+      DOM.statPlannedHours,
+      DOM.statActualHours,
+      DOM.statScore,
+      DOM.statHabitPoints,
+      DOM.categoryBarsContainer,
+      DOM.habitTotalActionsCount,
+      DOM.habitBreakdownContainer,
+      DOM.habitDailyTrendContainer,
+      DOM.analyticsSubtitle,
+      DOM.analyticsTrendHeading,
+      DOM.analyticsTrendSubtitle
+    );
+  }
   if (STATE.activeView === 'notes') renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
 }
 

@@ -244,15 +244,15 @@
         </div>
       </section>
 
-      <!-- VIEW 3: FOCUS ANALYTICS -->
+      <!-- VIEW 3: FOCUS & HABIT ANALYTICS -->
       <section id="view-analytics" class="view-panel">
         <div class="analytics-container">
           <div class="panel-header">
-            <h2>Focus & Time Aggregation Analytics</h2>
-            <p>Planned vs. Actual hours spent per category for the selected week.</p>
+            <h2>Focus & Habit Execution Analytics</h2>
+            <p id="analyticsSubtitle">Comprehensive time tracking & habit discipline reports for the selected period.</p>
           </div>
 
-          <!-- Overview Cards -->
+          <!-- Overview KPI Cards -->
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-icon">📅</div>
@@ -264,7 +264,7 @@
             <div class="stat-card">
               <div class="stat-icon">⏱️</div>
               <div class="stat-info">
-                <span class="stat-label">Total Actual Hours Logged</span>
+                <span class="stat-label">Total Actual Logged</span>
                 <span class="stat-value" id="statActualHours">0.0 hrs</span>
               </div>
             </div>
@@ -275,13 +275,47 @@
                 <span class="stat-value" id="statScore">0%</span>
               </div>
             </div>
+            <div class="stat-card">
+              <div class="stat-icon">🏆</div>
+              <div class="stat-info">
+                <span class="stat-label">Habit Discipline Points</span>
+                <span class="stat-value" id="statHabitPoints">+0 pts</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Category Comparison Chart / Progress -->
-          <div class="analytics-card">
-            <h3>Category Breakdown (Planned vs. Actual)</h3>
-            <div id="categoryBarsContainer" class="category-bars-list">
-              <!-- Dynamically populated progress bars -->
+          <!-- Analytics Detailed Cards Grid -->
+          <div class="analytics-grid">
+            <!-- Category Comparison Chart / Progress -->
+            <div class="analytics-card">
+              <div class="card-header">
+                <h3>Schedule Category Breakdown</h3>
+              </div>
+              <div id="categoryBarsContainer" class="category-bars-list">
+                <!-- Dynamically populated category progress bars -->
+              </div>
+            </div>
+
+            <!-- Habit Breakdown & Points Contribution -->
+            <div class="analytics-card">
+              <div class="card-header">
+                <h3>Habit Frequency & Points Earned</h3>
+                <span class="status-text" id="habitTotalActionsCount">0 actions</span>
+              </div>
+              <div id="habitBreakdownContainer" class="habit-breakdown-list">
+                <!-- Dynamically populated habit breakdown bars -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Habit Activity & Consistency Trend -->
+          <div class="analytics-card" style="margin-top: 1.5rem;">
+            <div class="card-header">
+              <h3 id="analyticsTrendHeading">Habit Activity & Consistency Trend</h3>
+              <span class="status-text" id="analyticsTrendSubtitle">Daily points distribution</span>
+            </div>
+            <div id="habitDailyTrendContainer" class="habit-daily-trend-matrix">
+              <!-- Dynamically populated trend chart -->
             </div>
           </div>
         </div>
@@ -399,13 +433,13 @@
     </div>
   </div>
 
-  <!-- ADD PRESET HABIT MODAL -->
+  <!-- ADD / EDIT PRESET HABIT MODAL -->
   <div id="presetModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
         <div class="modal-header-title">
-          <span class="modal-title-icon">⚡</span>
-          <h3>Create Quick Action Preset</h3>
+          <span class="modal-title-icon" id="presetModalIcon">⚡</span>
+          <h3 id="presetModalHeading">Create Quick Action Preset</h3>
         </div>
         <button type="button" id="closePresetModalBtn" class="close-btn" aria-label="Close modal">&times;</button>
       </div>
@@ -457,7 +491,7 @@
 
           <div class="modal-footer">
             <button type="button" id="cancelPresetBtn" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">➕ Create Preset Action</button>
+            <button type="submit" id="presetSubmitBtn" class="btn btn-primary">➕ Create Preset Action</button>
           </div>
         </form>
       </div>
@@ -500,6 +534,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.3.5"></script>
+  <script type="module" src="src/js/app.js?v=2.4.0"></script>
 </body>
 </html>

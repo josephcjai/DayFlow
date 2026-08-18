@@ -20,7 +20,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
     let habits: any[] = [];
     try {
       const resPg = await executeQuery(
-        'SELECT id, habit_name as name, pts, log_time as time, notes FROM habit_logs WHERE user_id = $1 AND week_start = $2 ORDER BY created_at ASC',
+        'SELECT id, habit_name as name, pts, log_time as time, notes FROM habit_logs WHERE user_id = $1 AND week_start = $2::date ORDER BY created_at ASC',
         [userId, weekStart]
       );
       habits = resPg.rows;
@@ -60,7 +60,7 @@ router.post('/log', async (req: AuthenticatedRequest, res) => {
 
     try {
       const insertRes = await executeQuery(
-        'INSERT INTO habit_logs (user_id, week_start, habit_name, pts, log_time, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        'INSERT INTO habit_logs (user_id, week_start, habit_name, pts, log_time, notes) VALUES ($1, $2::date, $3, $4, $5, $6) RETURNING id',
         [userId, weekStart, name, newLog.pts, timeStr, notes || '']
       );
       if (insertRes.rows[0]) {

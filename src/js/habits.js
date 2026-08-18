@@ -1,14 +1,14 @@
 /**
  * DayFlow Habit Ledger Module
- * Supports professional custom modals for:
- * 1. Creating quick action presets with emoji & point pickers
+ * Supports:
+ * 1. Creating and editing quick action presets with emoji & point pickers
  * 2. Confirmation warning before deleting a quick action preset
  * 3. Confirmation warning before deleting a habit history log entry
  * Robust row deletion, date & time logging for past dates, and Day/Week view filtering
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.3.5';
-import { ApiClient } from './apiClient.js?v=2.3.5';
-import { escapeHtml } from './utils.js?v=2.3.5';
+import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.4.0';
+import { ApiClient } from './apiClient.js?v=2.4.0';
+import { escapeHtml } from './utils.js?v=2.4.0';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🍽️', name: 'Meal Logged', pts: 5, label: 'Log Meal & Cleaned Hands' },
@@ -19,6 +19,7 @@ export const DEFAULT_HABIT_PRESETS = [
 
 let pendingDeletePreset = null;
 let pendingDeleteLog = null;
+let editingPresetId = null;
 let modalsInitialized = false;
 
 export function getStoredPresets() {
@@ -117,7 +118,7 @@ function initHabitModals(container, habitLogTableBody, totalPointsBadge, getSele
   if (modalsInitialized) return;
   modalsInitialized = true;
 
-  // Add Preset Modal elements
+  // Add / Edit Preset Modal elements
   const presetModal = document.getElementById('presetModal');
   const closePresetModalBtn = document.getElementById('closePresetModalBtn');
   const cancelPresetBtn = document.getElementById('cancelPresetBtn');
@@ -141,6 +142,7 @@ function initHabitModals(container, habitLogTableBody, totalPointsBadge, getSele
 
   const closeAddModal = () => {
     if (presetModal) presetModal.classList.remove('active');
+    editingPresetId = null;
   };
 
   const closeDeletePresetModal = () => {
@@ -213,7 +215,7 @@ function initHabitModals(container, habitLogTableBody, totalPointsBadge, getSele
     });
   }
 
-  // Submit new preset
+  // Submit new or edited preset
   if (presetHabitForm) {
     presetHabitForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -224,15 +226,32 @@ function initHabitModals(container, habitLogTableBody, totalPointsBadge, getSele
       const pts = presetPtsInput ? (parseInt(presetPtsInput.value, 10) || 10) : 10;
       const customLabel = presetLabelInput && presetLabelInput.value.trim() ? presetLabelInput.value.trim() : name;
 
-      const newPresets = getStoredPresets();
-      newPresets.push({
-        id: `p_${Date.now()}`,
-        icon,
-        name,
-        pts,
-        label: customLabel
-      });
-      saveStoredPresets(newPresets);
+      const presets = getStoredPresets();
+
+      if (editingPresetId) {
+        // Edit existing preset
+        const idx = presets.findIndex(p => p.id === editingPresetId);
+        if (idx !== -1) {
+          presets[idx] = {
+            ...presets[idx],
+            icon,
+            name,
+            pts,
+            label: customLabel
+          };
+        }
+      } else {
+        // Create new preset
+        presets.push({
+          id: `p_${Date.now()}`,
+          icon,
+          name,
+          pts,
+          label: customLabel
+        });
+      }
+
+      saveStoredPresets(presets);
       closeAddModal();
       renderQuickPresetsUI(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn);
     });
@@ -267,7 +286,10 @@ function initHabitModals(container, habitLogTableBody, totalPointsBadge, getSele
 }
 
 export function openAddPresetModal() {
+  editingPresetId = null;
   const presetModal = document.getElementById('presetModal');
+  const presetModalHeading = document.getElementById('presetModalHeading');
+  const presetSubmitBtn = document.getElementById('presetSubmitBtn');
   const presetHabitForm = document.getElementById('presetHabitForm');
   const presetNameInput = document.getElementById('presetNameInput');
   const presetIconInput = document.getElementById('presetIconInput');
@@ -275,6 +297,9 @@ export function openAddPresetModal() {
   const presetLabelInput = document.getElementById('presetLabelInput');
   const emojiPills = document.querySelectorAll('.emoji-pill');
   const pointsPills = document.querySelectorAll('.points-pill');
+
+  if (presetModalHeading) presetModalHeading.textContent = 'Create Quick Action Preset';
+  if (presetSubmitBtn) presetSubmitBtn.innerHTML = '➕ Create Preset Action';
 
   if (presetHabitForm) presetHabitForm.reset();
   if (presetIconInput) presetIconInput.value = '⚡';
@@ -287,6 +312,46 @@ export function openAddPresetModal() {
 
   pointsPills.forEach(p => {
     if (p.dataset.pts === '10') p.classList.add('active');
+    else p.classList.remove('active');
+  });
+
+  if (presetModal) {
+    presetModal.classList.add('active');
+    if (presetNameInput) setTimeout(() => presetNameInput.focus(), 50);
+  }
+}
+
+export function openEditPresetModal(preset) {
+  if (!preset) return;
+  editingPresetId = preset.id;
+
+  const presetModal = document.getElementById('presetModal');
+  const presetModalHeading = document.getElementById('presetModalHeading');
+  const presetSubmitBtn = document.getElementById('presetSubmitBtn');
+  const presetNameInput = document.getElementById('presetNameInput');
+  const presetIconInput = document.getElementById('presetIconInput');
+  const presetPtsInput = document.getElementById('presetPtsInput');
+  const presetLabelInput = document.getElementById('presetLabelInput');
+  const emojiPills = document.querySelectorAll('.emoji-pill');
+  const pointsPills = document.querySelectorAll('.points-pill');
+
+  if (presetModalHeading) presetModalHeading.textContent = 'Edit Quick Action Preset';
+  if (presetSubmitBtn) presetSubmitBtn.innerHTML = '💾 Save Changes';
+
+  if (presetNameInput) presetNameInput.value = preset.name || '';
+  if (presetIconInput) presetIconInput.value = preset.icon || '⚡';
+  if (presetPtsInput) presetPtsInput.value = preset.pts || 10;
+  if (presetLabelInput) presetLabelInput.value = preset.label || preset.name || '';
+
+  const activeEmoji = preset.icon || '⚡';
+  emojiPills.forEach(p => {
+    if (p.dataset.emoji === activeEmoji) p.classList.add('active');
+    else p.classList.remove('active');
+  });
+
+  const activePtsStr = String(preset.pts || 10);
+  pointsPills.forEach(p => {
+    if (p.dataset.pts === activePtsStr) p.classList.add('active');
     else p.classList.remove('active');
   });
 
@@ -324,12 +389,20 @@ export function renderQuickPresetsUI(container, habitLogTableBody, totalPointsBa
       <button type="button" class="habit-btn" data-habit="${escapeHtml(p.name)}" data-pts="${p.pts}">
         <span class="icon">${p.icon || '⭐'}</span> ${escapeHtml(p.label || p.name)} <span class="pts">+${p.pts} pts</span>
       </button>
-      <button type="button" class="remove-preset-badge" data-preset-id="${p.id}" title="Remove preset button">✕</button>
+      <div class="preset-actions-badges">
+        <button type="button" class="edit-preset-badge" data-preset-id="${p.id}" title="Edit preset">✏️</button>
+        <button type="button" class="remove-preset-badge" data-preset-id="${p.id}" title="Remove preset button">✕</button>
+      </div>
     `;
 
     btnContainer.querySelector('.habit-btn').addEventListener('click', () => {
       const selectedDate = getSelectedDateFn ? getSelectedDateFn() : formatDateISO(new Date());
       addHabitLog(p.name, p.pts, "Quick trigger action", habitLogTableBody, totalPointsBadge, selectedDate);
+    });
+
+    btnContainer.querySelector('.edit-preset-badge').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditPresetModal(p);
     });
 
     btnContainer.querySelector('.remove-preset-badge').addEventListener('click', (e) => {

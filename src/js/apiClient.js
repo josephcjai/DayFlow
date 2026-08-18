@@ -80,25 +80,39 @@ export const ApiClient = {
 
   async saveSlot(weekStart, slotKey, slotData) {
     try {
-      await fetch(`${API_BASE}/schedule/slot`, {
+      const res = await fetch(`${API_BASE}/schedule/slot`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ weekStart, slotKey, ...slotData })
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('❌ Server error saving schedule slot:', res.status, errData.error);
+        return false;
+      }
+      return true;
     } catch (e) {
-      console.log('Saved slot to offline storage');
+      console.warn('Network error saving slot to server, saved locally:', e);
+      return false;
     }
   },
 
   async deleteSlot(weekStart, slotKey) {
     try {
-      await fetch(`${API_BASE}/schedule/slot`, {
+      const res = await fetch(`${API_BASE}/schedule/slot`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
         body: JSON.stringify({ weekStart, slotKey })
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('❌ Server error deleting schedule slot:', res.status, errData.error);
+        return false;
+      }
+      return true;
     } catch (e) {
-      console.log('Cleared slot from offline storage');
+      console.warn('Network error deleting slot on server, cleared locally:', e);
+      return false;
     }
   },
 

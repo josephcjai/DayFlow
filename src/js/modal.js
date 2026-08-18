@@ -2,8 +2,8 @@
  * DayFlow Task Editor Modal Controller
  * Implements Planned vs Actual Task distinction, clear slot button, & time-lock rules
  */
-import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey } from './state.js?v=2.3.5';
-import { ApiClient } from './apiClient.js?v=2.3.5';
+import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey } from './state.js?v=2.4.0';
+import { ApiClient } from './apiClient.js?v=2.4.0';
 
 let modalElements = {};
 let renderCallback = null;
@@ -40,18 +40,31 @@ export function initModal(elements, onSaveOrDelete) {
   });
 }
 
+function getSlotWeekKey(slotKey) {
+  if (!slotKey) return getWeekKey(STATE.currentWeekStart);
+  const parts = slotKey.split('_');
+  if (parts.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
+    const [y, m, d] = parts[0].split('-').map(Number);
+    return getWeekKey(new Date(y, m - 1, d));
+  }
+  return getWeekKey(STATE.currentWeekStart);
+}
+
 async function deleteActiveSlot() {
   if (STATE.activeSlotKey) {
-    const weekKey = getWeekKey(STATE.currentWeekStart);
-    const weekData = getCurrentWeekData();
-    delete weekData.slots[STATE.activeSlotKey];
+    const slotKey = STATE.activeSlotKey;
+    const weekKey = getSlotWeekKey(slotKey);
+    if (!STATE.scheduleData[weekKey]) {
+      STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '' };
+    }
+    delete STATE.scheduleData[weekKey].slots[slotKey];
     saveStateToStorage();
     
     closeModal();
     if (renderCallback) renderCallback();
 
     // Sync delete directly with PostgreSQL database
-    await ApiClient.deleteSlot(weekKey, STATE.activeSlotKey);
+    await ApiClient.deleteSlot(weekKey, slotKey);
   }
 }
 
@@ -121,27 +134,36 @@ async function saveSlotTask() {
     return;
   }
 
-  const weekKey = getWeekKey(STATE.currentWeekStart);
-  const weekData = getCurrentWeekData();
-  const existing = weekData.slots[STATE.activeSlotKey] || {};
+  const slotKey = STATE.activeSlotKey;
+  const weekKey = getSlotWeekKey(slotKey);
+  if (!STATE.scheduleData[weekKey]) {
+    STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '' };
+  }
+  const weekData = STATE.scheduleData[weekKey];
+  const existing = weekData.slots[slotKey] || {};
+
+  const finalPlannedTask = modalElements.plannedTaskInput.disabled
+    ? (existing.plannedTask || plannedTask || actualTask)
+    : (plannedTask || actualTask);
+  const finalActualTask = actualTask || plannedTask;
 
   const slotObject = {
     ...existing,
-    plannedTask: modalElements.plannedTaskInput.disabled ? (existing.plannedTask || plannedTask) : plannedTask,
-    actualTask: actualTask || plannedTask,
-    category: modalElements.taskCategorySelect.value,
-    status: modalElements.taskStatusSelect.value,
+    plannedTask: finalPlannedTask,
+    actualTask: finalActualTask,
+    category: modalElements.taskCategorySelect.value || 'General',
+    status: modalElements.taskStatusSelect.value || 'Pending',
     planned: parseInt(modalElements.plannedDurationInput.value, 10) || 30,
-    actual: parseInt(modalElements.actualDurationInput.value, 10) || 0,
+    actual: modalElements.actualDurationInput.value !== '' ? (parseInt(modalElements.actualDurationInput.value, 10) || 0) : 30,
     notes: modalElements.taskNotesInput.value.trim()
   };
 
-  weekData.slots[STATE.activeSlotKey] = slotObject;
+  weekData.slots[slotKey] = slotObject;
   saveStateToStorage();
 
   closeModal();
   if (renderCallback) renderCallback();
 
   // Sync save directly with PostgreSQL DB via Express REST API
-  await ApiClient.saveSlot(weekKey, STATE.activeSlotKey, slotObject);
+  await ApiClient.saveSlot(weekKey, slotKey, slotObject);
 }

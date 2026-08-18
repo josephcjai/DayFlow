@@ -639,15 +639,20 @@ body {
   width: 100%;
 }
 
-.remove-preset-badge {
+.preset-actions-badges {
   position: absolute;
   top: -6px;
   right: -6px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+
+.edit-preset-badge,
+.remove-preset-badge {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--accent-danger);
-  color: #fff;
   border: none;
   font-size: 0.7rem;
   font-weight: 700;
@@ -657,9 +662,20 @@ body {
   justify-content: center;
   opacity: 0.7;
   transition: all 0.2s ease;
-  z-index: 2;
 }
 
+.edit-preset-badge {
+  background: var(--accent-primary);
+  color: #fff;
+  font-size: 0.65rem;
+}
+
+.remove-preset-badge {
+  background: var(--accent-danger);
+  color: #fff;
+}
+
+.preset-btn-wrapper:hover .edit-preset-badge,
 .preset-btn-wrapper:hover .remove-preset-badge {
   opacity: 1;
   transform: scale(1.1);
@@ -907,6 +923,147 @@ body {
 }
 
 .progress-fill { height: 100%; border-radius: var(--radius-full); transition: width 0.4s ease; }
+
+/* Analytics Grid & Habit Reports */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.habit-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.habit-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.habit-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.habit-bar-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.habit-count-pill {
+  font-size: 0.75rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+.habit-pts-pill {
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-success);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+/* 7-Day Consistency Trend */
+.habit-daily-trend-matrix {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .habit-daily-trend-matrix {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  }
+}
+
+.daily-trend-day {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.daily-trend-day.has-habits {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.daily-trend-day.is-today {
+  border-color: var(--accent-secondary);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+}
+
+.daily-trend-day.is-selected-day {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+}
+
+.trend-day-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.trend-day-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.trend-bar-wrapper {
+  width: 12px;
+  height: 60px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  margin: 0.25rem 0;
+}
+
+.trend-bar-fill {
+  width: 100%;
+  background: linear-gradient(to top, var(--accent-primary), var(--accent-secondary));
+  border-radius: var(--radius-full);
+  transition: height 0.4s ease;
+}
+
+.trend-day-pts {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.trend-day-count {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
 
 /* Notes & Todo */
 .notes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
