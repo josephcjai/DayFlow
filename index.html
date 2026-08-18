@@ -384,6 +384,107 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.3.1"></script>
+  <!-- ADD PRESET HABIT MODAL -->
+  <div id="presetModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span class="modal-title-icon">⚡</span>
+          <h3>Create Quick Action Preset</h3>
+        </div>
+        <button type="button" id="closePresetModalBtn" class="close-btn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="presetHabitForm">
+          <div class="form-group">
+            <label for="presetNameInput">Habit / Action Name *</label>
+            <input type="text" id="presetNameInput" placeholder="e.g. Morning Jog (30 mins), Read 20 Pages" required class="text-input">
+          </div>
+
+          <div class="form-group">
+            <label>Icon / Emoji</label>
+            <div class="emoji-picker-container">
+              <div class="emoji-quick-pills">
+                <button type="button" class="emoji-pill active" data-emoji="⚡">⚡</button>
+                <button type="button" class="emoji-pill" data-emoji="🏃">🏃</button>
+                <button type="button" class="emoji-pill" data-emoji="💧">💧</button>
+                <button type="button" class="emoji-pill" data-emoji="📚">📚</button>
+                <button type="button" class="emoji-pill" data-emoji="🧘">🧘</button>
+                <button type="button" class="emoji-pill" data-emoji="🥗">🥗</button>
+                <button type="button" class="emoji-pill" data-emoji="💻">💻</button>
+                <button type="button" class="emoji-pill" data-emoji="🎯">🎯</button>
+                <button type="button" class="emoji-pill" data-emoji="🧹">🧹</button>
+                <button type="button" class="emoji-pill" data-emoji="💊">💊</button>
+                <button type="button" class="emoji-pill" data-emoji="🍎">🍎</button>
+                <button type="button" class="emoji-pill" data-emoji="🏋️">🏋️</button>
+              </div>
+              <input type="text" id="presetIconInput" value="⚡" maxlength="4" class="text-input emoji-custom-input" placeholder="Custom" title="Custom Emoji / Icon">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Points Reward</label>
+            <div class="points-picker-container">
+              <div class="points-quick-pills">
+                <button type="button" class="points-pill" data-pts="5">+5 pts</button>
+                <button type="button" class="points-pill active" data-pts="10">+10 pts</button>
+                <button type="button" class="points-pill" data-pts="15">+15 pts</button>
+                <button type="button" class="points-pill" data-pts="20">+20 pts</button>
+              </div>
+              <input type="number" id="presetPtsInput" value="10" min="1" max="100" class="number-input points-custom-input" placeholder="Pts">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="presetLabelInput">Button Display Label (Optional)</label>
+            <input type="text" id="presetLabelInput" placeholder="Defaults to action name" class="text-input">
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="cancelPresetBtn" class="btn btn-secondary">Cancel</button>
+            <button type="submit" class="btn btn-primary">➕ Create Preset Action</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE PRESET CONFIRMATION MODAL -->
+  <div id="deletePresetConfirmModal" class="modal-overlay">
+    <div class="modal-card modal-card-confirm">
+      <div class="confirm-modal-body">
+        <div class="confirm-icon-badge">
+          <span class="confirm-icon">⚠️</span>
+        </div>
+        <h3 class="confirm-title">Delete Preset Action?</h3>
+        <p class="confirm-desc">Are you sure you want to delete <strong id="deletePresetTargetName">this preset</strong>?</p>
+        <p class="confirm-subdesc">This will remove the quick-trigger button from your habit ledger. Past logs will not be affected.</p>
+        <div class="confirm-actions">
+          <button type="button" id="cancelDeletePresetBtn" class="btn btn-secondary">Keep Preset</button>
+          <button type="button" id="confirmDeletePresetBtn" class="btn btn-danger">Yes, Delete Preset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE HABIT LOG ENTRY CONFIRMATION MODAL -->
+  <div id="deleteHabitLogConfirmModal" class="modal-overlay">
+    <div class="modal-card modal-card-confirm">
+      <div class="confirm-modal-body">
+        <div class="confirm-icon-badge">
+          <span class="confirm-icon">🗑️</span>
+        </div>
+        <h3 class="confirm-title">Delete Habit Log Entry?</h3>
+        <p class="confirm-desc">Are you sure you want to remove <strong id="deleteHabitLogTargetName">this habit entry</strong>?</p>
+        <p class="confirm-subdesc">This logged entry and its points will be permanently removed from your history.</p>
+        <div class="confirm-actions">
+          <button type="button" id="cancelDeleteHabitLogBtn" class="btn btn-secondary">Keep Entry</button>
+          <button type="button" id="confirmDeleteHabitLogBtn" class="btn btn-danger">Yes, Delete Entry</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/js/app.js?v=2.3.4"></script>
 </body>
 </html>

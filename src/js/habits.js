@@ -1,10 +1,14 @@
 /**
  * DayFlow Habit Ledger Module
- * Supports date & time logging for past dates, robust row deletion, and Day/Week view filtering
+ * Supports professional custom modals for:
+ * 1. Creating quick action presets with emoji & point pickers
+ * 2. Confirmation warning before deleting a quick action preset
+ * 3. Confirmation warning before deleting a habit history log entry
+ * Robust row deletion, date & time logging for past dates, and Day/Week view filtering
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.3.1';
-import { ApiClient } from './apiClient.js?v=2.3.1';
-import { escapeHtml } from './utils.js?v=2.3.1';
+import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.3.4';
+import { ApiClient } from './apiClient.js?v=2.3.4';
+import { escapeHtml } from './utils.js?v=2.3.4';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🍽️', name: 'Meal Logged', pts: 5, label: 'Log Meal & Cleaned Hands' },
@@ -12,6 +16,10 @@ export const DEFAULT_HABIT_PRESETS = [
   { id: 'p3', icon: '🎯', name: 'Disciplined Focus Session', pts: 15, label: '2-Hour Deep Work Complete' },
   { id: 'p4', icon: '💻', name: 'Skill Practice Complete', pts: 10, label: 'WPF / WCF Coding Session' }
 ];
+
+let pendingDeletePreset = null;
+let pendingDeleteLog = null;
+let modalsInitialized = false;
 
 export function getStoredPresets() {
   try {
@@ -25,6 +33,21 @@ export function saveStoredPresets(presets) {
   try {
     localStorage.setItem('dayflow_habit_presets', JSON.stringify(presets));
   } catch (e) {}
+}
+
+export function openDeleteHabitLogModal(log, rawId, weekData, habitLogTableBody, totalPointsBadge) {
+  pendingDeleteLog = { log, rawId, weekData, habitLogTableBody, totalPointsBadge };
+  const deleteHabitLogConfirmModal = document.getElementById('deleteHabitLogConfirmModal');
+  const deleteHabitLogTargetName = document.getElementById('deleteHabitLogTargetName');
+
+  if (deleteHabitLogTargetName) {
+    const ptsText = log.pts ? ` (+${log.pts} pts)` : '';
+    deleteHabitLogTargetName.textContent = `"${log.name}"${ptsText}`;
+  }
+
+  if (deleteHabitLogConfirmModal) {
+    deleteHabitLogConfirmModal.classList.add('active');
+  }
 }
 
 export function renderHabits(habitLogTableBody, totalPointsBadge) {
@@ -78,13 +101,11 @@ export function renderHabits(habitLogTableBody, totalPointsBadge) {
     });
 
     habitLogTableBody.querySelectorAll('.delete-habit-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', () => {
         const rawId = btn.dataset.id;
         const numId = parseInt(rawId, 10);
-        weekData.habits = weekData.habits.filter(h => String(h.id) !== String(rawId) && h.id !== numId);
-        saveStateToStorage();
-        renderHabits(habitLogTableBody, totalPointsBadge);
-        await ApiClient.deleteHabit(rawId);
+        const targetLog = weekData.habits.find(h => String(h.id) === String(rawId) || h.id === numId) || { name: 'Habit Entry' };
+        openDeleteHabitLogModal(targetLog, rawId, weekData, habitLogTableBody, totalPointsBadge);
       });
     });
   }
@@ -92,8 +113,207 @@ export function renderHabits(habitLogTableBody, totalPointsBadge) {
   totalPointsBadge.textContent = `${totalPoints} Pts`;
 }
 
+function initHabitModals(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn) {
+  if (modalsInitialized) return;
+  modalsInitialized = true;
+
+  // Add Preset Modal elements
+  const presetModal = document.getElementById('presetModal');
+  const closePresetModalBtn = document.getElementById('closePresetModalBtn');
+  const cancelPresetBtn = document.getElementById('cancelPresetBtn');
+  const presetHabitForm = document.getElementById('presetHabitForm');
+  const presetNameInput = document.getElementById('presetNameInput');
+  const presetIconInput = document.getElementById('presetIconInput');
+  const presetPtsInput = document.getElementById('presetPtsInput');
+  const presetLabelInput = document.getElementById('presetLabelInput');
+  const emojiPills = document.querySelectorAll('.emoji-pill');
+  const pointsPills = document.querySelectorAll('.points-pill');
+
+  // Delete Preset Confirm Modal elements
+  const deleteConfirmModal = document.getElementById('deletePresetConfirmModal');
+  const cancelDeletePresetBtn = document.getElementById('cancelDeletePresetBtn');
+  const confirmDeletePresetBtn = document.getElementById('confirmDeletePresetBtn');
+
+  // Delete Habit Log Confirm Modal elements
+  const deleteHabitLogConfirmModal = document.getElementById('deleteHabitLogConfirmModal');
+  const cancelDeleteHabitLogBtn = document.getElementById('cancelDeleteHabitLogBtn');
+  const confirmDeleteHabitLogBtn = document.getElementById('confirmDeleteHabitLogBtn');
+
+  const closeAddModal = () => {
+    if (presetModal) presetModal.classList.remove('active');
+  };
+
+  const closeDeletePresetModal = () => {
+    if (deleteConfirmModal) deleteConfirmModal.classList.remove('active');
+    pendingDeletePreset = null;
+  };
+
+  const closeDeleteHabitLogModal = () => {
+    if (deleteHabitLogConfirmModal) deleteHabitLogConfirmModal.classList.remove('active');
+    pendingDeleteLog = null;
+  };
+
+  if (closePresetModalBtn) closePresetModalBtn.addEventListener('click', closeAddModal);
+  if (cancelPresetBtn) cancelPresetBtn.addEventListener('click', closeAddModal);
+  if (presetModal) {
+    presetModal.addEventListener('click', (e) => {
+      if (e.target === presetModal) closeAddModal();
+    });
+  }
+
+  if (cancelDeletePresetBtn) cancelDeletePresetBtn.addEventListener('click', closeDeletePresetModal);
+  if (deleteConfirmModal) {
+    deleteConfirmModal.addEventListener('click', (e) => {
+      if (e.target === deleteConfirmModal) closeDeletePresetModal();
+    });
+  }
+
+  if (cancelDeleteHabitLogBtn) cancelDeleteHabitLogBtn.addEventListener('click', closeDeleteHabitLogModal);
+  if (deleteHabitLogConfirmModal) {
+    deleteHabitLogConfirmModal.addEventListener('click', (e) => {
+      if (e.target === deleteHabitLogConfirmModal) closeDeleteHabitLogModal();
+    });
+  }
+
+  // Emoji pill quick selection
+  emojiPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      emojiPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      if (presetIconInput) presetIconInput.value = pill.dataset.emoji;
+    });
+  });
+
+  if (presetIconInput) {
+    presetIconInput.addEventListener('input', () => {
+      const val = presetIconInput.value.trim();
+      emojiPills.forEach(p => {
+        if (p.dataset.emoji === val) p.classList.add('active');
+        else p.classList.remove('active');
+      });
+    });
+  }
+
+  // Points pill quick selection
+  pointsPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      pointsPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      if (presetPtsInput) presetPtsInput.value = pill.dataset.pts;
+    });
+  });
+
+  if (presetPtsInput) {
+    presetPtsInput.addEventListener('input', () => {
+      const val = presetPtsInput.value.trim();
+      pointsPills.forEach(p => {
+        if (p.dataset.pts === val) p.classList.add('active');
+        else p.classList.remove('active');
+      });
+    });
+  }
+
+  // Submit new preset
+  if (presetHabitForm) {
+    presetHabitForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = presetNameInput ? presetNameInput.value.trim() : '';
+      if (!name) return;
+
+      const icon = presetIconInput && presetIconInput.value.trim() ? presetIconInput.value.trim() : '⚡';
+      const pts = presetPtsInput ? (parseInt(presetPtsInput.value, 10) || 10) : 10;
+      const customLabel = presetLabelInput && presetLabelInput.value.trim() ? presetLabelInput.value.trim() : name;
+
+      const newPresets = getStoredPresets();
+      newPresets.push({
+        id: `p_${Date.now()}`,
+        icon,
+        name,
+        pts,
+        label: customLabel
+      });
+      saveStoredPresets(newPresets);
+      closeAddModal();
+      renderQuickPresetsUI(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn);
+    });
+  }
+
+  // Confirm delete preset
+  if (confirmDeletePresetBtn) {
+    confirmDeletePresetBtn.addEventListener('click', () => {
+      if (!pendingDeletePreset) return;
+      const targetId = pendingDeletePreset.id;
+      const newPresets = getStoredPresets().filter(pr => pr.id !== targetId);
+      saveStoredPresets(newPresets);
+      closeDeletePresetModal();
+      renderQuickPresetsUI(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn);
+    });
+  }
+
+  // Confirm delete habit history log entry
+  if (confirmDeleteHabitLogBtn) {
+    confirmDeleteHabitLogBtn.addEventListener('click', async () => {
+      if (!pendingDeleteLog) return;
+      const { rawId, weekData: targetWeekData, habitLogTableBody: targetBody, totalPointsBadge: targetBadge } = pendingDeleteLog;
+      const numId = parseInt(rawId, 10);
+      
+      targetWeekData.habits = (targetWeekData.habits || []).filter(h => String(h.id) !== String(rawId) && h.id !== numId);
+      saveStateToStorage();
+      closeDeleteHabitLogModal();
+      renderHabits(targetBody, targetBadge);
+      await ApiClient.deleteHabit(rawId);
+    });
+  }
+}
+
+export function openAddPresetModal() {
+  const presetModal = document.getElementById('presetModal');
+  const presetHabitForm = document.getElementById('presetHabitForm');
+  const presetNameInput = document.getElementById('presetNameInput');
+  const presetIconInput = document.getElementById('presetIconInput');
+  const presetPtsInput = document.getElementById('presetPtsInput');
+  const presetLabelInput = document.getElementById('presetLabelInput');
+  const emojiPills = document.querySelectorAll('.emoji-pill');
+  const pointsPills = document.querySelectorAll('.points-pill');
+
+  if (presetHabitForm) presetHabitForm.reset();
+  if (presetIconInput) presetIconInput.value = '⚡';
+  if (presetPtsInput) presetPtsInput.value = '10';
+
+  emojiPills.forEach(p => {
+    if (p.dataset.emoji === '⚡') p.classList.add('active');
+    else p.classList.remove('active');
+  });
+
+  pointsPills.forEach(p => {
+    if (p.dataset.pts === '10') p.classList.add('active');
+    else p.classList.remove('active');
+  });
+
+  if (presetModal) {
+    presetModal.classList.add('active');
+    if (presetNameInput) setTimeout(() => presetNameInput.focus(), 50);
+  }
+}
+
+export function openDeletePresetModal(preset) {
+  pendingDeletePreset = preset;
+  const deleteConfirmModal = document.getElementById('deletePresetConfirmModal');
+  const deletePresetTargetName = document.getElementById('deletePresetTargetName');
+
+  if (deletePresetTargetName) {
+    deletePresetTargetName.textContent = `"${preset.label || preset.name}"`;
+  }
+
+  if (deleteConfirmModal) {
+    deleteConfirmModal.classList.add('active');
+  }
+}
+
 export function renderQuickPresetsUI(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn) {
   if (!container) return;
+  initHabitModals(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn);
+
   const presets = getStoredPresets();
   container.innerHTML = '';
 
@@ -101,10 +321,10 @@ export function renderQuickPresetsUI(container, habitLogTableBody, totalPointsBa
     const btnContainer = document.createElement('div');
     btnContainer.className = 'preset-btn-wrapper';
     btnContainer.innerHTML = `
-      <button class="habit-btn" data-habit="${escapeHtml(p.name)}" data-pts="${p.pts}">
+      <button type="button" class="habit-btn" data-habit="${escapeHtml(p.name)}" data-pts="${p.pts}">
         <span class="icon">${p.icon || '⭐'}</span> ${escapeHtml(p.label || p.name)} <span class="pts">+${p.pts} pts</span>
       </button>
-      <button class="remove-preset-badge" data-preset-id="${p.id}" title="Remove preset button">✕</button>
+      <button type="button" class="remove-preset-badge" data-preset-id="${p.id}" title="Remove preset button">✕</button>
     `;
 
     btnContainer.querySelector('.habit-btn').addEventListener('click', () => {
@@ -114,9 +334,7 @@ export function renderQuickPresetsUI(container, habitLogTableBody, totalPointsBa
 
     btnContainer.querySelector('.remove-preset-badge').addEventListener('click', (e) => {
       e.stopPropagation();
-      const newPresets = getStoredPresets().filter(pr => pr.id !== p.id);
-      saveStoredPresets(newPresets);
-      renderQuickPresetsUI(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn);
+      openDeletePresetModal(p);
     });
 
     container.appendChild(btnContainer);
@@ -124,25 +342,11 @@ export function renderQuickPresetsUI(container, habitLogTableBody, totalPointsBa
 
   // Add Preset Button
   const addBtn = document.createElement('button');
+  addBtn.type = 'button';
   addBtn.className = 'btn btn-secondary add-preset-btn';
   addBtn.innerHTML = `<span>➕ Add Preset Action</span>`;
   addBtn.addEventListener('click', () => {
-    const name = prompt("Enter quick action name (e.g. Morning Jog, Read 20 Mins):");
-    if (!name) return;
-    const ptsStr = prompt("Enter point value (e.g. 5, 10, 15):", "10");
-    const pts = parseInt(ptsStr, 10) || 10;
-    const icon = prompt("Enter an emoji icon (optional):", "⚡") || "⚡";
-
-    const newPresets = getStoredPresets();
-    newPresets.push({
-      id: `p_${Date.now()}`,
-      icon,
-      name,
-      pts,
-      label: name
-    });
-    saveStoredPresets(newPresets);
-    renderQuickPresetsUI(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn);
+    openAddPresetModal();
   });
 
   container.appendChild(addBtn);

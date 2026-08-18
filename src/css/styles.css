@@ -604,6 +604,158 @@ body {
   color: #fff;
 }
 
+/* Preset Habit Creation Modal & Emoji/Points Pickers */
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.modal-header-title h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-title-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.15);
+  font-size: 1.1rem;
+}
+
+.emoji-picker-container,
+.points-picker-container {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.emoji-quick-pills,
+.points-quick-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.emoji-pill,
+.points-pill {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.emoji-pill:hover,
+.points-pill:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+.emoji-pill.active,
+.points-pill.active {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--accent-primary);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.3);
+}
+
+.emoji-custom-input {
+  width: 60px !important;
+  text-align: center;
+  font-size: 1.1rem;
+  padding: 0.35rem 0.2rem !important;
+}
+
+.points-custom-input {
+  width: 75px !important;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* Delete Preset Confirmation Modal */
+.modal-card-confirm {
+  max-width: 440px;
+  text-align: center;
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(239, 68, 68, 0.15);
+}
+
+.confirm-modal-body {
+  padding: 2rem 1.75rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.confirm-icon-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.2);
+}
+
+.confirm-icon {
+  font-size: 1.75rem;
+}
+
+.confirm-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.confirm-desc {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 0.25rem;
+}
+
+.confirm-desc strong {
+  color: var(--text-primary);
+}
+
+.confirm-subdesc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 1.75rem;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.confirm-actions .btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .habit-form-card, .habit-history-card, .analytics-card, .todo-card, .notes-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
