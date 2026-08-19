@@ -2,20 +2,30 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, formatDateISO } from './state.js?v=2.4.10';
-import { openTaskModal } from './modal.js?v=2.4.10';
-import { escapeHtml } from './utils.js?v=2.4.10';
+import { STATE, getWeekDates, getCurrentWeekData, formatDateISO } from './state.js?v=2.5.1';
+import { openTaskModal } from './modal.js?v=2.5.1';
+import { escapeHtml } from './utils.js?v=2.5.1';
 
 export const TIME_SLOTS = [];
-for (let hour = 4; hour <= 23; hour++) {
-  for (let min = 0; min < 60; min += 30) {
-    if (hour === 23 && min > 0) break;
-    const hStr = String(hour).padStart(2, '0');
-    const mStr = String(min).padStart(2, '0');
-    const label = formatTimeLabel(hour, min);
-    TIME_SLOTS.push({ key: `${hStr}:${mStr}`, hour, min, label });
+
+export function generateTimeSlots(startHour = 0, endHour = 23, timeFormat = '12h') {
+  TIME_SLOTS.length = 0;
+  const start = Math.max(0, Math.min(23, parseInt(startHour, 10) || 0));
+  const end = Math.max(start, Math.min(23, parseInt(endHour, 10) || 23));
+
+  for (let hour = start; hour <= end; hour++) {
+    for (let min = 0; min < 60; min += 30) {
+      const hStr = String(hour).padStart(2, '0');
+      const mStr = String(min).padStart(2, '0');
+      const label = formatTimeLabel(hour, min, timeFormat);
+      TIME_SLOTS.push({ key: `${hStr}:${mStr}`, hour, min, label });
+    }
   }
+  return TIME_SLOTS;
 }
+
+// Initialize Full 24 Hours default: 00:00 to 23:30 (48 half-hour slots)
+generateTimeSlots(0, 23, '12h');
 
 export function getCurrentSlotKey() {
   const now = new Date();
@@ -377,10 +387,13 @@ function formatHeaderDate(isoDateStr) {
   return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
 }
 
-function formatTimeLabel(hour, min) {
+export function formatTimeLabel(hour, min, timeFormat = '12h') {
+  const displayMin = String(min).padStart(2, '0');
+  if (timeFormat === '24h') {
+    return `${String(hour).padStart(2, '0')}:${displayMin}`;
+  }
   const period = hour >= 12 ? 'PM' : 'AM';
   const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-  const displayMin = String(min).padStart(2, '0');
   return `${String(displayHour).padStart(2, '0')}:${displayMin} ${period}`;
 }
 

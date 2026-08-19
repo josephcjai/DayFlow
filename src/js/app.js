@@ -13,13 +13,14 @@ import {
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js?v=2.4.10';
-import { ApiClient } from './apiClient.js?v=2.4.10';
-import { renderGrid } from './grid.js?v=2.4.10';
-import { initModal } from './modal.js?v=2.4.10';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.4.10';
-import { renderAnalytics } from './analytics.js?v=2.4.10';
-import { renderNotes, initTodoFilterBar } from './notes.js?v=2.4.10';
+} from './state.js?v=2.5.1';
+import { ApiClient } from './apiClient.js?v=2.5.1';
+import { renderGrid } from './grid.js?v=2.5.1';
+import { initModal } from './modal.js?v=2.5.1';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.5.1';
+import { renderAnalytics } from './analytics.js?v=2.5.1';
+import { renderNotes, initTodoFilterBar } from './notes.js?v=2.5.1';
+import { initSettingsUI, USER_SETTINGS } from './settings.js?v=2.5.1';
 
 const DOM = {};
 
@@ -27,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   cacheDomElements();
   loadStateFromStorage();
   initModal(DOM.modalElements, renderAll);
+  initSettingsUI(DOM, renderAll);
   bindEvents();
   initAuthUI();
   
@@ -232,9 +234,22 @@ function bindEvents() {
       btn.classList.add('active');
       const view = btn.dataset.view;
       STATE.activeView = view;
-      document.getElementById(`view-${view}`).classList.add('active');
+      const targetPanel = document.getElementById(`view-${view}`);
+      if (targetPanel) targetPanel.classList.add('active');
+
+      const controlsBar = document.querySelector('.controls-bar');
+      if (controlsBar) {
+        if (view === 'settings') {
+          controlsBar.style.display = 'none';
+        } else {
+          controlsBar.style.display = 'flex';
+        }
+      }
+
       renderAll();
-      await syncWeekDataWithApi(renderAll);
+      if (view !== 'settings') {
+        await syncWeekDataWithApi(renderAll);
+      }
     });
   });
 

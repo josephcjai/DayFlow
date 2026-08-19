@@ -87,6 +87,9 @@
         <button class="nav-btn" data-view="notes">
           <span class="icon">📝</span> Notes & Todo
         </button>
+        <button class="nav-btn" data-view="settings">
+          <span class="icon">⚙️</span> Settings
+        </button>
       </nav>
 
       <!-- User Account & Quick Actions -->
@@ -330,6 +333,24 @@
               <div class="card-header">
                 <h2>Weekly Priorities & Todo</h2>
               </div>
+
+              <!-- Todo Weekly Completion Progress Bar -->
+              <div id="todoProgressBarContainer" class="todo-progress-container">
+                <div class="todo-progress-header">
+                  <div class="progress-header-left">
+                    <span class="progress-icon">🎯</span>
+                    <span class="progress-title">Weekly Goals Completion</span>
+                  </div>
+                  <span id="todoProgressCountText" class="progress-count-badge">0 of 0 Completed (0%)</span>
+                </div>
+                <div class="todo-progress-bar-bg">
+                  <div id="todoProgressBarFill" class="todo-progress-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div id="todoProgressCelebration" class="progress-celebration-banner" style="display: none;">
+                  <span>🎉 All weekly goals completed! Awesome discipline!</span>
+                </div>
+              </div>
+
               <form id="addTodoForm" class="todo-add-form">
                 <input type="text" id="todoInput" placeholder="Add a new goal or action item..." required class="text-input todo-text-input">
                 <div class="todo-form-controls">
@@ -375,6 +396,206 @@
               <div class="card-footer">
                 <span id="notesSavedStatus" class="status-text">Saved</span>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS & PREFERENCES VIEW -->
+      <section id="view-settings" class="view-panel">
+        <div class="view-header">
+          <div>
+            <h2>User Settings & Preferences</h2>
+            <p class="view-subtitle">Customize your timeline window, display format, visual themes, gamification goals, and backups.</p>
+          </div>
+          <div class="settings-header-actions">
+            <span id="settingsSavedStatus" class="status-text" style="opacity: 0; font-weight: 700; color: #34d399; margin-right: 0.75rem; transition: opacity 0.3s ease;">✅ Saved</span>
+            <button type="button" id="resetSettingsBtn" class="btn btn-secondary" style="margin-right: 0.5rem;">🔄 Reset to Defaults</button>
+            <button type="button" id="saveSettingsBtn" class="btn btn-primary">💾 Save Preferences</button>
+          </div>
+        </div>
+
+        <div class="settings-grid-layout">
+          <!-- CARD 1: Schedule Grid & Timeline Window -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">🕒</span>
+              <div>
+                <h3>Schedule Grid & Timeline Window</h3>
+                <p class="settings-card-desc">Configure your active calendar hours and time display format.</p>
+              </div>
+            </div>
+
+            <!-- Quick Window Presets -->
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label>Quick Window Presets</label>
+              <div class="window-presets-container">
+                <button type="button" class="window-preset-pill active" data-start="0" data-end="23">🌐 Full 24 Hours (12 AM – 11:30 PM)</button>
+                <button type="button" class="window-preset-pill" data-start="4" data-end="23">🌅 Early Bird (4 AM – 11:30 PM)</button>
+                <button type="button" class="window-preset-pill" data-start="6" data-end="22">☀️ Standard Day (6 AM – 10 PM)</button>
+                <button type="button" class="window-preset-pill" data-start="8" data-end="18">💼 Workday Focus (8 AM – 6 PM)</button>
+              </div>
+            </div>
+
+            <!-- Custom Start & End Hour Range Sliders -->
+            <div class="form-row-2">
+              <div class="form-group">
+                <div class="range-label-row">
+                  <label for="settingsStartHour">Grid Starts At:</label>
+                  <span id="settingsStartHourLabel" class="range-val-badge">12:00 AM (00:00)</span>
+                </div>
+                <input type="range" id="settingsStartHour" min="0" max="22" step="1" value="0" class="settings-slider">
+              </div>
+
+              <div class="form-group">
+                <div class="range-label-row">
+                  <label for="settingsEndHour">Grid Ends At:</label>
+                  <span id="settingsEndHourLabel" class="range-val-badge">11:00 PM (23:00)</span>
+                </div>
+                <input type="range" id="settingsEndHour" min="1" max="23" step="1" value="23" class="settings-slider">
+              </div>
+            </div>
+
+            <div class="form-row-2" style="margin-top: 0.75rem;">
+              <div class="form-group">
+                <label for="settingsTimeFormat">Time Display Format</label>
+                <select id="settingsTimeFormat" class="select-input">
+                  <option value="12h">12-Hour AM/PM (e.g. 09:00 AM, 02:30 PM)</option>
+                  <option value="24h">24-Hour Military (e.g. 09:00, 14:30)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="settingsDefaultView">Default Landing View</label>
+                <select id="settingsDefaultView" class="select-input">
+                  <option value="grid">📅 Schedule Grid</option>
+                  <option value="habits">⚡ Habit Ledger</option>
+                  <option value="analytics">📊 Focus Analytics</option>
+                  <option value="notes">📝 Notes & Todo</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group checkbox-group" style="margin-top: 0.75rem;">
+              <label class="custom-checkbox-label">
+                <input type="checkbox" id="settingsCompactGrid">
+                <span>Compact Grid Rows (fits more hours on screen without vertical scrolling)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- CARD 2: Themes & Appearance -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">🎨</span>
+              <div>
+                <h3>Themes & Visual Styling</h3>
+                <p class="settings-card-desc">Personalize your color palette and accent aesthetic.</p>
+              </div>
+            </div>
+
+            <!-- Theme Cards -->
+            <div class="form-group">
+              <label>Interface Theme</label>
+              <div class="theme-picker-grid">
+                <div class="theme-card active" data-theme="dark">
+                  <div class="theme-preview-box preview-dark">
+                    <div class="preview-header"></div>
+                    <div class="preview-content"></div>
+                  </div>
+                  <span class="theme-card-name">🌌 Deep Midnight</span>
+                </div>
+
+                <div class="theme-card" data-theme="oled">
+                  <div class="theme-preview-box preview-oled">
+                    <div class="preview-header"></div>
+                    <div class="preview-content"></div>
+                  </div>
+                  <span class="theme-card-name">🌑 Pure OLED Black</span>
+                </div>
+
+                <div class="theme-card" data-theme="emerald">
+                  <div class="theme-preview-box preview-emerald">
+                    <div class="preview-header"></div>
+                    <div class="preview-content"></div>
+                  </div>
+                  <span class="theme-card-name">🌲 Emerald Forest</span>
+                </div>
+
+                <div class="theme-card" data-theme="light">
+                  <div class="theme-preview-box preview-light">
+                    <div class="preview-header"></div>
+                    <div class="preview-content"></div>
+                  </div>
+                  <span class="theme-card-name">☀️ Clean Light</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Accent Color Picker -->
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label>Accent Highlights</label>
+              <div class="accent-picker-pills">
+                <button type="button" class="accent-pill active" data-accent="indigo">
+                  <span class="accent-color-dot" style="background: #6366f1;"></span> Indigo
+                </button>
+                <button type="button" class="accent-pill" data-accent="emerald">
+                  <span class="accent-color-dot" style="background: #10b981;"></span> Emerald
+                </button>
+                <button type="button" class="accent-pill" data-accent="cyan">
+                  <span class="accent-color-dot" style="background: #06b6d4;"></span> Cyan
+                </button>
+                <button type="button" class="accent-pill" data-accent="purple">
+                  <span class="accent-color-dot" style="background: #a855f7;"></span> Purple
+                </button>
+                <button type="button" class="accent-pill" data-accent="rose">
+                  <span class="accent-color-dot" style="background: #f43f5e;"></span> Rose
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 3: Gamification & Targets -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">🏆</span>
+              <div>
+                <h3>Gamification & Targets</h3>
+                <p class="settings-card-desc">Set daily point goals and rewards for completed priorities.</p>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="settingsDailyPoints">Daily Discipline Points Goal</label>
+                <input type="number" id="settingsDailyPoints" value="50" min="10" max="500" step="5" class="number-input">
+                <span class="field-hint">Target displayed on your header & analytics ledger</span>
+              </div>
+
+              <div class="form-group">
+                <label for="settingsTodoReward">Todo Priority Reward Points</label>
+                <input type="number" id="settingsTodoReward" value="15" min="0" max="100" step="5" class="number-input">
+                <span class="field-hint">Points awarded when checking off a priority goal</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 4: Data Export & Backup -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">💾</span>
+              <div>
+                <h3>Data Export & Offline Backup</h3>
+                <p class="settings-card-desc">Download a complete portable JSON archive of your schedules, habits, and notes.</p>
+              </div>
+            </div>
+
+            <div class="backup-action-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0;">
+              <div>
+                <strong style="font-size: 0.9rem; color: var(--text-primary);">Export Full DayFlow Archive (JSON)</strong>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Includes all weekly timeline slots, habit histories, priority goals, and settings.</p>
+              </div>
+              <button type="button" id="exportBackupBtn" class="btn btn-secondary">📥 Export Backup (JSON)</button>
             </div>
           </div>
         </div>
@@ -760,6 +981,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.4.10"></script>
+  <script type="module" src="src/js/app.js?v=2.5.1"></script>
 </body>
 </html>

@@ -9,10 +9,10 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO } from './state.js?v=2.4.10';
-import { ApiClient } from './apiClient.js?v=2.4.10';
-import { escapeHtml } from './utils.js?v=2.4.10';
-import { TIME_SLOTS } from './grid.js?v=2.4.10';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO } from './state.js?v=2.5.1';
+import { ApiClient } from './apiClient.js?v=2.5.1';
+import { escapeHtml } from './utils.js?v=2.5.1';
+import { TIME_SLOTS } from './grid.js?v=2.5.1';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
@@ -732,6 +732,36 @@ function findScheduledSlotForTodo(item, weekSlots) {
   return `${dayAbbr} ${timeStr}`;
 }
 
+export function updateTodoProgressBar(todos) {
+  const countEl = document.getElementById('todoProgressCountText');
+  const fillEl = document.getElementById('todoProgressBarFill');
+  const celebrationEl = document.getElementById('todoProgressCelebration');
+
+  const list = todos || [];
+  const total = list.length;
+  const completed = list.filter(t => !!t.completed).length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  if (countEl) {
+    countEl.textContent = `${completed} of ${total} Completed (${pct}%)`;
+    if (pct === 100 && total > 0) {
+      countEl.style.color = '#34d399';
+      countEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    } else {
+      countEl.style.color = 'var(--accent-primary)';
+      countEl.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+    }
+  }
+
+  if (fillEl) {
+    fillEl.style.width = `${pct}%`;
+  }
+
+  if (celebrationEl) {
+    celebrationEl.style.display = (total > 0 && completed === total) ? 'block' : 'none';
+  }
+}
+
 export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
   if (!todoList) return;
   gridUpdateCallback = onGridUpdated;
@@ -747,6 +777,7 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
   todoList.innerHTML = '';
 
   const allTodos = weekData.todos || [];
+  updateTodoProgressBar(allTodos);
 
   // Filter based on active filter pill
   const filteredTodos = allTodos.filter(item => {
@@ -804,6 +835,7 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
         todo.completed = chk.checked;
         saveStateToStorage();
         renderNotes(todoList, weeklyNotesTextarea, gridUpdateCallback);
+        if (gridUpdateCallback) gridUpdateCallback();
         await ApiClient.toggleTodo(todo.id, chk.checked);
       }
     });
