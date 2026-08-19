@@ -13,13 +13,13 @@ import {
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js?v=2.4.0';
-import { ApiClient } from './apiClient.js?v=2.4.0';
-import { renderGrid } from './grid.js?v=2.4.0';
-import { initModal } from './modal.js?v=2.4.0';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.4.0';
-import { renderAnalytics } from './analytics.js?v=2.4.0';
-import { renderNotes } from './notes.js?v=2.4.0';
+} from './state.js?v=2.4.10';
+import { ApiClient } from './apiClient.js?v=2.4.10';
+import { renderGrid } from './grid.js?v=2.4.10';
+import { initModal } from './modal.js?v=2.4.10';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.4.10';
+import { renderAnalytics } from './analytics.js?v=2.4.10';
+import { renderNotes, initTodoFilterBar } from './notes.js?v=2.4.10';
 
 const DOM = {};
 
@@ -83,6 +83,9 @@ function cacheDomElements() {
 
   DOM.addTodoForm = document.getElementById('addTodoForm');
   DOM.todoInput = document.getElementById('todoInput');
+  DOM.todoPrioritySelect = document.getElementById('todoPrioritySelect');
+  DOM.todoCategorySelect = document.getElementById('todoCategorySelect');
+  DOM.todoFilterBar = document.getElementById('todoFilterBar');
   DOM.todoList = document.getElementById('todoList');
   DOM.weeklyNotesTextarea = document.getElementById('weeklyNotesTextarea');
   DOM.notesSavedStatus = document.getElementById('notesSavedStatus');
@@ -323,20 +326,28 @@ function bindEvents() {
     }
   });
 
+  if (DOM.todoFilterBar) {
+    initTodoFilterBar(DOM.todoFilterBar, DOM.todoList, DOM.weeklyNotesTextarea);
+  }
+
   DOM.addTodoForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = DOM.todoInput.value.trim();
+    const priority = DOM.todoPrioritySelect ? DOM.todoPrioritySelect.value : 'Medium';
+    const category = DOM.todoCategorySelect ? DOM.todoCategorySelect.value : 'General';
     if (text) {
       const weekKey = getWeekKey(STATE.currentWeekStart);
+      const weekData = getCurrentWeekData();
+      if (!weekData.todos) weekData.todos = [];
       const tempId = Date.now();
-      const localTodo = { id: tempId, text, completed: false };
+      const localTodo = { id: tempId, text, priority, category, completed: false };
       weekData.todos.push(localTodo);
       DOM.todoInput.value = '';
       saveStateToStorage();
       renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
 
       // Sync todo with API and patch server-assigned ID
-      const apiRes = await ApiClient.addTodo(weekKey, text);
+      const apiRes = await ApiClient.addTodo(weekKey, text, priority, category);
       if (apiRes && apiRes.todo && apiRes.todo.id) {
         localTodo.id = apiRes.todo.id;
         saveStateToStorage();
@@ -422,7 +433,7 @@ function renderAll() {
       DOM.analyticsTrendSubtitle
     );
   }
-  if (STATE.activeView === 'notes') renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
+  if (STATE.activeView === 'notes') renderNotes(DOM.todoList, DOM.weeklyNotesTextarea, renderAll);
 }
 
 function updateHabitDatePillStates(dateStr) {

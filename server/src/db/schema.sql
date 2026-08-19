@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS todo_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     week_id UUID REFERENCES schedule_weeks(id) ON DELETE CASCADE,
     text VARCHAR(255) NOT NULL,
+    priority VARCHAR(20) DEFAULT 'Medium',
+    category VARCHAR(50) DEFAULT 'General',
     is_completed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

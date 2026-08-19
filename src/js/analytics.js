@@ -5,8 +5,8 @@
  * 2. Week Mode: Weekly KPI, 7-category time distribution, and Mon-Sun consistency trend
  * 3. Month Mode: Monthly KPI aggregation across all weeks, monthly category breakdown, and weekly trend distribution
  */
-import { getCurrentWeekData, STATE, getWeekDates, formatDateISO } from './state.js?v=2.4.0';
-import { escapeHtml } from './utils.js?v=2.4.0';
+import { getCurrentWeekData, STATE, getWeekDates, formatDateISO } from './state.js?v=2.4.10';
+import { escapeHtml } from './utils.js?v=2.4.10';
 
 const CATEGORIES = [
   { id: 'Learning', name: 'Learning (WPF/WCF/React/Angular)', color: 'var(--cat-learning)' },

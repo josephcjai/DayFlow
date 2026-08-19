@@ -330,10 +330,37 @@
               <div class="card-header">
                 <h2>Weekly Priorities & Todo</h2>
               </div>
-              <form id="addTodoForm" class="form-row">
-                <input type="text" id="todoInput" placeholder="Add a new goal or action item..." required class="text-input">
-                <button type="submit" class="btn btn-primary">Add</button>
+              <form id="addTodoForm" class="todo-add-form">
+                <input type="text" id="todoInput" placeholder="Add a new goal or action item..." required class="text-input todo-text-input">
+                <div class="todo-form-controls">
+                  <select id="todoPrioritySelect" class="form-select todo-select" title="Priority Level">
+                    <option value="High">🔴 High</option>
+                    <option value="Medium" selected>🟡 Medium</option>
+                    <option value="Low">🟢 Low</option>
+                  </select>
+                  <select id="todoCategorySelect" class="form-select todo-select" title="Category Tag">
+                    <option value="Learning" selected>Learning</option>
+                    <option value="Work">Work</option>
+                    <option value="Household">Household</option>
+                    <option value="Family">Family</option>
+                    <option value="Health">Health</option>
+                    <option value="Travel">Travel</option>
+                    <option value="General">General</option>
+                  </select>
+                  <button type="submit" class="btn btn-primary todo-add-btn">Add</button>
+                </div>
               </form>
+
+              <!-- Todo Filter Toolbar -->
+              <div id="todoFilterBar" class="todo-filter-bar">
+                <button type="button" class="todo-filter-pill active" data-filter="all">All</button>
+                <button type="button" class="todo-filter-pill" data-filter="High">🔴 High</button>
+                <button type="button" class="todo-filter-pill" data-filter="Medium">🟡 Medium</button>
+                <button type="button" class="todo-filter-pill" data-filter="Low">🟢 Low</button>
+                <button type="button" class="todo-filter-pill" data-filter="pending">⏳ Pending</button>
+                <button type="button" class="todo-filter-pill" data-filter="completed">✅ Done</button>
+              </div>
+
               <ul id="todoList" class="todo-item-list">
                 <!-- Todo items -->
               </ul>
@@ -534,6 +561,205 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.4.0"></script>
+  <!-- DELETE TODO ITEM CONFIRMATION MODAL -->
+  <div id="deleteTodoConfirmModal" class="modal-overlay">
+    <div class="modal-card modal-card-confirm" style="max-width: 500px;">
+      <div class="confirm-modal-body">
+        <div class="confirm-icon-badge">
+          <span class="confirm-icon">🗑️</span>
+        </div>
+        <h3 class="confirm-title">Delete Priority Goal?</h3>
+        <p class="confirm-desc">Are you sure you want to delete <strong id="deleteTodoTargetName">this item</strong>?</p>
+        
+        <!-- Standard Subdescription (shown when not scheduled) -->
+        <p id="deleteTodoStandardSubdesc" class="confirm-subdesc">This priority item will be permanently removed from your weekly checklist.</p>
+
+        <!-- Scheduled Slots Warning Box (shown when scheduled in grid) -->
+        <div id="deleteTodoSlotsWarning" class="scheduled-slots-warning-box" style="display: none; margin: 0.75rem 0; text-align: left;">
+          <div class="slots-warning-header">
+            <span class="slots-warning-icon">📅</span>
+            <span id="deleteTodoSlotsCountText" class="slots-warning-title">Scheduled in 1 time slot on your calendar:</span>
+          </div>
+          <div id="deleteTodoSlotsList" class="slots-preview-list">
+            <!-- Populated dynamically with scheduled slot tags -->
+          </div>
+        </div>
+
+        <!-- Standard Actions (No scheduled slots) -->
+        <div id="deleteTodoStandardActions" class="confirm-actions">
+          <button type="button" id="cancelDeleteTodoBtn" class="btn btn-secondary">Keep Item</button>
+          <button type="button" id="confirmDeleteTodoBtn" class="btn btn-danger">Yes, Delete Item</button>
+        </div>
+
+        <!-- Cascade Actions (When scheduled in grid slots) -->
+        <div id="deleteTodoCascadeActions" class="confirm-actions" style="display: none; flex-direction: column; gap: 0.5rem; width: 100%;">
+          <button type="button" id="confirmDeleteAndClearSlotsBtn" class="btn btn-danger" style="width: 100%;">🗑️ Delete Goal & Clear Scheduled Slots</button>
+          <button type="button" id="confirmDeleteOnlyGoalBtn" class="btn btn-secondary" style="width: 100%;">Keep Slots on Grid (Only Delete Goal)</button>
+          <button type="button" id="cancelDeleteTodoCascadeBtn" class="btn btn-secondary" style="width: 100%;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE TODO TIMEBLOCKING MODAL -->
+  <div id="scheduleTodoModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span class="modal-title-icon">📅</span>
+          <h3>Schedule Goal into Time Slot</h3>
+        </div>
+        <button type="button" id="closeScheduleTodoModalBtn" class="close-btn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="scheduleTodoForm">
+          <div class="scheduled-task-preview">
+            <span class="preview-label">Priority Goal:</span>
+            <h4 id="scheduleTodoTaskText" class="preview-task-text">Task Name</h4>
+            <div class="preview-badges">
+              <span id="scheduleTodoPriorityBadge" class="priority-badge priority-medium">🟡 Med</span>
+              <span id="scheduleTodoCategoryBadge" class="todo-category-badge">Learning</span>
+            </div>
+          </div>
+
+          <!-- Mode Segmented Switcher -->
+          <div class="schedule-mode-tabs" style="margin-top: 1rem;">
+            <button type="button" id="scheduleModeSingleBtn" class="schedule-mode-tab active" data-mode="single">Single Day</button>
+            <button type="button" id="scheduleModeMultiBtn" class="schedule-mode-tab" data-mode="multi">📅 Multi-Day Range (15–20 Days)</button>
+          </div>
+
+          <!-- Single Day Selection Container -->
+          <div id="singleDayScheduleContainer" class="schedule-subcontainer" style="margin-top: 1rem;">
+            <div class="form-group">
+              <label for="scheduleTodoDateSelect">Target Day *</label>
+              <select id="scheduleTodoDateSelect" class="form-select">
+                <!-- Populated dynamically with active week days -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Multi-Day Range & Exclusion Container -->
+          <div id="multiDayScheduleContainer" class="schedule-subcontainer" style="margin-top: 1rem; display: none;">
+            <div class="multi-day-toolbar">
+              <div class="form-group">
+                <label>Range Span:</label>
+                <div class="span-pills">
+                  <button type="button" class="span-pill-btn" data-span="7">7 Days</button>
+                  <button type="button" class="span-pill-btn" data-span="14">14 Days</button>
+                  <button type="button" class="span-pill-btn active" data-span="20">20 Days</button>
+                  <button type="button" class="span-pill-btn" data-span="30">30 Days</button>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top: 0.5rem;">
+                <label>Quick Day Filter:</label>
+                <div class="pattern-pills">
+                  <button type="button" class="pattern-pill-btn active" data-pattern="all">Everyday</button>
+                  <button type="button" class="pattern-pill-btn" data-pattern="weekdays">Weekdays Only (Mon–Fri)</button>
+                  <button type="button" class="pattern-pill-btn" data-pattern="weekends">Weekends Only</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 0.75rem;">
+              <div class="chips-header">
+                <label>Target Days (Click any day to skip/remove):</label>
+                <span id="scheduleMultiDaySummary" class="chips-summary-badge">20 days selected</span>
+              </div>
+              <div id="scheduleMultiDayChipsContainer" class="day-chips-grid">
+                <!-- Dynamically generated clickable date chips -->
+              </div>
+            </div>
+
+            <!-- Multi-Day Conflict Notification Banner -->
+            <div id="multiDayConflictBanner" class="conflict-alert-banner" style="display: none; margin-top: 0.75rem;">
+              <div class="conflict-banner-info">
+                <span class="conflict-banner-icon">⚠️</span>
+                <span id="multiDayConflictText" class="conflict-banner-msg">3 days have conflicting tasks at this time</span>
+              </div>
+              <button type="button" id="skipAllConflictedDaysBtn" class="btn-conflict-action">🛡️ Skip Conflicted Days</button>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group" style="flex: 1;">
+              <label for="scheduleTodoTimeSelect">Start Time Slot *</label>
+              <select id="scheduleTodoTimeSelect" class="form-select" required>
+                <!-- Populated dynamically with time slots -->
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="scheduleTodoDurationSelect">Planned Duration</label>
+              <select id="scheduleTodoDurationSelect" class="form-select">
+                <option value="30" selected>30 Mins (1 Slot)</option>
+                <option value="60">60 Mins (2 Slots)</option>
+                <option value="90">90 Mins (3 Slots)</option>
+                <option value="120">120 Mins (4 Slots)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 1rem;">
+            <label for="scheduleTodoCategorySelect">Category</label>
+            <select id="scheduleTodoCategorySelect" class="form-select">
+              <option value="Learning">Learning</option>
+              <option value="Work">Work</option>
+              <option value="Household">Household</option>
+              <option value="Family">Family</option>
+              <option value="Health">Health</option>
+              <option value="Travel">Travel</option>
+              <option value="General">General</option>
+            </select>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="cancelScheduleTodoBtn" class="btn btn-secondary">Cancel</button>
+            <button type="submit" id="confirmScheduleTodoBtn" class="btn btn-primary">📅 Place into Schedule Grid</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIME SLOT CONFLICT RESOLUTION MODAL -->
+  <div id="scheduleConflictModal" class="modal-overlay">
+    <div class="modal-card modal-card-confirm" style="max-width: 500px;">
+      <div class="confirm-modal-body">
+        <div class="confirm-icon-badge" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
+          <span class="confirm-icon">⚠️</span>
+        </div>
+        <h3 class="confirm-title">Time Slot Already Occupied</h3>
+        <p class="confirm-desc">A task is already scheduled on <strong id="conflictSlotDayTime">Tuesday at 09:00 AM</strong>.</p>
+        
+        <div class="conflict-comparison-box">
+          <div class="conflict-item conflict-existing">
+            <span class="conflict-label">Current Occupant:</span>
+            <div class="conflict-details">
+              <span id="conflictExistingTaskText" class="conflict-text">Daily Standup & Sync</span>
+              <span id="conflictExistingCategoryBadge" class="todo-category-badge">Work</span>
+            </div>
+          </div>
+          <div class="conflict-arrow">⬇️ Will be replaced by</div>
+          <div class="conflict-item conflict-incoming">
+            <span class="conflict-label">New Priority Goal:</span>
+            <div class="conflict-details">
+              <span id="conflictIncomingTaskText" class="conflict-text">Master WPF Attached Properties</span>
+              <span id="conflictIncomingCategoryBadge" class="todo-category-badge">Learning</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="confirm-actions" style="flex-direction: column; gap: 0.5rem; width: 100%; margin-top: 1rem;">
+          <button type="button" id="autoResolveNextSlotBtn" class="btn btn-primary" style="width: 100%;">⚡ Auto-Find Next Available Free Slot</button>
+          <div style="display: flex; gap: 0.5rem; width: 100%;">
+            <button type="button" id="cancelConflictBtn" class="btn btn-secondary" style="flex: 1;">Keep Existing / Cancel</button>
+            <button type="button" id="overwriteConflictBtn" class="btn btn-danger" style="flex: 1;">⚠️ Overwrite Task</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/js/app.js?v=2.4.10"></script>
 </body>
 </html>

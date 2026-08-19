@@ -23,7 +23,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
     try {
       // Get week record and notes
       const weekRes = await executeQuery(
-        'SELECT id, weekly_notes FROM schedule_weeks WHERE user_id = $1 AND start_date = $2',
+        'SELECT id, weekly_notes FROM schedule_weeks WHERE user_id = $1 AND start_date = $2::date',
         [userId, weekStart]
       );
 
@@ -31,7 +31,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
         notes = weekRes.rows[0].weekly_notes || '';
         const weekId = weekRes.rows[0].id;
         const todoRes = await executeQuery(
-          'SELECT id, text, is_completed as completed FROM todo_items WHERE week_id = $1 ORDER BY created_at ASC',
+          'SELECT id, text, is_completed as completed, COALESCE(priority, \'Medium\') as priority, COALESCE(category, \'General\') as category FROM todo_items WHERE week_id = $1 ORDER BY created_at ASC',
           [weekId]
         );
         todos = todoRes.rows;
@@ -54,8 +54,10 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 router.post('/todo', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
-    const { weekStart, text } = req.body;
-    const newTodo: any = { id: Date.now(), text, completed: false };
+    const { weekStart, text, priority, category } = req.body;
+    const todoPriority = priority || 'Medium';
+    const todoCategory = category || 'General';
+    const newTodo: any = { id: Date.now(), text, priority: todoPriority, category: todoCategory, completed: false };
 
     const userWeekKey = `${userId}_${weekStart}`;
     if (!memoryStore.scheduleWeeks[userWeekKey]) {
@@ -67,7 +69,7 @@ router.post('/todo', async (req: AuthenticatedRequest, res) => {
       // Ensure schedule_weeks row exists
       const weekRes = await executeQuery(
         `INSERT INTO schedule_weeks (user_id, start_date)
-         VALUES ($1, $2)
+         VALUES ($1, $2::date)
          ON CONFLICT (user_id, start_date) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
          RETURNING id`,
         [userId, weekStart]
@@ -75,8 +77,8 @@ router.post('/todo', async (req: AuthenticatedRequest, res) => {
       const weekId = weekRes.rows[0].id;
       
       const insertRes = await executeQuery(
-        'INSERT INTO todo_items (week_id, text, is_completed) VALUES ($1, $2, $3) RETURNING id',
-        [weekId, text, false]
+        'INSERT INTO todo_items (week_id, text, priority, category, is_completed) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [weekId, text, todoPriority, todoCategory, false]
       );
       if (insertRes.rows[0]) {
         newTodo.id = insertRes.rows[0].id;

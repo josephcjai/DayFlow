@@ -24,8 +24,11 @@
 
 ```
 DayFlow/
-├── doc/
-│   └── TECHNICAL_SPECIFICATION.md   # Comprehensive technical specification
+├── docs/
+│   ├── API_DOCUMENTATION.md        # Interactive REST API endpoint contracts
+│   ├── DEPLOYMENT_LIGHTSAIL.md     # Production cloud deployment guide
+│   ├── NOTES_TODO_ROADMAP.md       # Notes & Todo module feature roadmap
+│   └── TECHNICAL_SPECIFICATION.md  # Comprehensive technical specification
 ├── src/
 │   ├── css/
 │   │   └── styles.css              # Modular design system & components stylesheet
