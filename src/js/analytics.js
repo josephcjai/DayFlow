@@ -5,8 +5,8 @@
  * 2. Week Mode: Weekly KPI, 7-category time distribution, and Mon-Sun consistency trend
  * 3. Month Mode: Monthly KPI aggregation across all weeks, monthly category breakdown, and weekly trend distribution
  */
-import { getCurrentWeekData, STATE, getWeekDates, formatDateISO } from './state.js?v=2.5.1';
-import { escapeHtml } from './utils.js?v=2.5.1';
+import { getCurrentWeekData, STATE, getWeekDates, formatDateISO } from './state.js?v=2.5.2';
+import { escapeHtml } from './utils.js?v=2.5.2';
 
 const CATEGORIES = [
   { id: 'Learning', name: 'Learning (WPF/WCF/React/Angular)', color: 'var(--cat-learning)' },
@@ -191,12 +191,17 @@ export function renderAnalytics(
     habitStats[name].totalPts += pts;
   });
 
-  // Include completed Todo priority goals in analytics discipline score
+  // Include completed Todo priority goals in analytics discipline score (respecting active view mode)
   const allTodos = weekData.todos || [];
   let completedTodoCount = 0;
   let todoPoints = 0;
   allTodos.forEach(t => {
     if (t.completed) {
+      if (viewMode === 'day') {
+        const isScheduledToday = t.scheduledDate === selDateISO ||
+          Object.keys(weekData.slots || {}).some(k => k.startsWith(selDateISO) && weekData.slots[k].plannedTask === t.text);
+        if (!isScheduledToday) return;
+      }
       completedTodoCount++;
       const p = (t.priority || 'Medium').toLowerCase();
       const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);

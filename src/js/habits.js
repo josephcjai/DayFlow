@@ -6,9 +6,9 @@
  * 3. Confirmation warning before deleting a habit history log entry
  * Robust row deletion, date & time logging for past dates, and Day/Week view filtering
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.5.1';
-import { ApiClient } from './apiClient.js?v=2.5.1';
-import { escapeHtml } from './utils.js?v=2.5.1';
+import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.5.2';
+import { ApiClient } from './apiClient.js?v=2.5.2';
+import { escapeHtml } from './utils.js?v=2.5.2';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🍽️', name: 'Meal Logged', pts: 5, label: 'Log Meal & Cleaned Hands' },
@@ -111,10 +111,15 @@ export function renderHabits(habitLogTableBody, totalPointsBadge) {
     });
   }
 
-  // Include points from completed weekly priority goals
+  // Include points from completed weekly priority goals (respecting Day View if active)
   const allTodos = weekData.todos || [];
   allTodos.forEach(t => {
     if (t.completed) {
+      if (isDayView && selectedDateStr) {
+        const isScheduledToday = t.scheduledDate === selectedDateStr ||
+          Object.keys(weekData.slots || {}).some(k => k.startsWith(selectedDateStr) && weekData.slots[k].plannedTask === t.text);
+        if (!isScheduledToday) return;
+      }
       const p = (t.priority || 'Medium').toLowerCase();
       const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
       totalPoints += pts;

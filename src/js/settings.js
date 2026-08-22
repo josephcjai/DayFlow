@@ -8,8 +8,8 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.5.1';
-import { STATE, getUserStorageKey, saveStateToStorage } from './state.js?v=2.5.1';
+import { generateTimeSlots } from './grid.js?v=2.5.2';
+import { STATE, getUserStorageKey, saveStateToStorage } from './state.js?v=2.5.2';
 
 export const DEFAULT_SETTINGS = {
   timelineStartHour: 0,
