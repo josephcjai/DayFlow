@@ -6,15 +6,17 @@
  * 3. Confirmation warning before deleting a habit history log entry
  * Robust row deletion, date & time logging for past dates, and Day/Week view filtering
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO } from './state.js?v=2.5.2';
-import { ApiClient } from './apiClient.js?v=2.5.2';
-import { escapeHtml } from './utils.js?v=2.5.2';
+import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey } from './state.js?v=2.5.5';
+import { ApiClient } from './apiClient.js?v=2.5.5';
+import { escapeHtml } from './utils.js?v=2.5.5';
 
 export const DEFAULT_HABIT_PRESETS = [
-  { id: 'p1', icon: '🍽️', name: 'Meal Logged', pts: 5, label: 'Log Meal & Cleaned Hands' },
-  { id: 'p2', icon: '🛋️', name: 'Non-Working Hours Logged', pts: 10, label: 'Log Non-Working Hours' },
-  { id: 'p3', icon: '🎯', name: 'Disciplined Focus Session', pts: 15, label: '2-Hour Deep Work Complete' },
-  { id: 'p4', icon: '💻', name: 'Skill Practice Complete', pts: 10, label: 'WPF / WCF Coding Session' }
+  { id: 'p1', icon: '🎯', name: 'Deep Focus Block', pts: 15, label: 'Deep Work / Study Complete' },
+  { id: 'p2', icon: '💧', name: 'Hydration & Health', pts: 5, label: 'Drank Water (500ml+)' },
+  { id: 'p3', icon: '🏃', name: 'Exercise & Workout', pts: 15, label: '30-Min Workout / Walk' },
+  { id: 'p4', icon: '📚', name: 'Daily Learning & Reading', pts: 10, label: 'Read / Skill Practice' },
+  { id: 'p5', icon: '🍽️', name: 'Healthy Meal', pts: 5, label: 'Nutritious Meal Logged' },
+  { id: 'p6', icon: '🧘', name: 'Mindful Break & Stretch', pts: 5, label: 'Stretching / Rest Period' }
 ];
 
 let pendingDeletePreset = null;
@@ -24,15 +26,22 @@ let modalsInitialized = false;
 
 export function getStoredPresets() {
   try {
-    const saved = localStorage.getItem('dayflow_habit_presets');
-    if (saved) return JSON.parse(saved);
+    const key = getUserStorageKey ? getUserStorageKey('dayflow_habit_presets') : 'dayflow_habit_presets';
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
   } catch (e) {}
   return DEFAULT_HABIT_PRESETS;
 }
 
 export function saveStoredPresets(presets) {
   try {
-    localStorage.setItem('dayflow_habit_presets', JSON.stringify(presets));
+    const key = getUserStorageKey ? getUserStorageKey('dayflow_habit_presets') : 'dayflow_habit_presets';
+    localStorage.setItem(key, JSON.stringify(presets));
   } catch (e) {}
 }
 
@@ -394,7 +403,8 @@ export function renderQuickPresetsUI(container, habitLogTableBody, totalPointsBa
   if (!container) return;
   initHabitModals(container, habitLogTableBody, totalPointsBadge, getSelectedDateFn);
 
-  const presets = getStoredPresets();
+  const rawPresets = getStoredPresets();
+  const presets = (Array.isArray(rawPresets) && rawPresets.length > 0) ? rawPresets : DEFAULT_HABIT_PRESETS;
   container.innerHTML = '';
 
   presets.forEach(p => {

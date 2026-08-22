@@ -13,14 +13,14 @@ import {
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js?v=2.5.2';
-import { ApiClient } from './apiClient.js?v=2.5.2';
-import { renderGrid } from './grid.js?v=2.5.2';
-import { initModal } from './modal.js?v=2.5.2';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.5.2';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.5.2';
-import { renderNotes, initTodoFilterBar } from './notes.js?v=2.5.2';
-import { initSettingsUI, USER_SETTINGS } from './settings.js?v=2.5.2';
+} from './state.js?v=2.5.5';
+import { ApiClient } from './apiClient.js?v=2.5.5';
+import { renderGrid } from './grid.js?v=2.5.5';
+import { initModal } from './modal.js?v=2.5.5';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.5.5';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.5.5';
+import { renderNotes, initTodoFilterBar } from './notes.js?v=2.5.5';
+import { initSettingsUI, USER_SETTINGS } from './settings.js?v=2.5.5';
 
 const DOM = {};
 
