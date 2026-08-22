@@ -369,3 +369,241 @@ export function renderAnalytics(
     }
   }
 }
+
+let breakdownFilter = 'all';
+let breakdownInitialized = false;
+let cachedAuditItems = [];
+
+export function initPointsBreakdownModal() {
+  if (breakdownInitialized) return;
+  breakdownInitialized = true;
+
+  const modal = document.getElementById('pointsBreakdownModal');
+  const closeBtn = document.getElementById('closePointsBreakdownModalBtn');
+  const dismissBtn = document.getElementById('dismissPointsBreakdownBtn');
+  const statCard = document.getElementById('statHabitPointsCard');
+  const filterBtns = document.querySelectorAll('.bifurcation-filter-btn');
+
+  const closeModal = () => {
+    if (modal) modal.classList.remove('active');
+  };
+
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (dismissBtn) dismissBtn.addEventListener('click', closeModal);
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+  }
+
+  if (statCard) {
+    statCard.addEventListener('click', () => {
+      openPointsBreakdownModal();
+    });
+  }
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      breakdownFilter = btn.dataset.filter;
+      renderBreakdownTable();
+    });
+  });
+}
+
+export function openPointsBreakdownModal() {
+  const modal = document.getElementById('pointsBreakdownModal');
+  if (!modal) return;
+
+  const viewMode = STATE.scheduleViewMode || 'week';
+  const selDate = STATE.selectedDate || new Date();
+  const selDateISO = formatDateISO(selDate);
+  const weekData = getCurrentWeekData();
+
+  const subtitleEl = document.getElementById('pointsBreakdownSubtitle');
+  const habitPtsEl = document.getElementById('bifurcationHabitPts');
+  const habitCountEl = document.getElementById('bifurcationHabitCount');
+  const goalsPtsEl = document.getElementById('bifurcationGoalsPts');
+  const goalsCountEl = document.getElementById('bifurcationGoalsCount');
+  const totalPtsEl = document.getElementById('bifurcationTotalPts');
+
+  let habitItems = [];
+  let goalItems = [];
+  let periodSubtitle = '';
+
+  if (viewMode === 'day') {
+    const dayFull = selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    periodSubtitle = `Daily Points Bifurcation for ${dayFull}`;
+
+    // Filter day habits
+    (weekData.habits || []).forEach(h => {
+      let logDate = '';
+      if (h.time && h.time.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(h.time)) {
+        logDate = h.time.slice(0, 10);
+      } else {
+        logDate = formatDateISO(STATE.currentWeekStart);
+      }
+      if (logDate === selDateISO) {
+        habitItems.push({
+          date: logDate,
+          time: h.time || '—',
+          source: 'habit',
+          sourceLabel: '🍽️ Habit Trigger',
+          name: h.name || 'Habit Action',
+          type: h.notes || 'Routine Action',
+          pts: h.pts || 0
+        });
+      }
+    });
+
+    // Filter completed todos for today
+    (weekData.todos || []).forEach(t => {
+      if (t.completed) {
+        const isScheduledToday = t.scheduledDate === selDateISO ||
+          Object.keys(weekData.slots || {}).some(k => k.startsWith(selDateISO) && weekData.slots[k].plannedTask === t.text);
+        if (isScheduledToday) {
+          const p = (t.priority || 'Medium').toLowerCase();
+          const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
+          goalItems.push({
+            date: selDateISO,
+            time: 'Completed',
+            source: 'goal',
+            sourceLabel: '🎯 Priority Goal',
+            name: t.text,
+            type: `${t.priority || 'Medium'} Priority (${t.category || 'General'})`,
+            pts: pts
+          });
+        }
+      }
+    });
+
+  } else if (viewMode === 'month') {
+    const monthFull = selDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    periodSubtitle = `Monthly Points Bifurcation for ${monthFull}`;
+    const monthPrefix = selDateISO.slice(0, 7);
+
+    Object.entries(STATE.scheduleData || {}).forEach(([wKey, wData]) => {
+      (wData.habits || []).forEach(h => {
+        let logDate = (h.time && h.time.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(h.time))
+          ? h.time.slice(0, 10)
+          : wKey;
+        if (logDate.startsWith(monthPrefix)) {
+          habitItems.push({
+            date: logDate,
+            time: h.time || '—',
+            source: 'habit',
+            sourceLabel: '🍽️ Habit Trigger',
+            name: h.name || 'Habit Action',
+            type: h.notes || 'Routine Action',
+            pts: h.pts || 0
+          });
+        }
+      });
+
+      if (wKey.startsWith(monthPrefix)) {
+        (wData.todos || []).forEach(t => {
+          if (t.completed) {
+            const p = (t.priority || 'Medium').toLowerCase();
+            const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
+            goalItems.push({
+              date: wKey,
+              time: 'Completed',
+              source: 'goal',
+              sourceLabel: '🎯 Priority Goal',
+              name: t.text,
+              type: `${t.priority || 'Medium'} Priority (${t.category || 'General'})`,
+              pts: pts
+            });
+          }
+        });
+      }
+    });
+
+  } else {
+    // Week Mode (Default)
+    const dates = getWeekDates(STATE.currentWeekStart);
+    const monStr = new Date(dates[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const sunStr = new Date(dates[6] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    periodSubtitle = `Weekly Points Bifurcation for Mon, ${monStr} – Sun, ${sunStr}`;
+
+    (weekData.habits || []).forEach(h => {
+      let displayTime = h.time || '—';
+      let logDate = dates[0];
+      if (h.time && h.time.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(h.time)) {
+        logDate = h.time.slice(0, 10);
+      }
+      habitItems.push({
+        date: logDate,
+        time: displayTime,
+        source: 'habit',
+        sourceLabel: '🍽️ Habit Trigger',
+        name: h.name || 'Habit Action',
+        type: h.notes || 'Routine Action',
+        pts: h.pts || 0
+      });
+    });
+
+    (weekData.todos || []).forEach(t => {
+      if (t.completed) {
+        const p = (t.priority || 'Medium').toLowerCase();
+        const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
+        goalItems.push({
+          date: dates[0],
+          time: 'Completed',
+          source: 'goal',
+          sourceLabel: '🎯 Priority Goal',
+          name: t.text,
+          type: `${t.priority || 'Medium'} Priority (${t.category || 'General'})`,
+          pts: pts
+        });
+      }
+    });
+  }
+
+  const habitTotalPts = habitItems.reduce((acc, h) => acc + h.pts, 0);
+  const goalsTotalPts = goalItems.reduce((acc, g) => acc + g.pts, 0);
+  const grandTotalPts = habitTotalPts + goalsTotalPts;
+
+  if (subtitleEl) subtitleEl.textContent = periodSubtitle;
+  if (habitPtsEl) habitPtsEl.textContent = `+${habitTotalPts} pts`;
+  if (habitCountEl) habitCountEl.textContent = `${habitItems.length} actions logged`;
+  if (goalsPtsEl) goalsPtsEl.textContent = `+${goalsTotalPts} pts`;
+  if (goalsCountEl) goalsCountEl.textContent = `${goalItems.length} goals completed`;
+  if (totalPtsEl) totalPtsEl.textContent = `+${grandTotalPts} pts`;
+
+  cachedAuditItems = [...habitItems, ...goalItems];
+  renderBreakdownTable();
+
+  modal.classList.add('active');
+}
+
+function renderBreakdownTable() {
+  const tbody = document.getElementById('pointsAuditTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const items = cachedAuditItems.filter(item => {
+    if (breakdownFilter === 'habits') return item.source === 'habit';
+    if (breakdownFilter === 'goals') return item.source === 'goal';
+    return true;
+  });
+
+  if (items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No points earned for this filter in the active period.</td></tr>`;
+    return;
+  }
+
+  items.forEach(item => {
+    const tr = document.createElement('tr');
+    const sourceClass = item.source === 'habit' ? 'audit-source-habit' : 'audit-source-goal';
+    tr.innerHTML = `
+      <td><span style="font-weight: 600; font-size: 0.78rem;">${escapeHtml(item.time !== '—' ? item.time : item.date)}</span></td>
+      <td><span class="audit-source-badge ${sourceClass}">${escapeHtml(item.sourceLabel)}</span></td>
+      <td><strong>${escapeHtml(item.name)}</strong></td>
+      <td><span style="color: var(--text-secondary); font-size: 0.78rem;">${escapeHtml(item.type)}</span></td>
+      <td style="text-align: right;"><span class="audit-pts-pill">+${item.pts} pts</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}

@@ -917,9 +917,199 @@ body {
   justify-content: center;
 }
 
-.stat-info { display: flex; flex-direction: column; }
+.stat-info { display: flex; flex-direction: column; width: 100%; }
+.stat-label-wrapper { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .stat-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
 .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
+
+.clickable-stat-card {
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.clickable-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.25);
+  background: var(--bg-tertiary);
+}
+
+.stat-click-hint {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: var(--accent-light);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  letter-spacing: 0.2px;
+}
+
+/* Points Bifurcation Modal Styling */
+.points-bifurcation-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .points-bifurcation-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bifurcation-metric-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bifurcation-metric-icon {
+  font-size: 1.5rem;
+  background: var(--bg-secondary);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.bifurcation-metric-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.bifurcation-metric-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.bifurcation-metric-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.bifurcation-metric-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.bifurcation-metric-card.total-metric-card {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(99, 102, 241, 0.05));
+}
+
+.bifurcation-metric-card.total-metric-card .bifurcation-metric-value {
+  color: #34d399;
+}
+
+/* Filter Bar */
+.bifurcation-filter-bar {
+  display: flex;
+  gap: 0.35rem;
+  background: var(--bg-primary);
+  padding: 0.2rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.bifurcation-filter-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bifurcation-filter-btn:hover {
+  color: var(--text-primary);
+}
+
+.bifurcation-filter-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+/* Points Audit Table */
+.points-audit-table-container {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.points-audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.points-audit-table th {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.points-audit-table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.points-audit-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.audit-pts-pill {
+  font-weight: 800;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  display: inline-block;
+}
+
+.audit-source-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+}
+
+.audit-source-habit {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-primary);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.audit-source-goal {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
 
 .category-bars-list { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem; }
 .cat-bar-item { display: flex; flex-direction: column; gap: 0.4rem; }
