@@ -518,10 +518,100 @@ function formatDateShort(dateObj) {
 }
 
 function exportDataJson() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(STATE.scheduleData, null, 2));
+  const viewMode = STATE.scheduleViewMode || 'week';
+  const selDate = STATE.selectedDate || new Date();
+  const selDateISO = formatDateISO(selDate);
+  const currentWeekKey = getWeekKey(STATE.currentWeekStart);
+
+  let exportPayload = {};
+  let filename = '';
+
+  if (viewMode === 'day') {
+    // Day Scope
+    const weekData = STATE.scheduleData[currentWeekKey] || { slots: {}, habits: [], todos: [], notes: '' };
+    const daySlots = {};
+    Object.entries(weekData.slots || {}).forEach(([k, s]) => {
+      if (k.startsWith(selDateISO)) {
+        daySlots[k] = s;
+      }
+    });
+
+    const dayHabits = (weekData.habits || []).filter(h => {
+      if (h.time && h.time.startsWith(selDateISO)) return true;
+      return false;
+    });
+
+    exportPayload = {
+      exportType: 'Day',
+      exportVersion: '2.5.1',
+      exportDate: selDateISO,
+      weekKey: currentWeekKey,
+      slots: daySlots,
+      habits: dayHabits,
+      notes: weekData.notes || ''
+    };
+    filename = `DayFlow_Export_Day_${selDateISO}.json`;
+
+  } else if (viewMode === 'month') {
+    // Month Scope
+    const monthPrefix = selDateISO.slice(0, 7); // e.g. "2026-08"
+    const monthWeeks = {};
+
+    Object.entries(STATE.scheduleData || {}).forEach(([wKey, wData]) => {
+      const monthSlots = {};
+      let hasMonthData = false;
+
+      Object.entries(wData.slots || {}).forEach(([sKey, slot]) => {
+        if (sKey.startsWith(monthPrefix)) {
+          monthSlots[sKey] = slot;
+          hasMonthData = true;
+        }
+      });
+
+      const monthHabits = (wData.habits || []).filter(h => {
+        if (h.time && h.time.startsWith(monthPrefix)) return true;
+        return false;
+      });
+      if (monthHabits.length > 0) hasMonthData = true;
+
+      if (hasMonthData || wKey.startsWith(monthPrefix)) {
+        monthWeeks[wKey] = {
+          slots: monthSlots,
+          habits: monthHabits,
+          todos: wData.todos || [],
+          notes: wData.notes || ''
+        };
+      }
+    });
+
+    exportPayload = {
+      exportType: 'Month',
+      exportVersion: '2.5.1',
+      exportMonth: monthPrefix,
+      weeks: monthWeeks
+    };
+    filename = `DayFlow_Export_Month_${monthPrefix}.json`;
+
+  } else {
+    // Week Scope (Default)
+    const weekData = STATE.scheduleData[currentWeekKey] || { slots: {}, habits: [], todos: [], notes: '' };
+    exportPayload = {
+      exportType: 'Week',
+      exportVersion: '2.5.1',
+      exportWeekStart: currentWeekKey,
+      weekKey: currentWeekKey,
+      slots: weekData.slots || {},
+      habits: weekData.habits || [],
+      todos: weekData.todos || [],
+      notes: weekData.notes || ''
+    };
+    filename = `DayFlow_Export_Week_${currentWeekKey}.json`;
+  }
+
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `DayFlow_Backup_${getWeekKey(STATE.currentWeekStart)}.json`);
+  downloadAnchor.setAttribute("download", filename);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
@@ -532,18 +622,63 @@ function importDataJson(e) {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = (evt) => {
+  reader.onload = async (evt) => {
     try {
       const imported = JSON.parse(evt.target.result);
-      if (typeof imported === 'object') {
+      if (!imported || typeof imported !== 'object') {
+        alert('Invalid JSON file format.');
+        return;
+      }
+
+      if (imported.exportType === 'Day' && imported.weekKey) {
+        // Merge single Day
+        const wKey = imported.weekKey;
+        if (!STATE.scheduleData[wKey]) {
+          STATE.scheduleData[wKey] = { slots: {}, habits: [], todos: [], notes: '' };
+        }
+        Object.assign(STATE.scheduleData[wKey].slots, imported.slots || {});
+        if (Array.isArray(imported.habits)) {
+          STATE.scheduleData[wKey].habits = (STATE.scheduleData[wKey].habits || []).concat(imported.habits);
+        }
+        alert(`DayFlow data for ${imported.exportDate} imported successfully!`);
+
+      } else if (imported.exportType === 'Week' && (imported.exportWeekStart || imported.weekKey)) {
+        // Merge single Week
+        const wKey = imported.exportWeekStart || imported.weekKey;
+        STATE.scheduleData[wKey] = {
+          slots: imported.slots || {},
+          habits: imported.habits || [],
+          todos: imported.todos || [],
+          notes: imported.notes || ''
+        };
+        alert(`DayFlow weekly schedule for week ${wKey} imported successfully!`);
+
+      } else if (imported.exportType === 'Month' && imported.weeks) {
+        // Merge Month weeks
+        Object.entries(imported.weeks).forEach(([wKey, wData]) => {
+          STATE.scheduleData[wKey] = wData;
+        });
+        alert(`DayFlow monthly data for ${imported.exportMonth} imported successfully!`);
+
+      } else if (imported.scheduleData && typeof imported.scheduleData === 'object') {
+        // Full user archive format (from Settings page)
+        STATE.scheduleData = imported.scheduleData;
+        alert('DayFlow full database archive imported successfully!');
+
+      } else {
+        // Legacy raw scheduleData format
         STATE.scheduleData = imported;
-        saveStateToStorage();
-        renderAll();
         alert('DayFlow schedule data imported successfully!');
       }
+
+      saveStateToStorage();
+      renderAll();
+      await syncWeekDataWithApi(renderAll);
     } catch (err) {
-      alert('Invalid JSON file format.');
+      console.error('Import error:', err);
+      alert('Error parsing JSON file.');
     }
   };
   reader.readAsText(file);
+  e.target.value = '';
 }
