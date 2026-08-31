@@ -100,22 +100,34 @@ router.patch('/:id', async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const { completed } = req.body;
 
+    let updated = false;
+
     Object.keys(memoryStore.scheduleWeeks).forEach(wKey => {
       if (wKey.startsWith(`${userId}_`)) {
         const item = (memoryStore.scheduleWeeks[wKey].todos || []).find((t: any) => String(t.id) === String(id));
-        if (item) item.completed = !!completed;
+        if (item) {
+          item.completed = !!completed;
+          updated = true;
+        }
       }
     });
 
     try {
-      await executeQuery(
+      const patchRes = await executeQuery(
         `UPDATE todo_items 
          SET is_completed = $1 
          WHERE id = $2 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $3)`,
         [!!completed, id, userId]
       );
+      if (patchRes && typeof patchRes.rowCount === 'number') {
+        updated = patchRes.rowCount > 0;
+      }
     } catch (e) {
       console.warn('PostgreSQL todo patch fallback to memory store');
+    }
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Todo item not found or unauthorized' });
     }
 
     res.json({ message: 'Todo updated successfully' });
@@ -130,20 +142,33 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
     const userId = req.userId;
     const { id } = req.params;
 
+    let deleted = false;
+
     Object.keys(memoryStore.scheduleWeeks).forEach(wKey => {
       if (wKey.startsWith(`${userId}_`)) {
+        const prevLen = (memoryStore.scheduleWeeks[wKey].todos || []).length;
         memoryStore.scheduleWeeks[wKey].todos = (memoryStore.scheduleWeeks[wKey].todos || []).filter((t: any) => String(t.id) !== String(id));
+        if (memoryStore.scheduleWeeks[wKey].todos.length < prevLen) {
+          deleted = true;
+        }
       }
     });
 
     try {
-      await executeQuery(
+      const delRes = await executeQuery(
         `DELETE FROM todo_items 
          WHERE id = $1 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $2)`,
         [id, userId]
       );
+      if (delRes && typeof delRes.rowCount === 'number') {
+        deleted = delRes.rowCount > 0;
+      }
     } catch (e) {
       console.warn('PostgreSQL todo delete fallback to memory store');
+    }
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Todo item not found or unauthorized' });
     }
 
     res.json({ message: 'Todo item deleted' });

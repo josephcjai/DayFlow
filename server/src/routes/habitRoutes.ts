@@ -83,16 +83,29 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
     const { id } = req.params;
     const logId = parseInt(id, 10);
 
+    let deleted = false;
+
     Object.keys(memoryStore.scheduleWeeks).forEach(wKey => {
       if (wKey.startsWith(`${userId}_`)) {
-        memoryStore.scheduleWeeks[wKey].habits = (memoryStore.scheduleWeeks[wKey].habits || []).filter((h: any) => h.id !== logId);
+        const prevLen = (memoryStore.scheduleWeeks[wKey].habits || []).length;
+        memoryStore.scheduleWeeks[wKey].habits = (memoryStore.scheduleWeeks[wKey].habits || []).filter((h: any) => h.id !== logId && String(h.id) !== String(id));
+        if (memoryStore.scheduleWeeks[wKey].habits.length < prevLen) {
+          deleted = true;
+        }
       }
     });
 
     try {
-      await executeQuery('DELETE FROM habit_logs WHERE id = $1 AND user_id = $2', [id, userId]);
+      const delRes = await executeQuery('DELETE FROM habit_logs WHERE id = $1 AND user_id = $2', [id, userId]);
+      if (delRes && typeof delRes.rowCount === 'number') {
+        deleted = delRes.rowCount > 0;
+      }
     } catch (e) {
       console.warn('PostgreSQL habit delete fallback');
+    }
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Habit log not found or unauthorized' });
     }
 
     res.json({ message: 'Habit log removed' });

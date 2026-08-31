@@ -8,10 +8,11 @@ const attempts: Record<string, { count: number; resetTime: number }> = {};
 
 export function authRateLimiter(req: Request, res: Response, next: NextFunction) {
   const ip = req.ip || req.socket.remoteAddress || 'unknown_ip';
-  const isLocalhost = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === 'localhost';
+  const isDev = process.env.NODE_ENV !== 'production';
+  const isLocalhost = isDev && (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === 'localhost');
   const now = Date.now();
   const WINDOW_MS = 15 * 60 * 1000; // 15 minute window
-  const MAX_ATTEMPTS = isLocalhost ? 500 : 50; // Generous allowance for local development & testing
+  const MAX_ATTEMPTS = isLocalhost ? 500 : 50; // 50 attempts per client IP per 15 min; 500 on local dev
 
   if (!attempts[ip] || now > attempts[ip].resetTime) {
     attempts[ip] = { count: 1, resetTime: now + WINDOW_MS };

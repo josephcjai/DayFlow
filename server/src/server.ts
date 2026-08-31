@@ -21,6 +21,9 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : '*';
 
+// Trust reverse proxy (e.g. nginx / container gateway) for correct client IP identification
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());

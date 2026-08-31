@@ -137,15 +137,29 @@ router.delete('/slot', async (req: AuthenticatedRequest, res) => {
       return res.status(401).json({ error: 'Unauthorized access' });
     }
 
+    let deleted = false;
+
     const userWeekKey = `${userId}_${weekStart}`;
-    if (memoryStore.scheduleWeeks[userWeekKey] && memoryStore.scheduleWeeks[userWeekKey].slots) {
+    if (memoryStore.scheduleWeeks[userWeekKey] && memoryStore.scheduleWeeks[userWeekKey].slots && memoryStore.scheduleWeeks[userWeekKey].slots[slotKey]) {
       delete memoryStore.scheduleWeeks[userWeekKey].slots[slotKey];
+      deleted = true;
     }
 
-    await executeQuery(
-      `DELETE FROM schedule_slots WHERE slot_key = $1 AND week_id IN (SELECT id FROM schedule_weeks WHERE start_date = $2::date AND user_id = $3)`,
-      [slotKey, weekStart, userId]
-    );
+    try {
+      const delRes = await executeQuery(
+        `DELETE FROM schedule_slots WHERE slot_key = $1 AND week_id IN (SELECT id FROM schedule_weeks WHERE start_date = $2::date AND user_id = $3)`,
+        [slotKey, weekStart, userId]
+      );
+      if (delRes && typeof delRes.rowCount === 'number') {
+        deleted = delRes.rowCount > 0;
+      }
+    } catch (e) {
+      console.warn('PostgreSQL schedule slot delete fallback');
+    }
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Schedule slot not found or unauthorized' });
+    }
 
     res.json({ message: 'Slot cleared successfully', slotKey });
   } catch (err: any) {
