@@ -13,6 +13,7 @@ import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMo
 import { ApiClient } from './apiClient.js?v=2.5.5';
 import { escapeHtml } from './utils.js?v=2.5.5';
 import { TIME_SLOTS } from './grid.js?v=2.5.5';
+import { parseMarkdown } from './markdown.js?v=2.5.5';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
@@ -823,6 +824,7 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
 
   if (weeklyNotesTextarea) {
     weeklyNotesTextarea.value = weekData.notes || '';
+    updateMarkdownPreview(weeklyNotesTextarea);
   }
 
   // Event Listeners for checkboxes and deletes
@@ -916,3 +918,228 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
     });
   });
 }
+
+/**
+ * Phase 4: Markdown Scratchpad Controller
+ */
+let scratchpadInitialized = false;
+let currentScratchpadMode = localStorage.getItem('dayflow_scratchpad_mode') || 'edit';
+
+export function updateMarkdownPreview(textarea, previewContainer, wordCountContainer) {
+  const ta = textarea || document.getElementById('weeklyNotesTextarea');
+  const preview = previewContainer || document.getElementById('weeklyNotesPreview');
+  const wordCount = wordCountContainer || document.getElementById('notesWordCount');
+
+  if (!ta) return;
+  const content = ta.value || '';
+
+  if (preview) {
+    preview.innerHTML = parseMarkdown(content);
+    // Bind copy buttons inside code blocks
+    preview.querySelectorAll('.code-copy-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const rawCode = decodeURIComponent(btn.dataset.code || '');
+        try {
+          await navigator.clipboard.writeText(rawCode);
+          btn.classList.add('copied');
+          btn.innerHTML = '<span class="copy-icon">✓</span> Copied!';
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = '<span class="copy-icon">📋</span> Copy';
+          }, 2000);
+        } catch (err) {
+          console.warn('Clipboard copy failed:', err);
+        }
+      });
+    });
+  }
+
+  if (wordCount) {
+    const trimmed = content.trim();
+    const words = trimmed ? trimmed.split(/\s+/).length : 0;
+    const chars = content.length;
+    wordCount.textContent = `${words} ${words === 1 ? 'word' : 'words'} • ${chars} ${chars === 1 ? 'char' : 'chars'}`;
+  }
+}
+
+export function initMarkdownScratchpad(domElements) {
+  if (scratchpadInitialized) return;
+  scratchpadInitialized = true;
+
+  const {
+    weeklyNotesTextarea: ta,
+    weeklyNotesPreview: preview,
+    notesDualPaneContainer: container,
+    notesModeEditBtn: btnEdit,
+    notesModeSplitBtn: btnSplit,
+    notesModePreviewBtn: btnPreview,
+    notesMarkdownToolbar: toolbar,
+    notesSnippetSelect: snippetSelect,
+    notesWordCount: wordCount
+  } = domElements;
+
+  if (!ta || !container) return;
+
+  // View Mode Switcher
+  const setMode = (mode) => {
+    currentScratchpadMode = mode;
+    localStorage.setItem('dayflow_scratchpad_mode', mode);
+
+    container.classList.remove('mode-edit', 'mode-split', 'mode-preview');
+    container.classList.add(`mode-${mode}`);
+
+    if (btnEdit) btnEdit.classList.toggle('active', mode === 'edit');
+    if (btnSplit) btnSplit.classList.toggle('active', mode === 'split');
+    if (btnPreview) btnPreview.classList.toggle('active', mode === 'preview');
+
+    if (mode === 'split' || mode === 'preview') {
+      updateMarkdownPreview(ta, preview, wordCount);
+    }
+  };
+
+  // Restore saved view mode
+  setMode(currentScratchpadMode);
+
+  if (btnEdit) btnEdit.addEventListener('click', () => setMode('edit'));
+  if (btnSplit) btnSplit.addEventListener('click', () => setMode('split'));
+  if (btnPreview) btnPreview.addEventListener('click', () => setMode('preview'));
+
+  // Live input update for preview and word count
+  ta.addEventListener('input', () => {
+    updateMarkdownPreview(ta, preview, wordCount);
+  });
+
+  // Text formatting insertion helper
+  const insertFormatting = (prefix, suffix = '', defaultText = '') => {
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const text = ta.value;
+    const selected = text.substring(start, end);
+
+    const replacement = selected.length > 0
+      ? `${prefix}${selected}${suffix}`
+      : `${prefix}${defaultText}${suffix}`;
+
+    ta.setRangeText(replacement, start, end, 'end');
+    ta.focus();
+
+    if (selected.length === 0 && defaultText.length > 0) {
+      ta.setSelectionRange(start + prefix.length, start + prefix.length + defaultText.length);
+    }
+
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  // Line prefix helper (for headers, lists, quotes)
+  const insertLinePrefix = (linePrefix) => {
+    const start = ta.selectionStart;
+    const text = ta.value;
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const currentLine = text.substring(lineStart);
+
+    if (currentLine.startsWith(linePrefix)) {
+      ta.focus();
+      return;
+    }
+
+    ta.setSelectionRange(lineStart, lineStart);
+    ta.setRangeText(linePrefix, lineStart, lineStart, 'end');
+    ta.focus();
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  // Toolbar action listeners
+  if (toolbar) {
+    toolbar.querySelectorAll('.toolbar-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const action = btn.dataset.action;
+        switch (action) {
+          case 'bold':
+            insertFormatting('**', '**', 'bold text');
+            break;
+          case 'italic':
+            insertFormatting('*', '*', 'italic text');
+            break;
+          case 'strike':
+            insertFormatting('~~', '~~', 'strikethrough text');
+            break;
+          case 'h1':
+            insertLinePrefix('# ');
+            break;
+          case 'h2':
+            insertLinePrefix('## ');
+            break;
+          case 'h3':
+            insertLinePrefix('### ');
+            break;
+          case 'bullet':
+            insertLinePrefix('- ');
+            break;
+          case 'numbered':
+            insertLinePrefix('1. ');
+            break;
+          case 'task':
+            insertLinePrefix('- [ ] ');
+            break;
+          case 'quote':
+            insertLinePrefix('> ');
+            break;
+          case 'table':
+            const tableTemplate = `\n| Item / Task | Category | Status | Notes |\n| :--- | :--- | :--- | :--- |\n| Core Architecture | Learning | In Progress | Review DB schemas |\n| UI Polish | Frontend | Ready | Glassmorphism styling |\n\n`;
+            insertFormatting('', '', tableTemplate);
+            break;
+          case 'inline-code':
+            insertFormatting('`', '`', 'code');
+            break;
+          case 'code-block':
+            insertFormatting('```csharp\n', '\n```', '// Enter code snippet here');
+            break;
+        }
+      });
+    });
+  }
+
+  // Snippet Template selector
+  if (snippetSelect) {
+    snippetSelect.addEventListener('change', () => {
+      const val = snippetSelect.value;
+      if (!val) return;
+
+      let snippetText = '';
+      if (val === 'cs') {
+        snippetText = `\n\`\`\`csharp\n// C# Async Service Method\npublic async Task<List<ScheduleSlot>> GetScheduleSlotsAsync(DateTime weekStart)\n{\n    using var connection = new NpgsqlConnection(connectionString);\n    await connection.OpenAsync();\n    return await connection.QueryAsync<ScheduleSlot>("SELECT * FROM schedule_slots");\n}\n\`\`\`\n\n`;
+      } else if (val === 'xaml') {
+        snippetText = `\n\`\`\`xaml\n<!-- WPF XAML Grid & Card Layout -->\n<Grid Margin="16">\n    <Grid.RowDefinitions>\n        <RowDefinition Height="Auto" />\n        <RowDefinition Height="*" />\n    </Grid.RowDefinitions>\n    <TextBlock Grid.Row="0" Text="Weekly Focus" FontSize="18" FontWeight="Bold" />\n    <Button Grid.Row="1" Content="Log Task" Style="{StaticResource PrimaryButtonStyle}" />\n</Grid>\n\`\`\`\n\n`;
+      } else if (val === 'sql') {
+        snippetText = `\n\`\`\`sql\n-- PostgreSQL Schedule Query\nSELECT id, start_time, task_description, category, is_completed\nFROM schedule_slots\nWHERE user_id = 1 AND schedule_date >= '2026-09-01'\nORDER BY schedule_date ASC, start_time ASC;\n\`\`\`\n\n`;
+      } else if (val === 'js') {
+        snippetText = `\n\`\`\`typescript\n// TypeScript Model & Discipline Score Calculation\nexport interface WeeklySchedule {\n  weekKey: string;\n  completedTasks: number;\n}\n\nexport function calculateDisciplineScore(schedule: WeeklySchedule): number {\n  return Math.min(100, Math.round((schedule.completedTasks / 20) * 100));\n}\n\`\`\`\n\n`;
+      } else if (val === 'reflection') {
+        snippetText = `\n## 🌟 Weekly Reflection & Retrospective\n\n### 🎯 Key Wins this Week\n- \n- \n\n### 💡 Learnings & Technical Insights\n- \n\n### 🚀 Next Week Priorities\n- [ ] \n- [ ] \n\n`;
+      }
+
+      insertFormatting('', '', snippetText);
+      snippetSelect.selectedIndex = 0;
+    });
+  }
+
+  // Keyboard Shortcuts: Tab indents 2 spaces, Ctrl+B / Ctrl+I
+  ta.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      insertFormatting('  ', '', '');
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      insertFormatting('**', '**', 'bold text');
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+      e.preventDefault();
+      insertFormatting('*', '*', 'italic text');
+    }
+  });
+
+  // Initial preview update
+  updateMarkdownPreview(ta, preview, wordCount);
+}
+

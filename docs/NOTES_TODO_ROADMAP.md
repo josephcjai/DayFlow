@@ -78,14 +78,14 @@ The **Notes & Todo** tab currently offers a clean weekly checklist and debounced
 
 ## 🚦 Phased Implementation Plan
 
-| Phase | Feature | Complexity | Dependencies |
-| :---: | :--- | :---: | :--- |
-| **Phase 1** | **Priority Tags (High/Med/Low) & Category Labels** | Low | `todo_items` schema migration |
-| **Phase 2** | **1-Click "Schedule to Grid" (Timeblocking)** | Medium | `modal.js` + `grid.js` bridge |
-| **Phase 3** | **Progress Bar & Gamification Points** | Low | `analytics.js` + `notes.js` |
-| **Phase 4** | **Markdown & Code Snippet Support** | Medium | Markdown parser integration |
-| **Phase 5** | **Multiple Note Sheets / Tabs** | Medium | `schedule_weeks` note structure |
-| **Phase 6** | **Due Dates & Day/Week Sync** | Medium | Granularity filter alignment |
+| Phase | Feature | Status | Complexity | Dependencies |
+| :---: | :--- | :---: | :---: | :--- |
+| **Phase 1** | **Priority Tags (High/Med/Low) & Category Labels** | ✅ Completed | Low | `todo_items` schema migration |
+| **Phase 2** | **1-Click "Schedule to Grid" (Timeblocking)** | ✅ Completed | Medium | `modal.js` + `grid.js` bridge |
+| **Phase 3** | **Progress Bar & Gamification Points** | ✅ Completed | Low | `analytics.js` + `notes.js` |
+| **Phase 4** | **Markdown & Code Snippet Support** | ✅ Completed | Medium | `markdown.js` parser integration |
+| **Phase 5** | **Multiple Note Sheets / Tabs** | ⏳ Up Next | Medium | `schedule_weeks` note structure |
+| **Phase 6** | **Due Dates & Day/Week Sync** | ⏳ Planned | Medium | Granularity filter alignment |
 
 ---
 

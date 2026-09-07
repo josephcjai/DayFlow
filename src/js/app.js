@@ -19,7 +19,7 @@ import { renderGrid } from './grid.js?v=2.5.5';
 import { initModal } from './modal.js?v=2.5.5';
 import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.5.5';
 import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.5.5';
-import { renderNotes, initTodoFilterBar } from './notes.js?v=2.5.5';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad } from './notes.js?v=2.5.5';
 import { initSettingsUI, USER_SETTINGS } from './settings.js?v=2.5.5';
 
 const DOM = {};
@@ -92,6 +92,14 @@ function cacheDomElements() {
   DOM.todoList = document.getElementById('todoList');
   DOM.weeklyNotesTextarea = document.getElementById('weeklyNotesTextarea');
   DOM.notesSavedStatus = document.getElementById('notesSavedStatus');
+  DOM.weeklyNotesPreview = document.getElementById('weeklyNotesPreview');
+  DOM.notesMarkdownToolbar = document.getElementById('notesMarkdownToolbar');
+  DOM.notesDualPaneContainer = document.getElementById('notesDualPaneContainer');
+  DOM.notesModeEditBtn = document.getElementById('notesModeEditBtn');
+  DOM.notesModeSplitBtn = document.getElementById('notesModeSplitBtn');
+  DOM.notesModePreviewBtn = document.getElementById('notesModePreviewBtn');
+  DOM.notesSnippetSelect = document.getElementById('notesSnippetSelect');
+  DOM.notesWordCount = document.getElementById('notesWordCount');
 
   // Auth Landing Gate Elements
   DOM.userDisplayName = document.getElementById('userDisplayName');
@@ -372,17 +380,20 @@ function bindEvents() {
     }
   });
 
-  DOM.weeklyNotesTextarea.addEventListener('input', () => {
-    const weekKey = getWeekKey(STATE.currentWeekStart);
-    const weekData = getCurrentWeekData();
-    weekData.notes = DOM.weeklyNotesTextarea.value;
-    saveStateToStorage();
-    DOM.notesSavedStatus.textContent = 'Saving...';
-    
-    // Sync notes with API
-    ApiClient.saveNotes(weekKey, weekData.notes);
-    setTimeout(() => DOM.notesSavedStatus.textContent = 'Saved', 500);
-  });
+  if (DOM.weeklyNotesTextarea) {
+    initMarkdownScratchpad(DOM);
+    DOM.weeklyNotesTextarea.addEventListener('input', () => {
+      const weekKey = getWeekKey(STATE.currentWeekStart);
+      const weekData = getCurrentWeekData();
+      weekData.notes = DOM.weeklyNotesTextarea.value;
+      saveStateToStorage();
+      DOM.notesSavedStatus.textContent = 'Saving...';
+      
+      // Sync notes with API
+      ApiClient.saveNotes(weekKey, weekData.notes);
+      setTimeout(() => DOM.notesSavedStatus.textContent = 'Saved', 500);
+    });
+  }
 }
 
 async function navigateDate(direction) {

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/styles.css?v=2.3">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.6.0">
 </head>
 <body>
   <!-- DEDICATED FULL-SCREEN LOGIN / REGISTRATION GATE -->
@@ -390,14 +390,75 @@
               </ul>
             </div>
 
-            <!-- Freeform Notes -->
+            <!-- Freeform Notes & Markdown Journal -->
             <div class="notes-card">
-              <div class="card-header">
-                <h2>Weekly Journal & Scratchpad</h2>
+              <div class="card-header notes-header-flex">
+                <div class="notes-title-group">
+                  <h2>Weekly Journal & Scratchpad</h2>
+                  <span class="notes-badge">Markdown & Code</span>
+                </div>
+                <div class="notes-header-actions">
+                  <div class="notes-view-switcher" role="group" aria-label="Editor View Mode">
+                    <button type="button" id="notesModeEditBtn" class="notes-mode-btn active" data-mode="edit" title="Edit Markdown">✏️ Edit</button>
+                    <button type="button" id="notesModeSplitBtn" class="notes-mode-btn" data-mode="split" title="Split View: Editor & Live Preview">🌓 Split</button>
+                    <button type="button" id="notesModePreviewBtn" class="notes-mode-btn" data-mode="preview" title="Full Rendered Preview">👁️ Preview</button>
+                  </div>
+                  <span id="notesSavedStatus" class="status-text notes-status-pill">Saved</span>
+                </div>
               </div>
-              <textarea id="weeklyNotesTextarea" class="notes-textarea" placeholder="Record weekly reflections, tech notes, reminders, or observations..."></textarea>
-              <div class="card-footer">
-                <span id="notesSavedStatus" class="status-text">Saved</span>
+
+              <!-- Markdown Formatting Toolbar -->
+              <div id="notesMarkdownToolbar" class="notes-markdown-toolbar">
+                <div class="toolbar-group">
+                  <button type="button" class="toolbar-btn" data-action="bold" title="Bold (**text**)"><strong>B</strong></button>
+                  <button type="button" class="toolbar-btn" data-action="italic" title="Italic (*text*)"><em>I</em></button>
+                  <button type="button" class="toolbar-btn" data-action="strike" title="Strikethrough (~~text~~)"><del>S</del></button>
+                </div>
+                <div class="toolbar-divider"></div>
+                <div class="toolbar-group">
+                  <button type="button" class="toolbar-btn" data-action="h1" title="Heading 1 (# Heading)">H1</button>
+                  <button type="button" class="toolbar-btn" data-action="h2" title="Heading 2 (## Heading)">H2</button>
+                  <button type="button" class="toolbar-btn" data-action="h3" title="Heading 3 (### Heading)">H3</button>
+                </div>
+                <div class="toolbar-divider"></div>
+                <div class="toolbar-group">
+                  <button type="button" class="toolbar-btn" data-action="bullet" title="Bullet List (- Item)">• List</button>
+                  <button type="button" class="toolbar-btn" data-action="numbered" title="Numbered List (1. Item)">1. List</button>
+                  <button type="button" class="toolbar-btn" data-action="task" title="Task Checkbox (- [ ] Task)">☑ Task</button>
+                </div>
+                <div class="toolbar-divider"></div>
+                <div class="toolbar-group">
+                  <button type="button" class="toolbar-btn" data-action="quote" title="Blockquote (> Quote)">❝ Quote</button>
+                  <button type="button" class="toolbar-btn" data-action="table" title="Insert Table">⊞ Table</button>
+                  <button type="button" class="toolbar-btn" data-action="inline-code" title="Inline Code (`code`)">`Code`</button>
+                  <button type="button" class="toolbar-btn" data-action="code-block" title="Code Block (```)">``` Snippet</button>
+                </div>
+                <div class="toolbar-divider"></div>
+                <div class="toolbar-group">
+                  <select id="notesSnippetSelect" class="form-select toolbar-snippet-select" title="Insert Code Template">
+                    <option value="" disabled selected>⚡ Templates...</option>
+                    <option value="cs">C# Async Method</option>
+                    <option value="xaml">WPF XAML Grid & Button</option>
+                    <option value="sql">SQL Query & Table</option>
+                    <option value="js">JavaScript / TypeScript</option>
+                    <option value="reflection">Weekly Reflection Template</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Dual-Pane Container (Editor & Live Preview) -->
+              <div id="notesDualPaneContainer" class="notes-dual-pane mode-edit">
+                <div class="notes-pane notes-editor-pane">
+                  <textarea id="weeklyNotesTextarea" class="notes-textarea" placeholder="Record weekly reflections, tech notes, reminders, or observations... Use Markdown syntax or the formatting toolbar above."></textarea>
+                </div>
+                <div id="weeklyNotesPreview" class="notes-pane notes-preview-pane">
+                  <!-- Live rendered markdown output -->
+                </div>
+              </div>
+
+              <div class="card-footer notes-card-footer">
+                <span class="notes-hint">💡 ProTip: Press Tab to indent, select text and click any toolbar tool, or switch to Split view for live preview.</span>
+                <span id="notesWordCount" class="notes-word-count">0 words • 0 chars</span>
               </div>
             </div>
           </div>
@@ -1064,6 +1125,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.5.5"></script>
+  <script type="module" src="src/js/app.js?v=2.6.0"></script>
 </body>
 </html>
