@@ -8,13 +8,14 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.5.5';
-import { STATE, getUserStorageKey, saveStateToStorage } from './state.js?v=2.5.5';
+import { generateTimeSlots } from './grid.js?v=2.6.3';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.6.3';
 
 export const DEFAULT_SETTINGS = {
   timelineStartHour: 0,
   timelineEndHour: 23,
   timeFormat: '12h',
+  dateFormat: 'DD/MM/YYYY',
   defaultLandingView: 'grid',
   themeMode: 'dark', // 'dark', 'oled', 'emerald', 'light'
   accentColor: 'indigo', // 'indigo', 'emerald', 'cyan', 'purple', 'rose'
@@ -31,6 +32,10 @@ export function getSettingsStorageKey() {
   return `settings_${userKey}`;
 }
 
+export function getDateFormat() {
+  return USER_SETTINGS.dateFormat || 'DD/MM/YYYY';
+}
+
 export function loadUserSettings() {
   try {
     const key = getSettingsStorageKey();
@@ -44,12 +49,14 @@ export function loadUserSettings() {
     console.error('Failed to load user settings:', e);
     USER_SETTINGS = { ...DEFAULT_SETTINGS };
   }
+  setActiveDateFormat(USER_SETTINGS.dateFormat || 'DD/MM/YYYY');
   return USER_SETTINGS;
 }
 
 export function saveUserSettings(newSettings) {
   try {
     USER_SETTINGS = { ...USER_SETTINGS, ...newSettings };
+    setActiveDateFormat(USER_SETTINGS.dateFormat || 'DD/MM/YYYY');
     const key = getSettingsStorageKey();
     localStorage.setItem(key, JSON.stringify(USER_SETTINGS));
   } catch (e) {
@@ -85,14 +92,17 @@ export function applyAccent(accentColor) {
 }
 
 export function applySettings(settings, renderAll) {
-  // 1. Rebuild Timeline Slots
+  // 1. Sync Active Date Format
+  setActiveDateFormat(settings.dateFormat || 'DD/MM/YYYY');
+
+  // 2. Rebuild Timeline Slots
   generateTimeSlots(settings.timelineStartHour, settings.timelineEndHour, settings.timeFormat);
 
-  // 2. Apply Theme & Accent
+  // 3. Apply Theme & Accent
   applyTheme(settings.themeMode);
   applyAccent(settings.accentColor);
 
-  // 3. Compact Grid Class
+  // 4. Compact Grid Class
   const appEl = document.getElementById('app');
   if (appEl) {
     if (settings.compactGrid) {
@@ -143,6 +153,7 @@ export function initSettingsUI(domElements, renderAllCallback) {
   const startHourLabel = document.getElementById('settingsStartHourLabel');
   const endHourLabel = document.getElementById('settingsEndHourLabel');
   const timeFormatSelect = document.getElementById('settingsTimeFormat');
+  const dateFormatSelect = document.getElementById('settingsDateFormat');
   const defaultViewSelect = document.getElementById('settingsDefaultView');
   const compactGridToggle = document.getElementById('settingsCompactGrid');
 
@@ -176,6 +187,7 @@ export function initSettingsUI(domElements, renderAllCallback) {
       if (endHourLabel) endHourLabel.textContent = formatHourDisplay(USER_SETTINGS.timelineEndHour);
     }
     if (timeFormatSelect) timeFormatSelect.value = USER_SETTINGS.timeFormat || '12h';
+    if (dateFormatSelect) dateFormatSelect.value = USER_SETTINGS.dateFormat || 'DD/MM/YYYY';
     if (defaultViewSelect) defaultViewSelect.value = USER_SETTINGS.defaultLandingView || 'grid';
     if (compactGridToggle) compactGridToggle.checked = !!USER_SETTINGS.compactGrid;
 
@@ -272,6 +284,7 @@ export function initSettingsUI(domElements, renderAllCallback) {
         timelineStartHour: parseInt(startHourInput?.value, 10) || 0,
         timelineEndHour: parseInt(endHourInput?.value, 10) || 23,
         timeFormat: timeFormatSelect?.value || '12h',
+        dateFormat: dateFormatSelect?.value || 'DD/MM/YYYY',
         defaultLandingView: defaultViewSelect?.value || 'grid',
         compactGrid: !!compactGridToggle?.checked,
         dailyPointsTarget: parseInt(dailyPointsInput?.value, 10) || 50,

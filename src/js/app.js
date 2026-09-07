@@ -8,19 +8,21 @@ import {
   getWeekDates,
   getWeekKey,
   formatDateISO,
+  formatDateDisplay,
+  formatDateDisplayShort,
   loadStateFromStorage,
   syncWeekDataWithApi,
   ensureSampleDataForCurrentWeek,
   saveStateToStorage,
   getCurrentWeekData
-} from './state.js?v=2.5.5';
-import { ApiClient } from './apiClient.js?v=2.5.5';
-import { renderGrid } from './grid.js?v=2.5.5';
-import { initModal } from './modal.js?v=2.5.5';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.5.5';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.5.5';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.5.5';
-import { initSettingsUI, USER_SETTINGS } from './settings.js?v=2.5.5';
+} from './state.js?v=2.6.3';
+import { ApiClient } from './apiClient.js?v=2.6.3';
+import { renderGrid } from './grid.js?v=2.6.3';
+import { initModal } from './modal.js?v=2.6.3';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.6.3';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.6.3';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.6.3';
+import { initSettingsUI, USER_SETTINGS } from './settings.js?v=2.6.3';
 
 const DOM = {};
 
@@ -88,6 +90,10 @@ function cacheDomElements() {
   DOM.todoInput = document.getElementById('todoInput');
   DOM.todoPrioritySelect = document.getElementById('todoPrioritySelect');
   DOM.todoCategorySelect = document.getElementById('todoCategorySelect');
+  DOM.todoDueDateInput = document.getElementById('todoDueDateInput');
+  DOM.todoDueTodayBtn = document.getElementById('todoDueTodayBtn');
+  DOM.todoDueTomorrowBtn = document.getElementById('todoDueTomorrowBtn');
+  DOM.todoDueClearBtn = document.getElementById('todoDueClearBtn');
   DOM.todoFilterBar = document.getElementById('todoFilterBar');
   DOM.todoList = document.getElementById('todoList');
   DOM.weeklyNotesTextarea = document.getElementById('weeklyNotesTextarea');
@@ -283,6 +289,11 @@ function bindEvents() {
     const val = e.target.value;
     if (val) {
       const [y, m, d] = val.split('-').map(Number);
+      if (y < 1800 || y > 2200) {
+        alert('Please select a date between year 1800 and 2200.');
+        DOM.weekDatePicker.value = formatDateISO(STATE.selectedDate || new Date());
+        return;
+      }
       const pickedDate = new Date(y, m - 1, d);
       STATE.selectedDate = pickedDate;
       STATE.currentWeekStart = getMonday(pickedDate);
@@ -354,26 +365,84 @@ function bindEvents() {
     initTodoFilterBar(DOM.todoFilterBar, DOM.todoList, DOM.weeklyNotesTextarea);
   }
 
+  // Todo Due Date Quick Pills & Clear Controls
+  const updateDuePillState = () => {
+    if (!DOM.todoDueDateInput) return;
+    const val = DOM.todoDueDateInput.value;
+    const todayStr = formatDateISO(new Date());
+    const tom = new Date();
+    tom.setDate(tom.getDate() + 1);
+    const tomorrowStr = formatDateISO(tom);
+
+    if (DOM.todoDueTodayBtn) DOM.todoDueTodayBtn.classList.toggle('active', val === todayStr);
+    if (DOM.todoDueTomorrowBtn) DOM.todoDueTomorrowBtn.classList.toggle('active', val === tomorrowStr);
+    if (DOM.todoDueClearBtn) DOM.todoDueClearBtn.style.display = val ? 'inline-block' : 'none';
+  };
+
+  if (DOM.todoDueDateInput) {
+    DOM.todoDueDateInput.addEventListener('change', updateDuePillState);
+  }
+
+  if (DOM.todoDueTodayBtn) {
+    DOM.todoDueTodayBtn.addEventListener('click', () => {
+      const todayStr = formatDateISO(new Date());
+      if (DOM.todoDueDateInput) DOM.todoDueDateInput.value = todayStr;
+      updateDuePillState();
+    });
+  }
+
+  if (DOM.todoDueTomorrowBtn) {
+    DOM.todoDueTomorrowBtn.addEventListener('click', () => {
+      const tom = new Date();
+      tom.setDate(tom.getDate() + 1);
+      const tomorrowStr = formatDateISO(tom);
+      if (DOM.todoDueDateInput) DOM.todoDueDateInput.value = tomorrowStr;
+      updateDuePillState();
+    });
+  }
+
+  if (DOM.todoDueClearBtn) {
+    DOM.todoDueClearBtn.addEventListener('click', () => {
+      if (DOM.todoDueDateInput) DOM.todoDueDateInput.value = '';
+      updateDuePillState();
+    });
+  }
+
   DOM.addTodoForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = DOM.todoInput.value.trim();
     const priority = DOM.todoPrioritySelect ? DOM.todoPrioritySelect.value : 'Medium';
     const category = DOM.todoCategorySelect ? DOM.todoCategorySelect.value : 'General';
+    const dueDate = DOM.todoDueDateInput && DOM.todoDueDateInput.value ? DOM.todoDueDateInput.value : null;
+
+    if (dueDate) {
+      const dueYear = parseInt(dueDate.split('-')[0], 10);
+      if (dueYear < 1800 || dueYear > 2200) {
+        alert('Due date must be between year 1800 and 2200.');
+        return;
+      }
+    }
+
     if (text) {
       const weekKey = getWeekKey(STATE.currentWeekStart);
       const weekData = getCurrentWeekData();
       if (!weekData.todos) weekData.todos = [];
       const tempId = Date.now();
-      const localTodo = { id: tempId, text, priority, category, completed: false };
+      const localTodo = { id: tempId, text, priority, category, dueDate, completed: false };
       weekData.todos.push(localTodo);
       DOM.todoInput.value = '';
+      if (DOM.todoDueDateInput) {
+        DOM.todoDueDateInput.value = '';
+        updateDuePillState();
+      }
       saveStateToStorage();
       renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
 
-      // Sync todo with API and patch server-assigned ID
-      const apiRes = await ApiClient.addTodo(weekKey, text, priority, category);
+      // Sync todo with API and patch server-assigned ID & date
+      const apiRes = await ApiClient.addTodo(weekKey, text, priority, category, dueDate);
       if (apiRes && apiRes.todo && apiRes.todo.id) {
         localTodo.id = apiRes.todo.id;
+        if (apiRes.todo.dueDate) localTodo.dueDate = apiRes.todo.dueDate;
         saveStateToStorage();
         renderNotes(DOM.todoList, DOM.weeklyNotesTextarea);
       }
@@ -414,15 +483,21 @@ async function navigateDate(direction) {
     const step = direction === 'next' ? 1 : -1;
     if (STATE.scheduleViewMode === 'day') {
       const cur = STATE.selectedDate || new Date();
-      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + step);
+      const nextDate = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + step);
+      if (nextDate.getFullYear() < 1800 || nextDate.getFullYear() > 2200) return;
+      STATE.selectedDate = nextDate;
       STATE.currentWeekStart = getMonday(STATE.selectedDate);
     } else if (STATE.scheduleViewMode === 'month') {
       const cur = STATE.selectedDate || new Date();
-      STATE.selectedDate = new Date(cur.getFullYear(), cur.getMonth() + step, 1);
+      const nextDate = new Date(cur.getFullYear(), cur.getMonth() + step, 1);
+      if (nextDate.getFullYear() < 1800 || nextDate.getFullYear() > 2200) return;
+      STATE.selectedDate = nextDate;
       STATE.currentWeekStart = getMonday(STATE.selectedDate);
     } else {
       const cur = STATE.currentWeekStart;
-      STATE.currentWeekStart = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + (step * 7)));
+      const nextWeek = getMonday(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + (step * 7)));
+      if (nextWeek.getFullYear() < 1800 || nextWeek.getFullYear() > 2200) return;
+      STATE.currentWeekStart = nextWeek;
       STATE.selectedDate = STATE.currentWeekStart;
     }
   }
@@ -487,6 +562,10 @@ function updateHabitDatePillStates(dateStr) {
 }
 
 function setHabitLogDate(targetDate) {
+  if (targetDate.getFullYear() < 1800 || targetDate.getFullYear() > 2200) {
+    alert('Date must be between year 1800 and 2200.');
+    return;
+  }
   const dateStr = formatDateISO(targetDate);
   if (DOM.habitDateInput) {
     DOM.habitDateInput.value = dateStr;
@@ -513,8 +592,9 @@ function renderHeaderRangeText() {
   }
 
   if (STATE.scheduleViewMode === 'day') {
-    const dayFull = selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
-    DOM.currentWeekRange.textContent = dayFull;
+    const dayName = selDate.toLocaleDateString('en-US', { weekday: 'long' });
+    const formattedDate = formatDateDisplay(selDate);
+    DOM.currentWeekRange.textContent = `${dayName}, ${formattedDate}`;
     DOM.weekDatePicker.value = formatDateISO(selDate);
   } else if (STATE.scheduleViewMode === 'month') {
     const monthFull = selDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -525,8 +605,8 @@ function renderHeaderRangeText() {
     const monDate = new Date(dates[0] + 'T00:00:00');
     const sunDate = new Date(dates[6] + 'T00:00:00');
 
-    const startStr = formatDateShort(monDate);
-    const endStr = formatDateShort(sunDate);
+    const startStr = formatDateDisplayShort(monDate);
+    const endStr = formatDateDisplayShort(sunDate);
     const yearStr = sunDate.getFullYear();
 
     DOM.currentWeekRange.textContent = `Mon, ${startStr} – Sun, ${endStr}, ${yearStr}`;
@@ -535,7 +615,7 @@ function renderHeaderRangeText() {
 }
 
 function formatDateShort(dateObj) {
-  return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatDateDisplayShort(dateObj);
 }
 
 function exportDataJson() {

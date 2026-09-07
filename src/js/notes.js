@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO } from './state.js?v=2.5.5';
-import { ApiClient } from './apiClient.js?v=2.5.5';
-import { escapeHtml } from './utils.js?v=2.5.5';
-import { TIME_SLOTS } from './grid.js?v=2.5.5';
-import { parseMarkdown } from './markdown.js?v=2.5.5';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.6.3';
+import { ApiClient } from './apiClient.js?v=2.6.3';
+import { escapeHtml } from './utils.js?v=2.6.3';
+import { TIME_SLOTS } from './grid.js?v=2.6.3';
+import { parseMarkdown } from './markdown.js?v=2.6.3';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
@@ -36,6 +36,16 @@ export function getActiveTodoFilter() {
 
 export function setTodoFilter(filter) {
   activeTodoFilter = filter;
+}
+
+let dayScopeFilter = 'day'; // 'day' | 'week'
+
+export function getDayScopeFilter() {
+  return dayScopeFilter;
+}
+
+export function setDayScopeFilter(scope) {
+  dayScopeFilter = scope;
 }
 
 export function getSlotConflict(dateStr, timeStr) {
@@ -140,6 +150,25 @@ export function initTodoFilterBar(filterBarContainer, todoList, weeklyNotesTexta
       renderNotes(todoList, weeklyNotesTextarea, gridUpdateCallback);
     });
   });
+
+  const dayFocusPill = filterBarContainer.querySelector('#todoDayFocusPill');
+  const weekBacklogPill = filterBarContainer.querySelector('#todoWeekBacklogPill');
+  if (dayFocusPill) {
+    dayFocusPill.addEventListener('click', () => {
+      dayScopeFilter = 'day';
+      if (weekBacklogPill) weekBacklogPill.classList.remove('active');
+      dayFocusPill.classList.add('active');
+      renderNotes(todoList, weeklyNotesTextarea, gridUpdateCallback);
+    });
+  }
+  if (weekBacklogPill) {
+    weekBacklogPill.addEventListener('click', () => {
+      dayScopeFilter = 'week';
+      if (dayFocusPill) dayFocusPill.classList.remove('active');
+      weekBacklogPill.classList.add('active');
+      renderNotes(todoList, weeklyNotesTextarea, gridUpdateCallback);
+    });
+  }
 }
 
 function initDeleteTodoModal(todoList, weeklyNotesTextarea) {
@@ -344,7 +373,7 @@ function updateMultiDayChipsUI(startDate, chipsContainer, summaryEl, submitBtn, 
     generatedDates.push({
       dateStr,
       dayName: dayNamesShort[dayOfWeek],
-      dateDisplay: curDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      dateDisplay: formatDateDisplayShort(curDate),
       isWeekend: (dayOfWeek === 0 || dayOfWeek === 6),
       conflict
     });
@@ -591,8 +620,8 @@ function initScheduleTodoModal(todoList, weeklyNotesTextarea, onGridUpdated) {
         const firstDate = datesArray[0];
         const lastDate = datesArray[datesArray.length - 1];
 
-        const d1 = new Date(firstDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const d2 = new Date(lastDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const d1 = formatDateDisplayShort(firstDate);
+        const d2 = formatDateDisplayShort(lastDate);
 
         const slotDataTemplate = {
           plannedTask: activeSchedulingTodo.text,
@@ -673,17 +702,32 @@ function openScheduleTodoModal(todo) {
     const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const todayStr = formatDateISO(new Date());
 
+    const targetDateStr = (todo && todo.dueDate) ? todo.dueDate : (todo && todo.scheduledDate ? todo.scheduledDate : todayStr);
+    let targetSelected = false;
+
     weekDates.forEach((dStr, idx) => {
-      const dObj = new Date(dStr + 'T00:00:00');
-      const dateDisplay = dObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dateDisplay = formatDateDisplayShort(dStr);
       const opt = document.createElement('option');
       opt.value = dStr;
       opt.textContent = `${dayNames[idx]}, ${dateDisplay} ${dStr === todayStr ? ' (Today)' : ''}`;
-      if (todo.scheduledDate === dStr || (dStr === todayStr && !todo.scheduledDate)) {
+      if (dStr === targetDateStr) {
         opt.selected = true;
+        targetSelected = true;
       }
       dateSelect.appendChild(opt);
     });
+
+    if (!targetSelected && todo && todo.dueDate) {
+      const [ty, tm, td] = todo.dueDate.split('-').map(Number);
+      const targetObj = new Date(ty, tm - 1, td);
+      const dayName = targetObj.toLocaleDateString('en-US', { weekday: 'long' });
+      const targetDisplay = formatDateDisplay(todo.dueDate);
+      const opt = document.createElement('option');
+      opt.value = todo.dueDate;
+      opt.textContent = `${dayName}, ${targetDisplay} (Due Date)`;
+      opt.selected = true;
+      dateSelect.prepend(opt);
+    }
   }
 
   // Populate 30-min Time Slots
@@ -719,6 +763,30 @@ function getPriorityBadgeHtml(priority) {
   return `<span class="priority-badge priority-medium" title="Medium Priority">🟡 Med</span>`;
 }
 
+function getDueDateBadgeHtml(dueDate, isCompleted) {
+  if (!dueDate || typeof dueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    return '';
+  }
+
+  const todayStr = formatDateISO(new Date());
+  const tom = new Date();
+  tom.setDate(tom.getDate() + 1);
+  const tomorrowStr = formatDateISO(tom);
+
+  const dayDisplay = formatDateDisplay(dueDate);
+
+  if (dueDate < todayStr && !isCompleted) {
+    return `<span class="todo-due-badge todo-due-overdue" title="Overdue (Target was ${dayDisplay})">🔴 Overdue (${dayDisplay})</span>`;
+  }
+  if (dueDate === todayStr) {
+    return `<span class="todo-due-badge todo-due-today" title="Due Today (${dayDisplay})">🟢 Due Today</span>`;
+  }
+  if (dueDate === tomorrowStr) {
+    return `<span class="todo-due-badge todo-due-tomorrow" title="Due Tomorrow (${dayDisplay})">🟡 Due Tomorrow</span>`;
+  }
+  return `<span class="todo-due-badge todo-due-future" title="Target Due Date: ${dayDisplay}">📅 Due ${dayDisplay}</span>`;
+}
+
 function findScheduledSlotForTodo(item, weekSlots) {
   if (item.scheduledSlotInfo) {
     return `${item.scheduledSlotInfo.count} Days (${item.scheduledSlotInfo.span}) @ ${item.scheduledSlotInfo.time}`;
@@ -729,8 +797,9 @@ function findScheduledSlotForTodo(item, weekSlots) {
   const [slotKey] = match;
   const [dateStr, timeStr] = slotKey.split('_');
   const dObj = new Date(dateStr + 'T00:00:00');
-  const dayAbbr = dObj.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
-  return `${dayAbbr} ${timeStr}`;
+  const dayAbbr = dObj.toLocaleDateString('en-US', { weekday: 'short' });
+  const dateFormatted = formatDateDisplayShort(dateStr);
+  return `${dayAbbr}, ${dateFormatted} @ ${timeStr}`;
 }
 
 export function updateTodoProgressBar(todos) {
@@ -778,10 +847,39 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
   todoList.innerHTML = '';
 
   const allTodos = weekData.todos || [];
-  updateTodoProgressBar(allTodos);
+
+  // Manage Day Scope Bar visibility and filtering
+  const isDayView = STATE.scheduleViewMode === 'day';
+  const dayScopeContainer = document.getElementById('todoDayScopeContainer');
+  const dayFocusPill = document.getElementById('todoDayFocusPill');
+  const weekBacklogPill = document.getElementById('todoWeekBacklogPill');
+  if (dayScopeContainer) {
+    dayScopeContainer.style.display = isDayView ? 'inline-flex' : 'none';
+    if (dayFocusPill && weekBacklogPill) {
+      dayFocusPill.classList.toggle('active', dayScopeFilter === 'day');
+      weekBacklogPill.classList.toggle('active', dayScopeFilter === 'week');
+    }
+  }
+
+  const activeDayStr = STATE.selectedDate ? formatDateISO(STATE.selectedDate) : formatDateISO(new Date());
+
+  // Filter based on day view scope
+  const scopedTodos = allTodos.filter(item => {
+    if (isDayView && dayScopeFilter === 'day') {
+      if (item.dueDate) {
+        if (item.dueDate === activeDayStr) return true;
+        if (item.dueDate < activeDayStr && !item.completed) return true;
+        return false;
+      }
+      return false; // Day Focus concentrates on active day commitments + overdue
+    }
+    return true; // Full week backlog
+  });
+
+  updateTodoProgressBar(scopedTodos);
 
   // Filter based on active filter pill
-  const filteredTodos = allTodos.filter(item => {
+  const filteredTodos = scopedTodos.filter(item => {
     if (activeTodoFilter === 'all') return true;
     if (activeTodoFilter === 'pending') return !item.completed;
     if (activeTodoFilter === 'completed') return !!item.completed;
@@ -789,15 +887,19 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
   });
 
   if (filteredTodos.length === 0) {
-    const emptyMsg = allTodos.length === 0
+    let emptyMsg = allTodos.length === 0
       ? 'No priorities added for this week yet.'
       : `No items matching '${activeTodoFilter}' filter.`;
+    if (isDayView && dayScopeFilter === 'day' && allTodos.length > 0) {
+      emptyMsg = `No items due on this day (${activeDayStr}). Click 'All Week' to view weekly backlog.`;
+    }
     todoList.innerHTML = `<li style="color: var(--text-muted); text-align: center; padding: 1.25rem; font-size: 0.85rem; border: 1px dashed var(--border-color); border-radius: var(--radius-md);">${emptyMsg}</li>`;
   } else {
     filteredTodos.forEach(item => {
       const li = document.createElement('li');
       li.className = `todo-item ${item.completed ? 'completed' : ''}`;
       const priorityHtml = getPriorityBadgeHtml(item.priority);
+      const dueBadgeHtml = getDueDateBadgeHtml(item.dueDate, item.completed);
       const categoryHtml = item.category ? `<span class="todo-category-badge">${escapeHtml(item.category)}</span>` : '';
       
       const scheduledInfo = findScheduledSlotForTodo(item, weekData.slots);
@@ -809,6 +911,7 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
           <div class="todo-item-details">
             <span class="todo-text">${escapeHtml(item.text)}</span>
             ${priorityHtml}
+            ${dueBadgeHtml}
             ${categoryHtml}
             ${scheduledHtml}
           </div>

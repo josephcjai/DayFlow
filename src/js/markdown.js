@@ -9,7 +9,7 @@
  * - Specialized highlighters for: C#, WPF XAML, SQL, JavaScript, TypeScript, Python, JSON, CSS, Shell
  */
 
-import { escapeHtml } from './utils.js?v=2.5.5';
+import { escapeHtml } from './utils.js?v=2.6.3';
 
 /**
  * Syntax highlighter tokenizers for common developer languages

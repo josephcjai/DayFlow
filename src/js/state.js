@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js?v=2.5.5';
+import { ApiClient } from './apiClient.js?v=2.6.3';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -23,6 +23,117 @@ export function formatDateISO(dateObj) {
   const m = String(dateObj.getMonth() + 1).padStart(2, '0');
   const d = String(dateObj.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function getActiveDateFormat() {
+  if (typeof window !== 'undefined' && window.__DAYFLOW_DATE_FORMAT__) {
+    return window.__DAYFLOW_DATE_FORMAT__;
+  }
+  return 'DD/MM/YYYY';
+}
+
+export function setActiveDateFormat(format) {
+  if (typeof window !== 'undefined') {
+    window.__DAYFLOW_DATE_FORMAT__ = format;
+  }
+}
+
+/**
+ * Format a Date object or 'YYYY-MM-DD' ISO string according to the active (or passed) dateFormat.
+ * Supported formats:
+ * - 'DD/MM/YYYY'   -> '07/09/2026'
+ * - 'MM/DD/YYYY'   -> '09/07/2026'
+ * - 'YYYY-MM-DD'   -> '2026-09-07'
+ * - 'DD-MMM-YYYY'  -> '07-Sep-2026'
+ */
+export function formatDateDisplay(dateInput, format = null) {
+  if (!dateInput) return '';
+  let y, m, d;
+  if (typeof dateInput === 'string') {
+    const match = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      y = match[1];
+      m = match[2];
+      d = match[3];
+    } else {
+      const parsed = new Date(dateInput);
+      if (isNaN(parsed.getTime())) return dateInput;
+      y = String(parsed.getFullYear());
+      m = String(parsed.getMonth() + 1).padStart(2, '0');
+      d = String(parsed.getDate()).padStart(2, '0');
+    }
+  } else if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return '';
+    y = String(dateInput.getFullYear());
+    m = String(dateInput.getMonth() + 1).padStart(2, '0');
+    d = String(dateInput.getDate()).padStart(2, '0');
+  } else {
+    return '';
+  }
+
+  const fmt = format || getActiveDateFormat();
+  const monthIdx = parseInt(m, 10) - 1;
+  const monthName = MONTH_NAMES_SHORT[monthIdx] || m;
+
+  switch (fmt) {
+    case 'MM/DD/YYYY':
+      return `${m}/${d}/${y}`;
+    case 'YYYY-MM-DD':
+      return `${y}-${m}-${d}`;
+    case 'DD-MMM-YYYY':
+      return `${d}-${monthName}-${y}`;
+    case 'DD/MM/YYYY':
+    default:
+      return `${d}/${m}/${y}`;
+  }
+}
+
+/**
+ * Format a Date object or 'YYYY-MM-DD' ISO string into short (Day & Month) representation:
+ * - 'DD/MM/YYYY'   -> '07/09'
+ * - 'MM/DD/YYYY'   -> '09/07'
+ * - 'YYYY-MM-DD'   -> '09-07'
+ * - 'DD-MMM-YYYY'  -> '07-Sep'
+ */
+export function formatDateDisplayShort(dateInput, format = null) {
+  if (!dateInput) return '';
+  let m, d;
+  if (typeof dateInput === 'string') {
+    const match = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      m = match[2];
+      d = match[3];
+    } else {
+      const parsed = new Date(dateInput);
+      if (isNaN(parsed.getTime())) return dateInput;
+      m = String(parsed.getMonth() + 1).padStart(2, '0');
+      d = String(parsed.getDate()).padStart(2, '0');
+    }
+  } else if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return '';
+    m = String(dateInput.getMonth() + 1).padStart(2, '0');
+    d = String(dateInput.getDate()).padStart(2, '0');
+  } else {
+    return '';
+  }
+
+  const fmt = format || getActiveDateFormat();
+  const monthIdx = parseInt(m, 10) - 1;
+  const monthName = MONTH_NAMES_SHORT[monthIdx] || m;
+
+  switch (fmt) {
+    case 'MM/DD/YYYY':
+      return `${m}/${d}`;
+    case 'YYYY-MM-DD':
+      return `${m}-${d}`;
+    case 'DD-MMM-YYYY':
+      return `${d}-${monthName}`;
+    case 'DD/MM/YYYY':
+    default:
+      return `${d}/${m}`;
+  }
 }
 
 export function getMonday(d) {

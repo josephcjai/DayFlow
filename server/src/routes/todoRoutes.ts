@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { memoryStore, executeQuery } from '../db/db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
+import { isValidDateRange } from '../utils/dateValidation.js';
 
 const router = Router();
 
@@ -16,6 +17,10 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
     const { weekStart } = req.params;
+
+    if (!isValidDateRange(weekStart)) {
+      return res.status(400).json({ error: 'Invalid date: weekStart must be between 1800-01-01 and 2200-12-31' });
+    }
 
     let todos: any[] = [];
     let notes = '';
@@ -46,7 +51,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 
         const weekId = weekRes.rows[0].id;
         const todoRes = await executeQuery(
-          'SELECT id, text, is_completed as completed, COALESCE(priority, \'Medium\') as priority, COALESCE(category, \'General\') as category FROM todo_items WHERE week_id = $1 ORDER BY created_at ASC',
+          'SELECT id, text, is_completed as completed, COALESCE(priority, \'Medium\') as priority, COALESCE(category, \'General\') as category, to_char(due_date, \'YYYY-MM-DD\') as "dueDate" FROM todo_items WHERE week_id = $1 ORDER BY created_at ASC',
           [weekId]
         );
         todos = todoRes.rows;
@@ -74,10 +79,19 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 router.post('/todo', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
-    const { weekStart, text, priority, category } = req.body;
+    const { weekStart, text, priority, category, dueDate } = req.body;
+
+    if (!isValidDateRange(weekStart)) {
+      return res.status(400).json({ error: 'Invalid date: weekStart must be between 1800-01-01 and 2200-12-31' });
+    }
+    if (dueDate && !isValidDateRange(dueDate)) {
+      return res.status(400).json({ error: 'Invalid dueDate: must be between 1800-01-01 and 2200-12-31' });
+    }
+
     const todoPriority = priority || 'Medium';
     const todoCategory = category || 'General';
-    const newTodo: any = { id: Date.now(), text, priority: todoPriority, category: todoCategory, completed: false };
+    const formattedDueDate = dueDate && isValidDateRange(dueDate) ? dueDate : null;
+    const newTodo: any = { id: Date.now(), text, priority: todoPriority, category: todoCategory, completed: false, dueDate: formattedDueDate };
 
     const userWeekKey = `${userId}_${weekStart}`;
     if (!memoryStore.scheduleWeeks[userWeekKey]) {
@@ -97,11 +111,12 @@ router.post('/todo', async (req: AuthenticatedRequest, res) => {
       const weekId = weekRes.rows[0].id;
       
       const insertRes = await executeQuery(
-        'INSERT INTO todo_items (week_id, text, priority, category, is_completed) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [weekId, text, todoPriority, todoCategory, false]
+        'INSERT INTO todo_items (week_id, text, priority, category, is_completed, due_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, to_char(due_date, \'YYYY-MM-DD\') as "dueDate"',
+        [weekId, text, todoPriority, todoCategory, false, formattedDueDate]
       );
       if (insertRes.rows[0]) {
         newTodo.id = insertRes.rows[0].id;
+        newTodo.dueDate = insertRes.rows[0].dueDate || formattedDueDate;
       }
     } catch (e) {
       console.warn('PostgreSQL todo insert fallback to memory store');
@@ -113,12 +128,16 @@ router.post('/todo', async (req: AuthenticatedRequest, res) => {
   }
 });
 
-// Update Todo Completion Status
+// Update Todo Completion Status & Due Date
 router.patch('/:id', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
     const { id } = req.params;
-    const { completed } = req.body;
+    const { completed, dueDate } = req.body;
+
+    if (dueDate && !isValidDateRange(dueDate)) {
+      return res.status(400).json({ error: 'Invalid dueDate: must be between 1800-01-01 and 2200-12-31' });
+    }
 
     let updated = false;
 
@@ -126,19 +145,37 @@ router.patch('/:id', async (req: AuthenticatedRequest, res) => {
       if (wKey.startsWith(`${userId}_`)) {
         const item = (memoryStore.scheduleWeeks[wKey].todos || []).find((t: any) => String(t.id) === String(id));
         if (item) {
-          item.completed = !!completed;
+          if (completed !== undefined) item.completed = !!completed;
+          if (dueDate !== undefined) item.dueDate = dueDate;
           updated = true;
         }
       }
     });
 
     try {
-      const patchRes = await executeQuery(
-        `UPDATE todo_items 
-         SET is_completed = $1 
-         WHERE id = $2 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $3)`,
-        [!!completed, id, userId]
-      );
+      let patchRes;
+      if (dueDate !== undefined && completed !== undefined) {
+        patchRes = await executeQuery(
+          `UPDATE todo_items 
+           SET is_completed = $1, due_date = $2 
+           WHERE id = $3 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $4)`,
+          [!!completed, dueDate || null, id, userId]
+        );
+      } else if (dueDate !== undefined) {
+        patchRes = await executeQuery(
+          `UPDATE todo_items 
+           SET due_date = $1 
+           WHERE id = $2 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $3)`,
+          [dueDate || null, id, userId]
+        );
+      } else {
+        patchRes = await executeQuery(
+          `UPDATE todo_items 
+           SET is_completed = $1 
+           WHERE id = $2 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $3)`,
+          [!!completed, id, userId]
+        );
+      }
       if (patchRes && typeof patchRes.rowCount === 'number') {
         updated = patchRes.rowCount > 0;
       }
@@ -202,6 +239,10 @@ router.post('/notes', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
     const { weekStart, notes, noteSheets } = req.body;
+
+    if (!isValidDateRange(weekStart)) {
+      return res.status(400).json({ error: 'Invalid date: weekStart must be between 1800-01-01 and 2200-12-31' });
+    }
 
     // Determine legacy weekly_notes string (primary journal sheet content or notes param)
     const primarySheet = Array.isArray(noteSheets) ? noteSheets.find((s: any) => s.id === 'journal') : null;

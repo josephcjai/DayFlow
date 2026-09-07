@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { memoryStore, executeQuery } from '../db/db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
+import { isValidDateRange } from '../utils/dateValidation.js';
 
 const router = Router();
 
@@ -16,6 +17,10 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
     const { weekStart } = req.params;
+
+    if (!isValidDateRange(weekStart)) {
+      return res.status(400).json({ error: 'Invalid date: weekStart must be between 1800-01-01 and 2200-12-31' });
+    }
 
     let habits: any[] = [];
     try {
@@ -41,6 +46,18 @@ router.post('/log', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
     const { weekStart, name, pts, notes, logTime } = req.body;
+
+    if (!isValidDateRange(weekStart)) {
+      return res.status(400).json({ error: 'Invalid date: weekStart must be between 1800-01-01 and 2200-12-31' });
+    }
+
+    if (logTime && /^\d{4}-\d{2}-\d{2}/.test(logTime)) {
+      const logDate = logTime.slice(0, 10);
+      if (!isValidDateRange(logDate)) {
+        return res.status(400).json({ error: 'Invalid log date: must be between 1800-01-01 and 2200-12-31' });
+      }
+    }
+
     const now = new Date();
     const timeStr = logTime || `${weekStart} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 

@@ -5,8 +5,8 @@
  * 2. Week Mode: Weekly KPI, 7-category time distribution, and Mon-Sun consistency trend
  * 3. Month Mode: Monthly KPI aggregation across all weeks, monthly category breakdown, and weekly trend distribution
  */
-import { getCurrentWeekData, STATE, getWeekDates, formatDateISO } from './state.js?v=2.5.5';
-import { escapeHtml } from './utils.js?v=2.5.5';
+import { getCurrentWeekData, STATE, getWeekDates, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.6.3';
+import { escapeHtml } from './utils.js?v=2.6.3';
 
 const CATEGORIES = [
   { id: 'Learning', name: 'Learning (WPF/WCF/React/Angular)', color: 'var(--cat-learning)' },
@@ -46,10 +46,12 @@ export function renderAnalytics(
   // 1. FILTER DATA BY ACTIVE VIEW MODE (Day / Week / Month)
   // -------------------------------------------------------------
   if (viewMode === 'day') {
-    const dayFull = selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
-    periodText = `Daily report for ${dayFull}. Showing focus time and habit execution for this day.`;
-    trendHeadingText = `7-Day Consistency Context (Focus: ${selDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })})`;
-    trendSubtitleText = `Showing daily points with ${selDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} highlighted`;
+    const dayName = selDate.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayFormatted = formatDateDisplay(selDate);
+    const dayShort = `${selDate.toLocaleDateString('en-US', { weekday: 'short' })}, ${formatDateDisplayShort(selDate)}`;
+    periodText = `Daily report for ${dayName}, ${dayFormatted}. Showing focus time and habit execution for this day.`;
+    trendHeadingText = `7-Day Consistency Context (Focus: ${dayShort})`;
+    trendSubtitleText = `Showing daily points with ${dayShort} highlighted`;
 
     // Filter slots for selected day only
     Object.entries(weekData.slots || {}).forEach(([k, s]) => {
@@ -96,8 +98,8 @@ export function renderAnalytics(
   } else {
     // Week Mode (Default)
     const dates = getWeekDates(STATE.currentWeekStart);
-    const monStr = new Date(dates[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const sunStr = new Date(dates[6] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const monStr = formatDateDisplayShort(dates[0]);
+    const sunStr = formatDateDisplay(dates[6]);
 
     periodText = `Weekly report for Mon, ${monStr} – Sun, ${sunStr}. Showing planned vs. actual execution for this week.`;
     trendHeadingText = `7-Day Habit Activity & Consistency Trend`;
@@ -346,8 +348,7 @@ export function renderAnalytics(
 
       dailyPoints.forEach((d, idx) => {
         const dayName = dayNames[idx];
-        const dObj = new Date(d.dateStr + 'T00:00:00');
-        const dateDisplay = dObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const dateDisplay = formatDateDisplayShort(d.dateStr);
         const isToday = (d.dateStr === todayStr);
         const isSelected = (viewMode === 'day' && d.dateStr === selDateISO);
         const hasHabits = d.pts > 0;
@@ -433,7 +434,7 @@ export function openPointsBreakdownModal() {
   let periodSubtitle = '';
 
   if (viewMode === 'day') {
-    const dayFull = selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    const dayFull = `${selDate.toLocaleDateString('en-US', { weekday: 'long' })}, ${formatDateDisplay(selDate)}`;
     periodSubtitle = `Daily Points Bifurcation for ${dayFull}`;
 
     // Filter day habits
@@ -523,8 +524,8 @@ export function openPointsBreakdownModal() {
   } else {
     // Week Mode (Default)
     const dates = getWeekDates(STATE.currentWeekStart);
-    const monStr = new Date(dates[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const sunStr = new Date(dates[6] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const monStr = formatDateDisplayShort(dates[0]);
+    const sunStr = formatDateDisplay(dates[6]);
     periodSubtitle = `Weekly Points Bifurcation for Mon, ${monStr} – Sun, ${sunStr}`;
 
     (weekData.habits || []).forEach(h => {
@@ -597,8 +598,13 @@ function renderBreakdownTable() {
   items.forEach(item => {
     const tr = document.createElement('tr');
     const sourceClass = item.source === 'habit' ? 'audit-source-habit' : 'audit-source-goal';
+    let timeOrDateDisplay = item.time !== '—' ? item.time : item.date;
+    const isoMatch = (typeof timeOrDateDisplay === 'string') ? timeOrDateDisplay.match(/^(\d{4}-\d{2}-\d{2})(.*)$/) : null;
+    if (isoMatch) {
+      timeOrDateDisplay = `${formatDateDisplay(isoMatch[1])}${isoMatch[2]}`;
+    }
     tr.innerHTML = `
-      <td><span style="font-weight: 600; font-size: 0.78rem;">${escapeHtml(item.time !== '—' ? item.time : item.date)}</span></td>
+      <td><span style="font-weight: 600; font-size: 0.78rem;">${escapeHtml(timeOrDateDisplay)}</span></td>
       <td><span class="audit-source-badge ${sourceClass}">${escapeHtml(item.sourceLabel)}</span></td>
       <td><strong>${escapeHtml(item.name)}</strong></td>
       <td><span style="color: var(--text-secondary); font-size: 0.78rem;">${escapeHtml(item.type)}</span></td>

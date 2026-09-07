@@ -12,11 +12,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Weekly Schedule Container (Unique per user + start_date)
+-- Weekly Schedule Container (Unique per user + start_date between 1800 and 2200)
 CREATE TABLE IF NOT EXISTS schedule_weeks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    start_date DATE NOT NULL, -- Monday date YYYY-MM-DD
+    start_date DATE NOT NULL CHECK (start_date BETWEEN '1800-01-01' AND '2200-12-31'), -- Monday date YYYY-MM-DD
     weekly_notes TEXT,
     note_sheets JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS schedule_slots (
 CREATE TABLE IF NOT EXISTS habit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    week_start DATE NOT NULL,
+    week_start DATE NOT NULL CHECK (week_start BETWEEN '1800-01-01' AND '2200-12-31'),
     habit_name VARCHAR(255) NOT NULL,
     pts INT DEFAULT 5,
     log_time VARCHAR(20) NOT NULL,
@@ -60,5 +60,6 @@ CREATE TABLE IF NOT EXISTS todo_items (
     priority VARCHAR(20) DEFAULT 'Medium',
     category VARCHAR(50) DEFAULT 'General',
     is_completed BOOLEAN DEFAULT FALSE,
+    due_date DATE CHECK (due_date IS NULL OR (due_date BETWEEN '1800-01-01' AND '2200-12-31')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

@@ -170,12 +170,12 @@ export const ApiClient = {
     return null;
   },
 
-  async addTodo(weekStart, text, priority = 'Medium', category = 'General') {
+  async addTodo(weekStart, text, priority = 'Medium', category = 'General', dueDate = null) {
     try {
       const res = await fetch(`${API_BASE}/todos/todo`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ weekStart, text, priority, category })
+        body: JSON.stringify({ weekStart, text, priority, category, dueDate })
       });
       if (res.ok) {
         return await res.json();

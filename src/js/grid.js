@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, formatDateISO } from './state.js?v=2.5.5';
-import { openTaskModal } from './modal.js?v=2.5.5';
-import { escapeHtml } from './utils.js?v=2.5.5';
+import { STATE, getWeekDates, getCurrentWeekData, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.6.3';
+import { openTaskModal } from './modal.js?v=2.6.3';
+import { escapeHtml } from './utils.js?v=2.6.3';
 
 export const TIME_SLOTS = [];
 
@@ -90,7 +90,7 @@ function renderDayGridHeader(headerEl) {
   headerEl.innerHTML = `
     <tr>
       <th class="time-col">Time (30m)</th>
-      <th class="day-col day-view-single-col">${dayName} <span class="day-date">${formatHeaderDate(dateStr)}</span></th>
+      <th class="day-col day-view-single-col">${dayName} <span class="day-date">${formatDateDisplay(dateStr)}</span></th>
     </tr>
   `;
 }
@@ -383,8 +383,7 @@ function renderMonthGrid(container, onSwitchToDayView) {
 
 function formatHeaderDate(isoDateStr) {
   if (!isoDateStr) return '';
-  const parts = isoDateStr.split('-');
-  return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
+  return formatDateDisplayShort(isoDateStr);
 }
 
 export function formatTimeLabel(hour, min, timeFormat = '12h') {

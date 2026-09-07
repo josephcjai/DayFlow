@@ -93,7 +93,10 @@ export const openApiDocument = {
         required: ['weekStart', 'text'],
         properties: {
           weekStart: { type: 'string', example: '2026-08-10' },
-          text: { type: 'string', example: 'Review Weekly Goals' }
+          text: { type: 'string', example: 'Review Weekly Goals' },
+          priority: { type: 'string', example: 'High' },
+          category: { type: 'string', example: 'Work' },
+          dueDate: { type: 'string', example: '2026-08-12' }
         }
       },
       ToggleTodoRequest: {

@@ -127,7 +127,7 @@
         <!-- Calendar Picker Control -->
         <div class="calendar-picker-wrapper" title="Pick any date to open that week (Mon-Sun)">
           <span class="cal-icon">🗓️</span>
-          <input type="date" id="weekDatePicker" class="date-picker-input">
+          <input type="date" id="weekDatePicker" class="date-picker-input" min="1800-01-01" max="2200-12-31">
         </div>
 
         <div id="currentWeekRange" class="week-range-text">Mon, Aug 03 – Sun, Aug 09, 2026</div>
@@ -192,7 +192,7 @@
             </div>
             <div class="date-bar-right">
               <label for="habitDateInput" class="custom-date-label">Custom Date:</label>
-              <input type="date" id="habitDateInput" class="date-picker-input habit-date-picker" title="Select custom logging date">
+              <input type="date" id="habitDateInput" class="date-picker-input habit-date-picker" title="Select custom logging date" min="1800-01-01" max="2200-12-31">
             </div>
           </div>
 
@@ -371,6 +371,14 @@
                     <option value="Travel">Travel</option>
                     <option value="General">General</option>
                   </select>
+                  <div class="todo-due-picker-wrap">
+                    <input type="date" id="todoDueDateInput" class="form-date-input todo-date-input" title="Target Due Date (Optional)" min="1800-01-01" max="2200-12-31">
+                    <div class="todo-due-quick-pills">
+                      <button type="button" class="todo-due-quick-btn" id="todoDueTodayBtn" title="Set due date to Today">Today</button>
+                      <button type="button" class="todo-due-quick-btn" id="todoDueTomorrowBtn" title="Set due date to Tomorrow">Tomorrow</button>
+                      <button type="button" class="todo-due-quick-btn clear" id="todoDueClearBtn" title="Clear due date" style="display: none;">✕</button>
+                    </div>
+                  </div>
                   <button type="submit" class="btn btn-primary todo-add-btn">Add</button>
                 </div>
               </form>
@@ -383,6 +391,10 @@
                 <button type="button" class="todo-filter-pill" data-filter="Low">🟢 Low</button>
                 <button type="button" class="todo-filter-pill" data-filter="pending">⏳ Pending</button>
                 <button type="button" class="todo-filter-pill" data-filter="completed">✅ Done</button>
+                <div id="todoDayScopeContainer" class="todo-day-scope-wrap" style="display: none;">
+                  <button type="button" class="todo-day-scope-pill active" id="todoDayFocusPill" title="Show items due on active day and overdue items">🎯 Day Focus</button>
+                  <button type="button" class="todo-day-scope-pill" id="todoWeekBacklogPill" title="Show all items for this week">📋 All Week</button>
+                </div>
               </div>
 
               <ul id="todoList" class="todo-item-list">
@@ -534,11 +546,23 @@
               <div class="form-group">
                 <label for="settingsTimeFormat">Time Display Format</label>
                 <select id="settingsTimeFormat" class="select-input">
-                  <option value="12h">12-Hour AM/PM (e.g. 09:00 AM, 02:30 PM)</option>
-                  <option value="24h">24-Hour Military (e.g. 09:00, 14:30)</option>
+                  <option value="12h">12-Hour (09:00 AM)</option>
+                  <option value="24h">24-Hour (09:00)</option>
                 </select>
               </div>
 
+              <div class="form-group">
+                <label for="settingsDateFormat">Date Display Format</label>
+                <select id="settingsDateFormat" class="select-input">
+                  <option value="DD/MM/YYYY">DD/MM/YYYY (07/09/2026)</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY (09/07/2026)</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD (2026-09-07)</option>
+                  <option value="DD-MMM-YYYY">DD-MMM-YYYY (07-Sep-2026)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-2" style="margin-top: 0.75rem;">
               <div class="form-group">
                 <label for="settingsDefaultView">Default Landing View</label>
                 <select id="settingsDefaultView" class="select-input">
@@ -548,13 +572,13 @@
                   <option value="notes">📝 Notes & Todo</option>
                 </select>
               </div>
-            </div>
 
-            <div class="form-group checkbox-group" style="margin-top: 0.75rem;">
-              <label class="custom-checkbox-label">
-                <input type="checkbox" id="settingsCompactGrid">
-                <span>Compact Grid Rows (fits more hours on screen without vertical scrolling)</span>
-              </label>
+              <div class="form-group checkbox-group" style="display: flex; align-items: flex-end; padding-bottom: 0.5rem;">
+                <label class="custom-checkbox-label">
+                  <input type="checkbox" id="settingsCompactGrid">
+                  <span>Compact Grid Rows (fits more hours on screen)</span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -1191,6 +1215,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.6.2"></script>
+  <script type="module" src="src/js/app.js?v=2.6.3"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { memoryStore, executeQuery } from '../db/db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
+import { isValidDateRange } from '../utils/dateValidation.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -16,6 +17,10 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized access' });
+    }
+
+    if (!isValidDateRange(weekStart)) {
+      return res.status(400).json({ error: 'Invalid date: weekStart must be between 1800-01-01 and 2200-12-31' });
     }
 
     // Query PostgreSQL filtered strictly by user_id
@@ -67,6 +72,15 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
 
     if (!weekStart || !slotKey) {
       return res.status(400).json({ error: 'weekStart and slotKey are required' });
+    }
+
+    if (!isValidDateRange(weekStart)) {
+      return res.status(400).json({ error: 'Invalid date: weekStart must be between 1800-01-01 and 2200-12-31' });
+    }
+
+    const slotDate = slotKey.split('_')[0];
+    if (!isValidDateRange(slotDate)) {
+      return res.status(400).json({ error: 'Invalid date in slotKey: must be between 1800-01-01 and 2200-12-31' });
     }
 
     const slotObj = {
@@ -135,6 +149,14 @@ router.delete('/slot', async (req: AuthenticatedRequest, res) => {
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized access' });
+    }
+
+    if (!weekStart || !slotKey) {
+      return res.status(400).json({ error: 'weekStart and slotKey are required' });
+    }
+
+    if (!isValidDateRange(weekStart)) {
+      return res.status(400).json({ error: 'Invalid date: weekStart must be between 1800-01-01 and 2200-12-31' });
     }
 
     let deleted = false;

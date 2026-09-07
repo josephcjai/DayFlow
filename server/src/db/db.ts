@@ -40,8 +40,23 @@ pool.connect(async (err, client, release) => {
     console.log(`✅ Connected directly to PostgreSQL Database ('${DB_NAME}' on ${DB_HOST}:${DB_PORT})!`);
     try {
       await client.query("ALTER TABLE schedule_weeks ADD COLUMN IF NOT EXISTS note_sheets JSONB DEFAULT '[]'::jsonb;");
+      await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS due_date DATE;");
+      await client.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_schedule_weeks_date_range') THEN
+            ALTER TABLE schedule_weeks ADD CONSTRAINT check_schedule_weeks_date_range CHECK (start_date BETWEEN '1800-01-01' AND '2200-12-31');
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_habit_logs_date_range') THEN
+            ALTER TABLE habit_logs ADD CONSTRAINT check_habit_logs_date_range CHECK (week_start BETWEEN '1800-01-01' AND '2200-12-31');
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_todo_items_date_range') THEN
+            ALTER TABLE todo_items ADD CONSTRAINT check_todo_items_date_range CHECK (due_date IS NULL OR (due_date BETWEEN '1800-01-01' AND '2200-12-31'));
+          END IF;
+        END $$;
+      `);
     } catch (migErr: any) {
-      console.warn('PostgreSQL note_sheets migration notice:', migErr.message);
+      console.warn('PostgreSQL migration notice:', migErr.message);
     }
     release();
   }

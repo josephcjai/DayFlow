@@ -6,9 +6,9 @@
  * 3. Confirmation warning before deleting a habit history log entry
  * Robust row deletion, date & time logging for past dates, and Day/Week view filtering
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey } from './state.js?v=2.5.5';
-import { ApiClient } from './apiClient.js?v=2.5.5';
-import { escapeHtml } from './utils.js?v=2.5.5';
+import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey, formatDateDisplay } from './state.js?v=2.6.3';
+import { ApiClient } from './apiClient.js?v=2.6.3';
+import { escapeHtml } from './utils.js?v=2.6.3';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🎯', name: 'Deep Focus Block', pts: 15, label: 'Deep Work / Study Complete' },
@@ -85,7 +85,7 @@ export function renderHabits(habitLogTableBody, totalPointsBadge) {
   });
 
   if (habits.length === 0) {
-    const periodLabel = (isDayView && selectedDateStr) ? `for ${selectedDateStr}` : `for this week`;
+    const periodLabel = (isDayView && selectedDateStr) ? `for ${formatDateDisplay(selectedDateStr)}` : `for this week`;
     habitLogTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No habit logs recorded ${periodLabel} yet. Use the form above to log actions!</td></tr>`;
   } else {
     habits.slice().reverse().forEach((log) => {
@@ -96,6 +96,10 @@ export function renderHabits(habitLogTableBody, totalPointsBadge) {
         if (!hasDate) {
           const weekKey = getWeekKey(STATE.currentWeekStart);
           displayTime = `${weekKey} ${displayTime}`;
+        }
+        const isoMatch = displayTime.match(/^(\d{4}-\d{2}-\d{2})(.*)$/);
+        if (isoMatch) {
+          displayTime = `${formatDateDisplay(isoMatch[1])}${isoMatch[2]}`;
         }
       }
 
