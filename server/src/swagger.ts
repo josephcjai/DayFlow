@@ -105,10 +105,24 @@ export const openApiDocument = {
       },
       SaveNotesRequest: {
         type: 'object',
-        required: ['weekStart', 'notes'],
+        required: ['weekStart'],
         properties: {
           weekStart: { type: 'string', example: '2026-08-10' },
-          notes: { type: 'string', example: 'Weekly focus summary notes...' }
+          notes: { type: 'string', example: 'Weekly focus summary notes...' },
+          noteSheets: {
+            type: 'array',
+            description: 'List of categorized note sheets for the week',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'journal' },
+                title: { type: 'string', example: 'Weekly Journal' },
+                icon: { type: 'string', example: '📓' },
+                content: { type: 'string', example: '# My Journal Notes' },
+                isDefault: { type: 'boolean', example: true }
+              }
+            }
+          }
         }
       }
     }

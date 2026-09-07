@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS schedule_weeks (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     start_date DATE NOT NULL, -- Monday date YYYY-MM-DD
     weekly_notes TEXT,
+    note_sheets JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_user_week UNIQUE(user_id, start_date)

@@ -19,32 +19,52 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 
     let todos: any[] = [];
     let notes = '';
+    let noteSheets: any[] = [];
+
+    const defaultSheets = (journalText: string) => [
+      { id: 'journal', title: 'Weekly Journal', icon: '📓', content: journalText || '', isDefault: true },
+      { id: 'tech', title: 'Tech & Architecture', icon: '💻', content: '', isDefault: true },
+      { id: 'backlog', title: 'Sprint Backlog', icon: '💼', content: '', isDefault: true },
+      { id: 'scratchpad', title: 'Quick Scratchpad', icon: '⚡', content: '', isDefault: true }
+    ];
 
     try {
-      // Get week record and notes
+      // Get week record, notes, and note_sheets
       const weekRes = await executeQuery(
-        'SELECT id, weekly_notes FROM schedule_weeks WHERE user_id = $1 AND start_date = $2::date',
+        'SELECT id, weekly_notes, note_sheets FROM schedule_weeks WHERE user_id = $1 AND start_date = $2::date',
         [userId, weekStart]
       );
 
       if (weekRes.rows.length > 0) {
         notes = weekRes.rows[0].weekly_notes || '';
+        const rawSheets = weekRes.rows[0].note_sheets;
+        if (Array.isArray(rawSheets) && rawSheets.length > 0) {
+          noteSheets = rawSheets;
+        } else {
+          noteSheets = defaultSheets(notes);
+        }
+
         const weekId = weekRes.rows[0].id;
         const todoRes = await executeQuery(
           'SELECT id, text, is_completed as completed, COALESCE(priority, \'Medium\') as priority, COALESCE(category, \'General\') as category FROM todo_items WHERE week_id = $1 ORDER BY created_at ASC',
           [weekId]
         );
         todos = todoRes.rows;
+      } else {
+        noteSheets = defaultSheets('');
       }
     } catch (e) {
       const userWeekKey = `${userId}_${weekStart}`;
       if (memoryStore.scheduleWeeks[userWeekKey]) {
         todos = memoryStore.scheduleWeeks[userWeekKey].todos || [];
         notes = memoryStore.scheduleWeeks[userWeekKey].notes || '';
+        noteSheets = memoryStore.scheduleWeeks[userWeekKey].noteSheets || defaultSheets(notes);
+      } else {
+        noteSheets = defaultSheets('');
       }
     }
 
-    res.json({ weekStart, todos, notes });
+    res.json({ weekStart, todos, notes, noteSheets });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -177,30 +197,46 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
   }
 });
 
-// Update Weekly Scratchpad Notes
+// Update Weekly Scratchpad Notes & Multi-Sheets
 router.post('/notes', async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.userId;
-    const { weekStart, notes } = req.body;
+    const { weekStart, notes, noteSheets } = req.body;
+
+    // Determine legacy weekly_notes string (primary journal sheet content or notes param)
+    const primarySheet = Array.isArray(noteSheets) ? noteSheets.find((s: any) => s.id === 'journal') : null;
+    const legacyNotes = primarySheet ? (primarySheet.content || '') : (notes || '');
 
     const userWeekKey = `${userId}_${weekStart}`;
     if (!memoryStore.scheduleWeeks[userWeekKey]) {
-      memoryStore.scheduleWeeks[userWeekKey] = { slots: {}, habits: [], todos: [], notes: '' };
+      memoryStore.scheduleWeeks[userWeekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
     }
-    memoryStore.scheduleWeeks[userWeekKey].notes = notes;
+    memoryStore.scheduleWeeks[userWeekKey].notes = legacyNotes;
+    if (noteSheets) {
+      memoryStore.scheduleWeeks[userWeekKey].noteSheets = noteSheets;
+    }
 
     try {
-      await executeQuery(
-        `INSERT INTO schedule_weeks (user_id, start_date, weekly_notes)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (user_id, start_date) DO UPDATE SET weekly_notes = $3, updated_at = CURRENT_TIMESTAMP`,
-        [userId, weekStart, notes || '']
-      );
+      if (noteSheets && Array.isArray(noteSheets)) {
+        await executeQuery(
+          `INSERT INTO schedule_weeks (user_id, start_date, weekly_notes, note_sheets)
+           VALUES ($1, $2, $3, $4::jsonb)
+           ON CONFLICT (user_id, start_date) DO UPDATE SET weekly_notes = $3, note_sheets = $4::jsonb, updated_at = CURRENT_TIMESTAMP`,
+          [userId, weekStart, legacyNotes, JSON.stringify(noteSheets)]
+        );
+      } else {
+        await executeQuery(
+          `INSERT INTO schedule_weeks (user_id, start_date, weekly_notes)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (user_id, start_date) DO UPDATE SET weekly_notes = $3, updated_at = CURRENT_TIMESTAMP`,
+          [userId, weekStart, legacyNotes]
+        );
+      }
     } catch (e) {
       console.warn('PostgreSQL notes update fallback to memory store');
     }
 
-    res.json({ message: 'Notes updated successfully' });
+    res.json({ message: 'Notes updated successfully', noteSheets });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

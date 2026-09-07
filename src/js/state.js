@@ -91,7 +91,8 @@ export function getCurrentWeekData() {
       slots: {},
       habits: [],
       todos: [],
-      notes: ''
+      notes: '',
+      noteSheets: []
     };
   }
   return STATE.scheduleData[weekKey];
@@ -115,6 +116,9 @@ export async function syncWeekDataWithApi(onRender) {
   if (apiTodosNotes !== null && typeof apiTodosNotes === 'object') {
     if (apiTodosNotes.todos) weekData.todos = apiTodosNotes.todos;
     if (apiTodosNotes.notes !== undefined) weekData.notes = apiTodosNotes.notes;
+    if (apiTodosNotes.noteSheets !== undefined && Array.isArray(apiTodosNotes.noteSheets)) {
+      weekData.noteSheets = apiTodosNotes.noteSheets;
+    }
   }
 
   saveStateToStorage();
@@ -131,6 +135,14 @@ export function ensureSampleDataForCurrentWeek() {
   }
   if (!weekData.todos) {
     weekData.todos = [];
+  }
+  if (!weekData.noteSheets || !Array.isArray(weekData.noteSheets) || weekData.noteSheets.length === 0) {
+    weekData.noteSheets = [
+      { id: 'journal', title: 'Weekly Journal', icon: '📓', content: weekData.notes || '', isDefault: true },
+      { id: 'tech', title: 'Tech & Architecture', icon: '💻', content: '', isDefault: true },
+      { id: 'backlog', title: 'Sprint Backlog', icon: '💼', content: '', isDefault: true },
+      { id: 'scratchpad', title: 'Quick Scratchpad', icon: '⚡', content: '', isDefault: true }
+    ];
   }
   saveStateToStorage();
 }

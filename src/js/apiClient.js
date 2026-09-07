@@ -209,12 +209,12 @@ export const ApiClient = {
     }
   },
 
-  async saveNotes(weekStart, notes) {
+  async saveNotes(weekStart, notes, noteSheets = null) {
     try {
       await fetch(`${API_BASE}/todos/notes`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ weekStart, notes })
+        body: JSON.stringify({ weekStart, notes, noteSheets })
       });
     } catch (e) {
       console.log('Saved notes offline');

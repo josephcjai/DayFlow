@@ -822,8 +822,10 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
     });
   }
 
+  renderNoteSheetsTabs();
+  const activeSheet = getActiveSheet();
   if (weeklyNotesTextarea) {
-    weeklyNotesTextarea.value = weekData.notes || '';
+    weeklyNotesTextarea.value = activeSheet ? (activeSheet.content || '') : (weekData.notes || '');
     updateMarkdownPreview(weeklyNotesTextarea);
   }
 
@@ -920,10 +922,119 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
 }
 
 /**
- * Phase 4: Markdown Scratchpad Controller
+ * Phase 4 & 5: Markdown Scratchpad & Multiple Note Sheets Controller
  */
 let scratchpadInitialized = false;
 let currentScratchpadMode = localStorage.getItem('dayflow_scratchpad_mode') || 'edit';
+let activeSheetId = 'journal';
+let selectedSheetIcon = '📓';
+
+export function getActiveSheetId() {
+  return activeSheetId;
+}
+
+export function setActiveSheetId(id) {
+  activeSheetId = id;
+}
+
+export function getWeekNoteSheets() {
+  const weekData = getCurrentWeekData();
+  if (!weekData.noteSheets || !Array.isArray(weekData.noteSheets) || weekData.noteSheets.length === 0) {
+    weekData.noteSheets = [
+      { id: 'journal', title: 'Weekly Journal', icon: '📓', content: weekData.notes || '', isDefault: true },
+      { id: 'tech', title: 'Tech & Architecture', icon: '💻', content: '', isDefault: true },
+      { id: 'backlog', title: 'Sprint Backlog', icon: '💼', content: '', isDefault: true },
+      { id: 'scratchpad', title: 'Quick Scratchpad', icon: '⚡', content: '', isDefault: true }
+    ];
+  }
+  return weekData.noteSheets;
+}
+
+export function getActiveSheet() {
+  const sheets = getWeekNoteSheets();
+  let active = sheets.find(s => s.id === activeSheetId);
+  if (!active) {
+    activeSheetId = sheets[0]?.id || 'journal';
+    active = sheets.find(s => s.id === activeSheetId) || sheets[0];
+  }
+  return active;
+}
+
+export function renderNoteSheetsTabs(tabBarEl, textarea, previewEl, wordCountEl) {
+  const tabBar = tabBarEl || document.getElementById('notesSheetsTabBar');
+  const ta = textarea || document.getElementById('weeklyNotesTextarea');
+  const preview = previewEl || document.getElementById('weeklyNotesPreview');
+  const wordCount = wordCountEl || document.getElementById('notesWordCount');
+  if (!tabBar) return;
+
+  const sheets = getWeekNoteSheets();
+  const currentActive = getActiveSheet();
+
+  tabBar.innerHTML = '';
+  sheets.forEach(sheet => {
+    const tabBtn = document.createElement('button');
+    tabBtn.type = 'button';
+    tabBtn.className = `note-sheet-tab ${sheet.id === activeSheetId ? 'active' : ''}`;
+    tabBtn.dataset.id = sheet.id;
+    tabBtn.title = `Switch to ${sheet.title}`;
+
+    let deleteBtnHtml = '';
+    if (!sheet.isDefault) {
+      deleteBtnHtml = `<button type="button" class="note-sheet-tab-delete" data-id="${sheet.id}" title="Delete Sheet">✕</button>`;
+    }
+
+    tabBtn.innerHTML = `
+      <span class="note-sheet-tab-icon">${sheet.icon || '📝'}</span>
+      <span class="note-sheet-tab-title">${escapeHtml(sheet.title)}</span>
+      ${deleteBtnHtml}
+    `;
+
+    // Switch Sheet on Tab Click
+    tabBtn.addEventListener('click', (e) => {
+      if (e.target.closest('.note-sheet-tab-delete')) return;
+      if (sheet.id === activeSheetId) return;
+
+      // Flush current editor content to outgoing sheet
+      const outgoing = sheets.find(s => s.id === activeSheetId);
+      if (outgoing && ta) {
+        outgoing.content = ta.value;
+      }
+
+      activeSheetId = sheet.id;
+      if (ta) {
+        ta.value = sheet.content || '';
+      }
+      updateMarkdownPreview(ta, preview, wordCount);
+      saveStateToStorage();
+      renderNoteSheetsTabs(tabBar, ta, preview, wordCount);
+    });
+
+    // Delete custom sheet listener with themed confirmation modal
+    const delBtn = tabBtn.querySelector('.note-sheet-tab-delete');
+    if (delBtn) {
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDeleteNoteSheetModal(sheet, ta, preview, wordCount, tabBar);
+      });
+    }
+
+    tabBar.appendChild(tabBtn);
+  });
+}
+
+let pendingDeleteSheet = null;
+
+export function openDeleteNoteSheetModal(sheet, ta, preview, wordCount, tabBar) {
+  pendingDeleteSheet = sheet;
+  const modal = document.getElementById('deleteNoteSheetConfirmModal');
+  const targetName = document.getElementById('deleteNoteSheetTargetName');
+  if (targetName) {
+    targetName.textContent = `"${sheet.title}"`;
+  }
+  if (modal) {
+    modal.classList.add('active');
+  }
+}
 
 export function updateMarkdownPreview(textarea, previewContainer, wordCountContainer) {
   const ta = textarea || document.getElementById('weeklyNotesTextarea');
@@ -1139,7 +1250,136 @@ export function initMarkdownScratchpad(domElements) {
     }
   });
 
-  // Initial preview update
+  // Add Custom Note Sheet Modal Wiring
+  const addSheetModal = document.getElementById('addNoteSheetModal');
+  const addSheetBtn = document.getElementById('addNoteSheetBtn');
+  const closeAddSheetModalBtn = document.getElementById('closeAddSheetModalBtn');
+  const cancelAddSheetBtn = document.getElementById('cancelAddSheetBtn');
+  const confirmAddSheetBtn = document.getElementById('confirmAddSheetBtn');
+  const newSheetTitleInput = document.getElementById('newSheetTitleInput');
+  const iconPicker = document.getElementById('sheetIconPicker');
+
+  if (iconPicker) {
+    iconPicker.querySelectorAll('.sheet-icon-option').forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.preventDefault();
+        iconPicker.querySelectorAll('.sheet-icon-option').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        selectedSheetIcon = opt.dataset.icon || '📓';
+      });
+    });
+  }
+
+  const openAddSheetModal = () => {
+    if (newSheetTitleInput) {
+      newSheetTitleInput.value = '';
+    }
+    selectedSheetIcon = '📓';
+    if (iconPicker) {
+      iconPicker.querySelectorAll('.sheet-icon-option').forEach(o => {
+        o.classList.toggle('active', o.dataset.icon === '📓');
+      });
+    }
+    if (addSheetModal) addSheetModal.classList.add('active');
+    setTimeout(() => { if (newSheetTitleInput) newSheetTitleInput.focus(); }, 50);
+  };
+
+  const closeAddSheetModal = () => {
+    if (addSheetModal) addSheetModal.classList.remove('active');
+  };
+
+  if (addSheetBtn) addSheetBtn.addEventListener('click', openAddSheetModal);
+  if (closeAddSheetModalBtn) closeAddSheetModalBtn.addEventListener('click', closeAddSheetModal);
+  if (cancelAddSheetBtn) cancelAddSheetBtn.addEventListener('click', closeAddSheetModal);
+
+  // Themed Delete Note Sheet Confirmation Modal Wiring
+  const deleteSheetModal = document.getElementById('deleteNoteSheetConfirmModal');
+  const cancelDeleteSheetBtn = document.getElementById('cancelDeleteNoteSheetBtn');
+  const confirmDeleteNoteSheetBtn = document.getElementById('confirmDeleteNoteSheetBtn');
+
+  const closeDeleteSheetModal = () => {
+    if (deleteSheetModal) deleteSheetModal.classList.remove('active');
+    pendingDeleteSheet = null;
+  };
+
+  if (cancelDeleteSheetBtn) cancelDeleteSheetBtn.addEventListener('click', closeDeleteSheetModal);
+  if (deleteSheetModal) {
+    deleteSheetModal.addEventListener('click', (e) => {
+      if (e.target === deleteSheetModal) closeDeleteSheetModal();
+    });
+  }
+
+  if (confirmDeleteNoteSheetBtn) {
+    confirmDeleteNoteSheetBtn.addEventListener('click', () => {
+      if (!pendingDeleteSheet) return;
+      const sheet = pendingDeleteSheet;
+      const weekData = getCurrentWeekData();
+      weekData.noteSheets = (weekData.noteSheets || []).filter(s => s.id !== sheet.id);
+      if (activeSheetId === sheet.id) {
+        activeSheetId = 'journal';
+      }
+      const nextActive = getActiveSheet();
+      if (ta) {
+        ta.value = nextActive.content || '';
+      }
+      updateMarkdownPreview(ta, preview, wordCount);
+      saveStateToStorage();
+      const weekKey = getWeekKey(STATE.currentWeekStart);
+      ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+      renderNoteSheetsTabs();
+      closeDeleteSheetModal();
+    });
+  }
+
+  if (confirmAddSheetBtn) {
+    confirmAddSheetBtn.addEventListener('click', () => {
+      const title = (newSheetTitleInput ? newSheetTitleInput.value : '').trim();
+      if (!title) {
+        if (newSheetTitleInput) newSheetTitleInput.focus();
+        return;
+      }
+
+      // Flush current active sheet
+      const currentActive = getActiveSheet();
+      if (currentActive && ta) {
+        currentActive.content = ta.value;
+      }
+
+      const weekData = getCurrentWeekData();
+      const sheets = getWeekNoteSheets();
+      const newSheetId = `custom_${Date.now()}`;
+      const newSheet = {
+        id: newSheetId,
+        title,
+        icon: selectedSheetIcon || '📓',
+        content: '',
+        isDefault: false
+      };
+
+      sheets.push(newSheet);
+      activeSheetId = newSheetId;
+
+      if (ta) {
+        ta.value = '';
+      }
+      updateMarkdownPreview(ta, preview, wordCount);
+      saveStateToStorage();
+
+      const weekKey = getWeekKey(STATE.currentWeekStart);
+      ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+
+      renderNoteSheetsTabs();
+      closeAddSheetModal();
+      if (ta) ta.focus();
+    });
+  }
+
+  // Initial render of tabs and preview
+  renderNoteSheetsTabs();
+  const activeSheet = getActiveSheet();
+  if (ta && activeSheet) {
+    ta.value = activeSheet.content || '';
+  }
   updateMarkdownPreview(ta, preview, wordCount);
 }
 

@@ -84,8 +84,8 @@ The **Notes & Todo** tab currently offers a clean weekly checklist and debounced
 | **Phase 2** | **1-Click "Schedule to Grid" (Timeblocking)** | ✅ Completed | Medium | `modal.js` + `grid.js` bridge |
 | **Phase 3** | **Progress Bar & Gamification Points** | ✅ Completed | Low | `analytics.js` + `notes.js` |
 | **Phase 4** | **Markdown & Code Snippet Support** | ✅ Completed | Medium | `markdown.js` parser integration |
-| **Phase 5** | **Multiple Note Sheets / Tabs** | ⏳ Up Next | Medium | `schedule_weeks` note structure |
-| **Phase 6** | **Due Dates & Day/Week Sync** | ⏳ Planned | Medium | Granularity filter alignment |
+| **Phase 5** | **Multiple Note Sheets / Tabs** | ✅ Completed | Medium | `schedule_weeks.note_sheets` JSONB |
+| **Phase 6** | **Due Dates & Day/Week Sync** | ⏳ Up Next | Medium | Granularity filter alignment |
 
 ---
 

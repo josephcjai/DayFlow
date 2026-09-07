@@ -19,7 +19,7 @@ import { renderGrid } from './grid.js?v=2.5.5';
 import { initModal } from './modal.js?v=2.5.5';
 import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.5.5';
 import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.5.5';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad } from './notes.js?v=2.5.5';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.5.5';
 import { initSettingsUI, USER_SETTINGS } from './settings.js?v=2.5.5';
 
 const DOM = {};
@@ -385,12 +385,21 @@ function bindEvents() {
     DOM.weeklyNotesTextarea.addEventListener('input', () => {
       const weekKey = getWeekKey(STATE.currentWeekStart);
       const weekData = getCurrentWeekData();
-      weekData.notes = DOM.weeklyNotesTextarea.value;
+      const sheets = weekData.noteSheets || [];
+      const currentActive = sheets.find(s => s.id === getActiveSheetId()) || sheets[0];
+      if (currentActive) {
+        currentActive.content = DOM.weeklyNotesTextarea.value;
+        if (currentActive.id === 'journal') {
+          weekData.notes = DOM.weeklyNotesTextarea.value;
+        }
+      } else {
+        weekData.notes = DOM.weeklyNotesTextarea.value;
+      }
       saveStateToStorage();
       DOM.notesSavedStatus.textContent = 'Saving...';
       
-      // Sync notes with API
-      ApiClient.saveNotes(weekKey, weekData.notes);
+      // Sync notes & sheets with API
+      ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
       setTimeout(() => DOM.notesSavedStatus.textContent = 'Saved', 500);
     });
   }

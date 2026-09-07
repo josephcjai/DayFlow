@@ -32,12 +32,17 @@ pool.on('error', (err) => {
   console.error('⚠️ Unexpected error on idle PostgreSQL client pool:', err.message);
 });
 
-// Test PostgreSQL Connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error(`❌ Connection error to PostgreSQL Database at ${DB_HOST}:${DB_PORT}:`, err.message);
+// Test PostgreSQL Connection & Ensure Migrations
+pool.connect(async (err, client, release) => {
+  if (err || !client) {
+    console.error(`❌ Connection error to PostgreSQL Database at ${DB_HOST}:${DB_PORT}:`, err ? err.message : 'No client available');
   } else {
     console.log(`✅ Connected directly to PostgreSQL Database ('${DB_NAME}' on ${DB_HOST}:${DB_PORT})!`);
+    try {
+      await client.query("ALTER TABLE schedule_weeks ADD COLUMN IF NOT EXISTS note_sheets JSONB DEFAULT '[]'::jsonb;");
+    } catch (migErr: any) {
+      console.warn('PostgreSQL note_sheets migration notice:', migErr.message);
+    }
     release();
   }
 });
