@@ -168,12 +168,20 @@ router.patch('/:id', async (req: AuthenticatedRequest, res) => {
            WHERE id = $2 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $3)`,
           [dueDate || null, id, userId]
         );
-      } else {
+      } else if (completed !== undefined) {
         patchRes = await executeQuery(
           `UPDATE todo_items 
            SET is_completed = $1 
            WHERE id = $2 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $3)`,
           [!!completed, id, userId]
+        );
+      } else {
+        // Neither field provided: no-op, but verify todo exists and belongs to user
+        patchRes = await executeQuery(
+          `SELECT id 
+           FROM todo_items 
+           WHERE id = $1 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $2)`,
+          [id, userId]
         );
       }
       if (patchRes && typeof patchRes.rowCount === 'number') {
