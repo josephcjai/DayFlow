@@ -11,8 +11,23 @@ export const STATE = {
   selectedCategoryFilter: 'ALL',
   activeView: 'grid',
   activeSlotKey: null,
+  selectedSlotKey: null,
+  gridClipboard: null,
+  copiedSlotKey: null,
+  undoStack: [],
+  redoStack: [],
   scheduleData: {},
 };
+
+const MAX_UNDO_DEPTH = 30;
+
+export function recordUndoAction(action) {
+  STATE.undoStack.push(action);
+  if (STATE.undoStack.length > MAX_UNDO_DEPTH) {
+    STATE.undoStack.shift();
+  }
+  STATE.redoStack.length = 0;
+}
 
 export function setScheduleViewMode(mode) {
   STATE.scheduleViewMode = mode;
@@ -268,4 +283,26 @@ export function isSlotTimePassed(slotKey) {
 
   const slotEndTime = new Date(y, m - 1, d, hours, mins + 30, 0, 0);
   return new Date() > slotEndTime;
+}
+
+export function isSlotInFuture(slotKey) {
+  if (!slotKey) return false;
+  const parts = slotKey.split('_');
+  if (parts.length < 2) return false;
+
+  const [y, m, d] = parts[0].split('-').map(Number);
+  const [hours, mins] = parts[1].split(':').map(Number);
+
+  const slotStartTime = new Date(y, m - 1, d, hours, mins, 0, 0);
+  return slotStartTime > new Date();
+}
+
+export function getSlotWeekKey(slotKey) {
+  if (!slotKey) return getWeekKey(STATE.currentWeekStart);
+  const parts = slotKey.split('_');
+  if (parts.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
+    const [y, m, d] = parts[0].split('-').map(Number);
+    return getWeekKey(new Date(y, m - 1, d));
+  }
+  return getWeekKey(STATE.currentWeekStart);
 }

@@ -2,8 +2,9 @@
  * DayFlow Task Editor Modal Controller
  * Implements Planned vs Actual Task distinction, clear slot button, & time-lock rules
  */
-import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey } from './state.js?v=2.6.3';
+import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction } from './state.js?v=2.6.3';
 import { ApiClient } from './apiClient.js?v=2.6.3';
+import { clearSlotSelection } from './grid.js?v=2.6.3';
 
 let modalElements = {};
 let renderCallback = null;
@@ -56,6 +57,19 @@ async function deleteActiveSlot() {
     const weekKey = getSlotWeekKey(slotKey);
     if (!STATE.scheduleData[weekKey]) {
       STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '' };
+    }
+    const previousData = STATE.scheduleData[weekKey].slots[slotKey]
+      ? JSON.parse(JSON.stringify(STATE.scheduleData[weekKey].slots[slotKey]))
+      : null;
+    if (previousData) {
+      recordUndoAction({
+        type: 'slot_delete',
+        weekKey,
+        slotKey,
+        previousData,
+        newData: null,
+        label: previousData.plannedTask || previousData.actualTask || 'Task'
+      });
     }
     delete STATE.scheduleData[weekKey].slots[slotKey];
     saveStateToStorage();
@@ -120,6 +134,7 @@ export function openTaskModal(slotKey, dayName, timeLabel, existingData) {
 export function closeModal() {
   modalElements.taskModal.classList.remove('active');
   STATE.activeSlotKey = null;
+  clearSlotSelection();
 }
 
 async function saveSlotTask() {
@@ -157,6 +172,18 @@ async function saveSlotTask() {
     actual: modalElements.actualDurationInput.value !== '' ? (parseInt(modalElements.actualDurationInput.value, 10) || 0) : 30,
     notes: modalElements.taskNotesInput.value.trim()
   };
+
+  const previousData = existing && (existing.plannedTask || existing.actualTask)
+    ? JSON.parse(JSON.stringify(existing))
+    : null;
+  recordUndoAction({
+    type: 'slot_save',
+    weekKey,
+    slotKey,
+    previousData,
+    newData: JSON.parse(JSON.stringify(slotObject)),
+    label: slotObject.plannedTask || slotObject.actualTask || 'Task'
+  });
 
   weekData.slots[slotKey] = slotObject;
   saveStateToStorage();

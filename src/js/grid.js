@@ -120,6 +120,7 @@ function renderWeekGridBody(scheduleTableBody) {
 
       const td = document.createElement('td');
       td.className = 'slot-cell';
+      td.tabIndex = 0;
       td.dataset.slotKey = slotKey;
       td.dataset.dayName = getDayName(dayIdx);
       td.dataset.timeLabel = slotInfo.label;
@@ -127,6 +128,12 @@ function renderWeekGridBody(scheduleTableBody) {
       if (isCurrentSlot) {
         td.classList.add('current-active-slot');
         currentActiveTd = td;
+      }
+      if (STATE.selectedSlotKey === slotKey) {
+        td.classList.add('selected-slot');
+      }
+      if (STATE.copiedSlotKey === slotKey) {
+        td.classList.add('copied-source');
       }
 
       let isFilteredOut = false;
@@ -177,7 +184,18 @@ function renderWeekGridBody(scheduleTableBody) {
         }
       }
 
-      td.addEventListener('click', () => openTaskModal(slotKey, td.dataset.dayName, slotInfo.label, slotData));
+      td.addEventListener('click', (e) => {
+        if (STATE.selectedSlotKey === slotKey) {
+          openTaskModal(slotKey, td.dataset.dayName, slotInfo.label, slotData);
+        } else {
+          selectSlotCell(slotKey, td);
+        }
+      });
+
+      td.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        openTaskModal(slotKey, td.dataset.dayName, slotInfo.label, slotData);
+      });
       tr.appendChild(td);
     }
 
@@ -221,6 +239,7 @@ function renderDayGridBody(scheduleTableBody) {
 
     const td = document.createElement('td');
     td.className = 'slot-cell day-view-cell';
+    td.tabIndex = 0;
     td.dataset.slotKey = slotKey;
     td.dataset.dayName = dayName;
     td.dataset.timeLabel = slotInfo.label;
@@ -228,6 +247,12 @@ function renderDayGridBody(scheduleTableBody) {
     if (isCurrentSlot) {
       td.classList.add('current-active-slot');
       currentActiveTd = td;
+    }
+    if (STATE.selectedSlotKey === slotKey) {
+      td.classList.add('selected-slot');
+    }
+    if (STATE.copiedSlotKey === slotKey) {
+      td.classList.add('copied-source');
     }
 
     let isFilteredOut = false;
@@ -277,7 +302,18 @@ function renderDayGridBody(scheduleTableBody) {
       }
     }
 
-    td.addEventListener('click', () => openTaskModal(slotKey, dayName, slotInfo.label, slotData));
+    td.addEventListener('click', (e) => {
+      if (STATE.selectedSlotKey === slotKey) {
+        openTaskModal(slotKey, dayName, slotInfo.label, slotData);
+      } else {
+        selectSlotCell(slotKey, td);
+      }
+    });
+
+    td.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      openTaskModal(slotKey, dayName, slotInfo.label, slotData);
+    });
     tr.appendChild(td);
     scheduleTableBody.appendChild(tr);
   });
@@ -409,3 +445,88 @@ function getStatusIcon(status) {
     default: return '⚪';
   }
 }
+
+export function selectSlotCell(slotKey, cellElement = null) {
+  STATE.selectedSlotKey = slotKey;
+  document.querySelectorAll('.slot-cell.selected-slot').forEach(el => el.classList.remove('selected-slot'));
+  const target = cellElement || document.querySelector(`.slot-cell[data-slot-key="${slotKey}"]`);
+  if (target) {
+    target.classList.add('selected-slot');
+    target.focus({ preventScroll: true });
+  }
+}
+
+export function clearSlotSelection() {
+  STATE.selectedSlotKey = null;
+  STATE.copiedSlotKey = null;
+  document.querySelectorAll('.slot-cell.selected-slot').forEach(el => el.classList.remove('selected-slot'));
+  document.querySelectorAll('.slot-cell.copied-source').forEach(el => el.classList.remove('copied-source'));
+}
+
+export function clearCopiedSource() {
+  STATE.copiedSlotKey = null;
+  document.querySelectorAll('.slot-cell.copied-source').forEach(el => el.classList.remove('copied-source'));
+}
+
+export function getAdjacentSlotKey(currentSlotKey, direction) {
+  if (!currentSlotKey) return null;
+  const parts = currentSlotKey.split('_');
+  if (parts.length < 2) return null;
+  const dateStr = parts[0];
+  const timeKey = parts[1];
+
+  const timeIdx = TIME_SLOTS.findIndex(s => s.key === timeKey);
+  if (timeIdx === -1) return null;
+
+  const mode = STATE.scheduleViewMode || 'week';
+
+  if (direction === 'up') {
+    if (timeIdx > 0) {
+      return `${dateStr}_${TIME_SLOTS[timeIdx - 1].key}`;
+    }
+    return null;
+  }
+
+  if (direction === 'down') {
+    if (timeIdx < TIME_SLOTS.length - 1) {
+      return `${dateStr}_${TIME_SLOTS[timeIdx + 1].key}`;
+    }
+    return null;
+  }
+
+  if (mode === 'day') {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const curr = new Date(y, m - 1, d);
+    if (direction === 'left') {
+      curr.setDate(curr.getDate() - 1);
+      return `${formatDateISO(curr)}_${timeKey}`;
+    }
+    if (direction === 'right') {
+      curr.setDate(curr.getDate() + 1);
+      return `${formatDateISO(curr)}_${timeKey}`;
+    }
+    return null;
+  }
+
+  // Week view
+  const dates = getWeekDates(STATE.currentWeekStart);
+  const dayIdx = dates.indexOf(dateStr);
+  if (dayIdx === -1) return null;
+
+  if (direction === 'left') {
+    if (dayIdx > 0) {
+      return `${dates[dayIdx - 1]}_${timeKey}`;
+    }
+    return null;
+  }
+
+  if (direction === 'right') {
+    if (dayIdx < dates.length - 1) {
+      return `${dates[dayIdx + 1]}_${timeKey}`;
+    }
+    return null;
+  }
+
+  return null;
+}
+
