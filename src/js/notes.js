@@ -9,16 +9,17 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.6.3';
-import { ApiClient } from './apiClient.js?v=2.6.3';
-import { escapeHtml } from './utils.js?v=2.6.3';
-import { TIME_SLOTS } from './grid.js?v=2.6.3';
-import { parseMarkdown } from './markdown.js?v=2.6.3';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.2';
+import { ApiClient } from './apiClient.js?v=2.8.2';
+import { escapeHtml, showToast } from './utils.js?v=2.8.2';
+import { TIME_SLOTS } from './grid.js?v=2.8.2';
+import { parseMarkdown } from './markdown.js?v=2.8.2';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
 let pendingDeleteTodo = null;
 let activeSchedulingTodo = null;
+let activeEditingTodo = null;
 let gridUpdateCallback = null;
 
 // Multi-Day Timeblock State
@@ -832,6 +833,130 @@ export function updateTodoProgressBar(todos) {
   }
 }
 
+function initEditTodoModal(todoList, weeklyNotesTextarea, onGridUpdated) {
+  const modal = document.getElementById('editTodoModal');
+  const form = document.getElementById('editTodoForm');
+  const closeBtn = document.getElementById('closeEditTodoModalBtn');
+  const cancelBtn = document.getElementById('cancelEditTodoBtn');
+  const textInput = document.getElementById('editTodoTextInput');
+  const prioritySelect = document.getElementById('editTodoPrioritySelect');
+  const categorySelect = document.getElementById('editTodoCategorySelect');
+  const dueDateInput = document.getElementById('editTodoDueDateInput');
+  const dueTodayBtn = document.getElementById('editTodoDueTodayBtn');
+  const dueTomorrowBtn = document.getElementById('editTodoDueTomorrowBtn');
+  const dueClearBtn = document.getElementById('editTodoDueClearBtn');
+
+  const closeEditModal = () => {
+    if (modal) modal.classList.remove('active');
+    activeEditingTodo = null;
+  };
+
+  if (closeBtn) closeBtn.addEventListener('click', closeEditModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeEditModal);
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeEditModal();
+    });
+  }
+
+  if (dueTodayBtn && dueDateInput) {
+    dueTodayBtn.addEventListener('click', () => {
+      dueDateInput.value = formatDateISO(new Date());
+    });
+  }
+
+  if (dueTomorrowBtn && dueDateInput) {
+    dueTomorrowBtn.addEventListener('click', () => {
+      const tom = new Date();
+      tom.setDate(tom.getDate() + 1);
+      dueDateInput.value = formatDateISO(tom);
+    });
+  }
+
+  if (dueClearBtn && dueDateInput) {
+    dueClearBtn.addEventListener('click', () => {
+      dueDateInput.value = '';
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!activeEditingTodo) {
+        closeEditModal();
+        return;
+      }
+
+      const newText = textInput.value.trim();
+      if (!newText) {
+        alert('Please enter a task description');
+        return;
+      }
+
+      const newPriority = prioritySelect.value || 'Medium';
+      const newCategory = categorySelect.value || 'General';
+      const newDueDate = dueDateInput.value || null;
+
+      const oldText = activeEditingTodo.text;
+      const targetId = activeEditingTodo.id;
+
+      // Update in-memory state
+      activeEditingTodo.text = newText;
+      activeEditingTodo.priority = newPriority;
+      activeEditingTodo.category = newCategory;
+      activeEditingTodo.dueDate = newDueDate;
+
+      // If text changed, also update any slots scheduled with this task text in current week
+      const weekData = getCurrentWeekData();
+      if (oldText !== newText && weekData.slots) {
+        Object.entries(weekData.slots).forEach(([_, s]) => {
+          if (s && s.plannedTask === oldText) {
+            s.plannedTask = newText;
+            s.category = newCategory;
+          }
+        });
+      }
+
+      saveStateToStorage();
+      closeEditModal();
+      renderNotes(todoList, weeklyNotesTextarea, onGridUpdated);
+      if (onGridUpdated) onGridUpdated();
+
+      showToast('✏️ Priority item updated!', 'success');
+
+      // Persist to backend
+      await ApiClient.updateTodo(targetId, {
+        text: newText,
+        priority: newPriority,
+        category: newCategory,
+        dueDate: newDueDate
+      });
+    });
+  }
+}
+
+function openEditTodoModal(todo, todoList, weeklyNotesTextarea, onGridUpdated) {
+  activeEditingTodo = todo;
+  const modal = document.getElementById('editTodoModal');
+  const textInput = document.getElementById('editTodoTextInput');
+  const prioritySelect = document.getElementById('editTodoPrioritySelect');
+  const categorySelect = document.getElementById('editTodoCategorySelect');
+  const dueDateInput = document.getElementById('editTodoDueDateInput');
+
+  if (textInput) textInput.value = todo.text || '';
+  if (prioritySelect) prioritySelect.value = todo.priority || 'Medium';
+  if (categorySelect) categorySelect.value = todo.category || 'General';
+  if (dueDateInput) dueDateInput.value = todo.dueDate || '';
+
+  if (modal) modal.classList.add('active');
+  if (textInput) {
+    setTimeout(() => {
+      textInput.focus();
+      textInput.select();
+    }, 100);
+  }
+}
+
 export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
   if (!todoList) return;
   gridUpdateCallback = onGridUpdated;
@@ -841,6 +966,7 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
     initDeleteTodoModal(todoList, weeklyNotesTextarea);
     initConflictModal(todoList, weeklyNotesTextarea, onGridUpdated);
     initScheduleTodoModal(todoList, weeklyNotesTextarea, onGridUpdated);
+    initEditTodoModal(todoList, weeklyNotesTextarea, onGridUpdated);
   }
 
   const weekData = getCurrentWeekData();
@@ -917,6 +1043,7 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
           </div>
         </div>
         <div class="todo-item-actions">
+          <button type="button" class="edit-todo-btn" data-id="${item.id}" title="Edit this priority item">✏️</button>
           <button type="button" class="schedule-todo-btn" data-id="${item.id}" title="Schedule this priority goal across 15–20 days or into a single time slot">📅 Schedule</button>
           <button class="delete-todo-btn" data-id="${item.id}" title="Delete Item">✕</button>
         </div>
@@ -944,6 +1071,19 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
         renderNotes(todoList, weeklyNotesTextarea, gridUpdateCallback);
         if (gridUpdateCallback) gridUpdateCallback();
         await ApiClient.toggleTodo(todo.id, chk.checked);
+      }
+    });
+  });
+
+  // Edit Todo Modal Trigger
+  todoList.querySelectorAll('.edit-todo-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const numId = parseInt(id, 10);
+      const todo = (weekData.todos || []).find(t => String(t.id) === String(id) || t.id === numId);
+      if (todo) {
+        openEditTodoModal(todo, todoList, weeklyNotesTextarea, onGridUpdated);
       }
     });
   });

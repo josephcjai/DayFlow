@@ -247,6 +247,21 @@ export const ApiClient = {
     }
   },
 
+  async updateTodo(id, updates) {
+    try {
+      const res = await fetch(`${API_BASE}/todos/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updates)
+      });
+      if (checkUnauthorized(res)) return false;
+      return res.ok;
+    } catch (e) {
+      console.warn('Updated todo offline:', e);
+      return false;
+    }
+  },
+
   async deleteTodo(id) {
     try {
       const res = await fetch(`${API_BASE}/todos/${id}`, {

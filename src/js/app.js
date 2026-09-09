@@ -17,23 +17,24 @@ import {
   getCurrentWeekData,
   isSlotInFuture,
   getSlotWeekKey,
-  recordUndoAction
-} from './state.js?v=2.6.3';
-import { ApiClient } from './apiClient.js?v=2.8.0';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.6.3';
-import { initModal, openTaskModal } from './modal.js?v=2.6.3';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.6.3';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.6.3';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.6.3';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.6.3';
-import { showToast } from './utils.js?v=2.6.3';
+  recordUndoAction,
+  getUserStorageKey
+} from './state.js?v=2.8.2';
+import { ApiClient } from './apiClient.js?v=2.8.2';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.2';
+import { initModal, openTaskModal } from './modal.js?v=2.8.2';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.2';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.2';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.8.2';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.2';
+import { showToast } from './utils.js?v=2.8.2';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.7.1';
+} from './notifications.js?v=2.8.2';
 
 const DOM = {};
 
@@ -202,6 +203,12 @@ function initAuthUI() {
   DOM.logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('dayflow_token');
     localStorage.removeItem('dayflow_user');
+    try {
+      localStorage.removeItem(getUserStorageKey('dayflow_active_view'));
+      if (window.location.hash) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch (e) {}
     STATE.scheduleData = {};
     if (typeof google !== 'undefined' && google.accounts?.id) {
       google.accounts.id.disableAutoSelect();
@@ -316,6 +323,51 @@ async function checkUserSessionGate() {
   showLoginScreen();
 }
 
+const VALID_VIEWS = ['grid', 'habits', 'analytics', 'notes', 'settings'];
+
+function getSavedActiveView() {
+  const hash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+  if (VALID_VIEWS.includes(hash)) {
+    return hash;
+  }
+  try {
+    const saved = localStorage.getItem(getUserStorageKey('dayflow_active_view'));
+    if (saved && VALID_VIEWS.includes(saved)) {
+      return saved;
+    }
+  } catch (e) {}
+  return 'grid';
+}
+
+async function switchView(view, syncBackend = true) {
+  if (!VALID_VIEWS.includes(view)) view = 'grid';
+  STATE.activeView = view;
+
+  try {
+    localStorage.setItem(getUserStorageKey('dayflow_active_view'), view);
+    if (window.location.hash !== `#${view}`) {
+      window.history.replaceState(null, '', `#${view}`);
+    }
+  } catch (e) {}
+
+  if (DOM.navBtns) {
+    DOM.navBtns.forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  }
+  if (DOM.viewPanels) {
+    DOM.viewPanels.forEach(p => p.classList.toggle('active', p.id === `view-${view}`));
+  }
+
+  const controlsBar = document.querySelector('.controls-bar');
+  if (controlsBar) {
+    controlsBar.style.display = (view === 'settings') ? 'none' : 'flex';
+  }
+
+  renderAll();
+  if (syncBackend && view !== 'settings') {
+    await syncWeekDataWithApi(renderAll);
+  }
+}
+
 async function onAuthSuccess(user) {
   DOM.userDisplayName.textContent = user.displayName || user.email.split('@')[0];
   if (DOM.userAvatarImg) {
@@ -336,7 +388,8 @@ async function onAuthSuccess(user) {
     DOM.habitDateInput.value = formatDateISO(new Date());
   }
   ensureSampleDataForCurrentWeek();
-  renderAll();
+  const initialView = getSavedActiveView();
+  await switchView(initialView, false);
   initNotificationEngine();
   await syncWeekDataWithApi(renderAll);
 }
@@ -386,28 +439,16 @@ function bindEvents() {
   // Navigation Tabs
   DOM.navBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
-      DOM.navBtns.forEach(b => b.classList.remove('active'));
-      DOM.viewPanels.forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
       const view = btn.dataset.view;
-      STATE.activeView = view;
-      const targetPanel = document.getElementById(`view-${view}`);
-      if (targetPanel) targetPanel.classList.add('active');
-
-      const controlsBar = document.querySelector('.controls-bar');
-      if (controlsBar) {
-        if (view === 'settings') {
-          controlsBar.style.display = 'none';
-        } else {
-          controlsBar.style.display = 'flex';
-        }
-      }
-
-      renderAll();
-      if (view !== 'settings') {
-        await syncWeekDataWithApi(renderAll);
-      }
+      await switchView(view, true);
     });
+  });
+
+  window.addEventListener('hashchange', () => {
+    const hash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
+    if (VALID_VIEWS.includes(hash) && hash !== STATE.activeView) {
+      switchView(hash, false);
+    }
   });
 
   // Schedule View Granularity Selector (Day / Week / Month)

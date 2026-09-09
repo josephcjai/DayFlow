@@ -5,6 +5,7 @@
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
+    "predev": "node ../scripts/freePorts.cjs 5000",
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts"
