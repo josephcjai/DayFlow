@@ -25,8 +25,15 @@ import { initModal, openTaskModal } from './modal.js?v=2.6.3';
 import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.6.3';
 import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.6.3';
 import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.6.3';
-import { initSettingsUI, USER_SETTINGS } from './settings.js?v=2.6.3';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.6.3';
 import { showToast } from './utils.js?v=2.6.3';
+import {
+  initNotificationEngine,
+  updateNotificationBellUI,
+  requestNotificationPermission,
+  getNotificationPermissionStatus,
+  playNotificationSound
+} from './notifications.js?v=2.7.1';
 
 const DOM = {};
 
@@ -113,6 +120,8 @@ function cacheDomElements() {
 
   // Auth Landing Gate Elements
   DOM.userDisplayName = document.getElementById('userDisplayName');
+  DOM.notificationBellBtn = document.getElementById('notificationBellBtn');
+  DOM.notificationBellIcon = document.getElementById('notificationBellIcon');
   DOM.logoutBtn = document.getElementById('logoutBtn');
   DOM.tabLandingSignIn = document.getElementById('tabLandingSignIn');
   DOM.tabLandingRegister = document.getElementById('tabLandingRegister');
@@ -221,6 +230,7 @@ async function onAuthSuccess(user) {
   }
   ensureSampleDataForCurrentWeek();
   renderAll();
+  initNotificationEngine();
   await syncWeekDataWithApi(renderAll);
 }
 
@@ -245,6 +255,27 @@ function switchLandingTab(tab) {
 }
 
 function bindEvents() {
+  // Notification Bell Quick Toggle / Permission
+  if (DOM.notificationBellBtn) {
+    DOM.notificationBellBtn.addEventListener('click', async () => {
+      const perm = getNotificationPermissionStatus();
+      if (perm !== 'granted') {
+        await requestNotificationPermission();
+      } else {
+        // Toggle sound mute
+        USER_SETTINGS.notificationSound = !USER_SETTINGS.notificationSound;
+        saveUserSettings(USER_SETTINGS);
+        updateNotificationBellUI();
+        if (USER_SETTINGS.notificationSound) {
+          playNotificationSound(USER_SETTINGS.notificationTone, USER_SETTINGS.notificationVolume);
+          showToast('🔔 Sound alarms enabled', 'success');
+        } else {
+          showToast('🔕 Sound alarms muted', 'info');
+        }
+      }
+    });
+  }
+
   // Navigation Tabs
   DOM.navBtns.forEach(btn => {
     btn.addEventListener('click', async () => {

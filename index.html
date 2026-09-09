@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/styles.css?v=2.7.0">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.7.1">
 </head>
 <body>
   <!-- DEDICATED FULL-SCREEN LOGIN / REGISTRATION GATE -->
@@ -98,6 +98,9 @@
           <span class="user-icon">👤</span>
           <span id="userDisplayName">User</span>
         </div>
+        <button id="notificationBellBtn" class="btn btn-outline" title="Notifications & Alarms">
+          <span id="notificationBellIcon">🔔</span>
+        </button>
         <button id="logoutBtn" class="btn btn-outline" title="Sign Out">
           <span>🚪</span> Logout
         </button>
@@ -696,6 +699,91 @@
               <button type="button" id="exportBackupBtn" class="btn btn-secondary">📥 Export Backup (JSON)</button>
             </div>
           </div>
+
+          <!-- CARD 5: Notifications & Audio Alarms -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">🔔</span>
+              <div>
+                <h3>Notifications & Audio Alarms</h3>
+                <p class="settings-card-desc">Configure browser desktop notifications, sound alerts, lead-time warnings, and wrap-up prompts.</p>
+              </div>
+            </div>
+
+            <!-- Permission & Master Toggle Row -->
+            <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+              <div>
+                <strong style="font-size: 0.9rem; color: var(--text-primary);">Browser Desktop Notifications</strong>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Native OS toast notifications when DayFlow is in background or minimized.</p>
+                <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.6rem;">
+                  <span id="settingsNotifPermissionBadge" class="status-pill status-pill-warning">Checking...</span>
+                  <button type="button" id="requestNotifPermissionBtn" class="btn btn-secondary btn-sm" style="display: none; padding: 0.2rem 0.6rem; font-size: 0.75rem;">Enable Notifications</button>
+                </div>
+              </div>
+              <label class="switch-toggle" style="margin-left: 1rem;">
+                <input type="checkbox" id="settingsNotifEnabled">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <!-- Sound Alerts Toggle Row -->
+            <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+              <div>
+                <strong style="font-size: 0.9rem; color: var(--text-primary);">Sound Chime / Alarms</strong>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Play harmonized Web Audio chimes on slot transitions and reminders.</p>
+              </div>
+              <label class="switch-toggle" style="margin-left: 1rem;">
+                <input type="checkbox" id="settingsNotifSound" checked>
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="form-row-2" style="margin-top: 1rem;">
+              <div class="form-group">
+                <label for="settingsNotifTone">Chime Tone Style</label>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <select id="settingsNotifTone" class="select-input" style="flex: 1;">
+                    <option value="chime">🎵 Harmonic Chime (Melodic)</option>
+                    <option value="bell">🔔 Zen Singing Bell (Resonant)</option>
+                    <option value="ping">✨ Subtle Modern Ping</option>
+                    <option value="marimba">🪵 Upbeat Marimba Chord</option>
+                  </select>
+                  <button type="button" id="testNotificationSoundBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; padding: 0.45rem 0.75rem;" title="Play selected sound">🔊 Test</button>
+                </div>
+                <span class="field-hint">Pure synthesizer audio — no external downloads</span>
+              </div>
+
+              <div class="form-group">
+                <label for="settingsNotifVolume">Audio Volume (<span id="settingsNotifVolumeLabel">70%</span>)</label>
+                <input type="range" id="settingsNotifVolume" min="0" max="100" value="70" step="5" class="slider-range">
+                <span class="field-hint">Master volume level for alarm chimes</span>
+              </div>
+            </div>
+
+            <div class="form-row-2" style="margin-top: 0.75rem;">
+              <div class="form-group">
+                <label for="settingsNotifLeadTime">Upcoming Slot Lead-Time Warning</label>
+                <select id="settingsNotifLeadTime" class="select-input">
+                  <option value="0">At Slot Start (0 mins before)</option>
+                  <option value="1">1 minute before start</option>
+                  <option value="2" selected>2 minutes before start (Recommended)</option>
+                  <option value="5">5 minutes before start</option>
+                </select>
+                <span class="field-hint">Gives you time to wrap up before the next block begins</span>
+              </div>
+
+              <div class="form-group" style="display: flex; flex-direction: column; justify-content: center;">
+                <label style="display: flex; align-items: center; justify-content: space-between;">
+                  <span>End-of-Slot Wrap-Up Alert</span>
+                  <label class="switch-toggle" style="margin-left: 0.5rem;">
+                    <input type="checkbox" id="settingsNotifSlotEnd" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </label>
+                <span class="field-hint" style="margin-top: 0.35rem;">Reminds you to mark the block Done or log actual executed time</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -1215,6 +1303,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.7.0"></script>
+  <script type="module" src="src/js/app.js?v=2.7.1"></script>
 </body>
 </html>

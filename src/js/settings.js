@@ -10,6 +10,7 @@
  */
 import { generateTimeSlots } from './grid.js?v=2.6.3';
 import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.6.3';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.7.0';
 
 export const DEFAULT_SETTINGS = {
   timelineStartHour: 0,
@@ -21,7 +22,13 @@ export const DEFAULT_SETTINGS = {
   accentColor: 'indigo', // 'indigo', 'emerald', 'cyan', 'purple', 'rose'
   compactGrid: false,
   dailyPointsTarget: 50,
-  todoRewardPoints: 15
+  todoRewardPoints: 15,
+  notificationsEnabled: false,
+  notificationSound: true,
+  notificationVolume: 70,
+  notificationTone: 'chime', // 'chime', 'bell', 'ping', 'marimba'
+  notifyLeadMinutes: 2, // 0, 1, 2, 5
+  notifySlotEnd: true
 };
 
 export let USER_SETTINGS = { ...DEFAULT_SETTINGS };
@@ -160,6 +167,18 @@ export function initSettingsUI(domElements, renderAllCallback) {
   const dailyPointsInput = document.getElementById('settingsDailyPoints');
   const todoRewardInput = document.getElementById('settingsTodoReward');
 
+  // Notification controls
+  const notifPermissionBadge = document.getElementById('settingsNotifPermissionBadge');
+  const requestNotifPermissionBtn = document.getElementById('requestNotifPermissionBtn');
+  const notifEnabledToggle = document.getElementById('settingsNotifEnabled');
+  const notifSoundToggle = document.getElementById('settingsNotifSound');
+  const notifVolumeSlider = document.getElementById('settingsNotifVolume');
+  const notifVolumeLabel = document.getElementById('settingsNotifVolumeLabel');
+  const notifToneSelect = document.getElementById('settingsNotifTone');
+  const testSoundBtn = document.getElementById('testNotificationSoundBtn');
+  const notifLeadTimeSelect = document.getElementById('settingsNotifLeadTime');
+  const notifSlotEndToggle = document.getElementById('settingsNotifSlotEnd');
+
   const exportBtn = document.getElementById('exportBackupBtn');
   const resetBtn = document.getElementById('resetSettingsBtn');
   const saveBtn = document.getElementById('saveSettingsBtn');
@@ -174,6 +193,24 @@ export function initSettingsUI(domElements, renderAllCallback) {
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const h12 = hour % 12 === 0 ? 12 : hour % 12;
     return `${String(h12).padStart(2, '0')}:00 ${ampm} (${String(hour).padStart(2, '0')}:00)`;
+  };
+
+  const updatePermissionBadgeUI = () => {
+    const status = getNotificationPermissionStatus();
+    if (!notifPermissionBadge) return;
+    if (status === 'granted') {
+      notifPermissionBadge.textContent = '✅ Granted';
+      notifPermissionBadge.className = 'status-pill status-pill-success';
+      if (requestNotifPermissionBtn) requestNotifPermissionBtn.style.display = 'none';
+    } else if (status === 'denied') {
+      notifPermissionBadge.textContent = '❌ Blocked in Browser';
+      notifPermissionBadge.className = 'status-pill status-pill-danger';
+      if (requestNotifPermissionBtn) requestNotifPermissionBtn.style.display = 'none';
+    } else {
+      notifPermissionBadge.textContent = '⚠️ Not Enabled';
+      notifPermissionBadge.className = 'status-pill status-pill-warning';
+      if (requestNotifPermissionBtn) requestNotifPermissionBtn.style.display = 'inline-flex';
+    }
   };
 
   // Populate UI values from loaded settings
@@ -193,6 +230,18 @@ export function initSettingsUI(domElements, renderAllCallback) {
 
     if (dailyPointsInput) dailyPointsInput.value = USER_SETTINGS.dailyPointsTarget || 50;
     if (todoRewardInput) todoRewardInput.value = USER_SETTINGS.todoRewardPoints || 15;
+
+    // Notification settings sync
+    if (notifEnabledToggle) notifEnabledToggle.checked = !!USER_SETTINGS.notificationsEnabled;
+    if (notifSoundToggle) notifSoundToggle.checked = USER_SETTINGS.notificationSound !== false;
+    if (notifVolumeSlider) {
+      notifVolumeSlider.value = USER_SETTINGS.notificationVolume !== undefined ? USER_SETTINGS.notificationVolume : 70;
+      if (notifVolumeLabel) notifVolumeLabel.textContent = `${notifVolumeSlider.value}%`;
+    }
+    if (notifToneSelect) notifToneSelect.value = USER_SETTINGS.notificationTone || 'chime';
+    if (notifLeadTimeSelect) notifLeadTimeSelect.value = USER_SETTINGS.notifyLeadMinutes !== undefined ? String(USER_SETTINGS.notifyLeadMinutes) : '2';
+    if (notifSlotEndToggle) notifSlotEndToggle.checked = USER_SETTINGS.notifySlotEnd !== false;
+    updatePermissionBadgeUI();
 
     // Theme cards active state
     themeCards.forEach(card => {
@@ -231,6 +280,31 @@ export function initSettingsUI(domElements, renderAllCallback) {
       }
       if (endHourLabel) endHourLabel.textContent = formatHourDisplay(end);
       windowPresets.forEach(p => p.classList.remove('active'));
+    });
+  }
+
+  // Notification UI listeners
+  if (requestNotifPermissionBtn) {
+    requestNotifPermissionBtn.addEventListener('click', async () => {
+      await requestNotificationPermission();
+      updatePermissionBadgeUI();
+      if (notifEnabledToggle) {
+        notifEnabledToggle.checked = USER_SETTINGS.notificationsEnabled;
+      }
+    });
+  }
+
+  if (notifVolumeSlider) {
+    notifVolumeSlider.addEventListener('input', () => {
+      if (notifVolumeLabel) notifVolumeLabel.textContent = `${notifVolumeSlider.value}%`;
+    });
+  }
+
+  if (testSoundBtn) {
+    testSoundBtn.addEventListener('click', () => {
+      const tone = notifToneSelect ? notifToneSelect.value : 'chime';
+      const vol = notifVolumeSlider ? parseInt(notifVolumeSlider.value, 10) : 70;
+      playNotificationSound(tone, vol);
     });
   }
 
@@ -290,10 +364,17 @@ export function initSettingsUI(domElements, renderAllCallback) {
         dailyPointsTarget: parseInt(dailyPointsInput?.value, 10) || 50,
         todoRewardPoints: parseInt(todoRewardInput?.value, 10) || 15,
         themeMode: activeThemeCard?.dataset.theme || 'dark',
-        accentColor: activeAccentPill?.dataset.accent || 'indigo'
+        accentColor: activeAccentPill?.dataset.accent || 'indigo',
+        notificationsEnabled: !!notifEnabledToggle?.checked,
+        notificationSound: !!notifSoundToggle?.checked,
+        notificationVolume: parseInt(notifVolumeSlider?.value, 10) || 70,
+        notificationTone: notifToneSelect?.value || 'chime',
+        notifyLeadMinutes: parseInt(notifLeadTimeSelect?.value, 10) || 0,
+        notifySlotEnd: !!notifSlotEndToggle?.checked
       };
 
       saveUserSettings(updated);
+      updateNotificationBellUI();
       applySettings(USER_SETTINGS, onSettingsChangedCallback);
 
       if (settingsStatus) {
@@ -313,6 +394,7 @@ export function initSettingsUI(domElements, renderAllCallback) {
         USER_SETTINGS = { ...DEFAULT_SETTINGS };
         saveUserSettings(USER_SETTINGS);
         syncInputsToState();
+        updateNotificationBellUI();
         applySettings(USER_SETTINGS, onSettingsChangedCallback);
 
         if (settingsStatus) {
