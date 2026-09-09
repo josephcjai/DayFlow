@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js?v=2.8.2';
+import { ApiClient } from './apiClient.js?v=2.8.5';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -30,7 +30,13 @@ export function recordUndoAction(action) {
 }
 
 export function setScheduleViewMode(mode) {
-  STATE.scheduleViewMode = mode;
+  if (['day', 'week', 'month'].includes(mode)) {
+    STATE.scheduleViewMode = mode;
+    try {
+      const modeKey = getUserStorageKey('dayflow_schedule_view_mode');
+      localStorage.setItem(modeKey, mode);
+    } catch (e) {}
+  }
 }
 
 export function formatDateISO(dateObj) {
@@ -195,6 +201,12 @@ export function loadStateFromStorage() {
       STATE.scheduleData = JSON.parse(stored);
     } else {
       STATE.scheduleData = {};
+    }
+
+    const modeKey = getUserStorageKey('dayflow_schedule_view_mode');
+    const savedMode = localStorage.getItem(modeKey);
+    if (savedMode && ['day', 'week', 'month'].includes(savedMode)) {
+      STATE.scheduleViewMode = savedMode;
     }
   } catch (e) {
     console.error('Failed to load DayFlow state:', e);

@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.2';
-import { ApiClient } from './apiClient.js?v=2.8.2';
-import { escapeHtml, showToast } from './utils.js?v=2.8.2';
-import { TIME_SLOTS } from './grid.js?v=2.8.2';
-import { parseMarkdown } from './markdown.js?v=2.8.2';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.5';
+import { ApiClient } from './apiClient.js?v=2.8.5';
+import { escapeHtml, showToast } from './utils.js?v=2.8.5';
+import { TIME_SLOTS } from './grid.js?v=2.8.5';
+import { parseMarkdown } from './markdown.js?v=2.8.5';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;

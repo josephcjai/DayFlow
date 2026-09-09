@@ -18,23 +18,24 @@ import {
   isSlotInFuture,
   getSlotWeekKey,
   recordUndoAction,
-  getUserStorageKey
-} from './state.js?v=2.8.2';
-import { ApiClient } from './apiClient.js?v=2.8.2';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.2';
-import { initModal, openTaskModal } from './modal.js?v=2.8.2';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.2';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.2';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.8.2';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.2';
-import { showToast } from './utils.js?v=2.8.2';
+  getUserStorageKey,
+  setScheduleViewMode
+} from './state.js?v=2.8.5';
+import { ApiClient } from './apiClient.js?v=2.8.5';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.5';
+import { initModal, openTaskModal } from './modal.js?v=2.8.5';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.5';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.5';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.8.5';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.5';
+import { showToast } from './utils.js?v=2.8.5';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.8.2';
+} from './notifications.js?v=2.8.5';
 
 const DOM = {};
 
@@ -205,6 +206,7 @@ function initAuthUI() {
     localStorage.removeItem('dayflow_user');
     try {
       localStorage.removeItem(getUserStorageKey('dayflow_active_view'));
+      localStorage.removeItem(getUserStorageKey('dayflow_schedule_view_mode'));
       if (window.location.hash) {
         window.history.replaceState(null, '', window.location.pathname);
       }
@@ -454,9 +456,7 @@ function bindEvents() {
   // Schedule View Granularity Selector (Day / Week / Month)
   DOM.viewModeBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
-      DOM.viewModeBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      STATE.scheduleViewMode = btn.dataset.mode;
+      setScheduleViewMode(btn.dataset.mode);
       renderAll();
       await syncWeekDataWithApi(renderAll);
     });
@@ -1230,18 +1230,23 @@ async function handleSwitchToDayView(targetDateStr) {
   const targetDate = new Date(y, m - 1, d);
   STATE.selectedDate = targetDate;
   STATE.currentWeekStart = getMonday(targetDate);
-  STATE.scheduleViewMode = 'day';
-
-  DOM.viewModeBtns.forEach(b => {
-    if (b.dataset.mode === 'day') b.classList.add('active');
-    else b.classList.remove('active');
-  });
+  setScheduleViewMode('day');
 
   renderAll();
   await syncWeekDataWithApi(renderAll);
 }
 
+function updateViewModeButtons() {
+  if (DOM.viewModeBtns) {
+    const currentMode = STATE.scheduleViewMode || 'week';
+    DOM.viewModeBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === currentMode);
+    });
+  }
+}
+
 function renderAll() {
+  updateViewModeButtons();
   renderHeaderRangeText();
   if (STATE.activeView === 'grid') renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
   if (STATE.activeView === 'habits') {

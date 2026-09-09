@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.2';
-import { openTaskModal } from './modal.js?v=2.8.2';
-import { escapeHtml } from './utils.js?v=2.8.2';
+import { STATE, getWeekDates, getCurrentWeekData, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.5';
+import { openTaskModal } from './modal.js?v=2.8.5';
+import { escapeHtml } from './utils.js?v=2.8.5';
 
 export const TIME_SLOTS = [];
 
@@ -59,26 +59,34 @@ export function renderGrid(scheduleTableBody, onSwitchToDayView) {
     renderDayGridHeader(scheduleTableHeader);
     renderDayGridBody(scheduleTableBody);
   } else {
-    renderWeekGridHeader(scheduleTableHeader);
+    renderWeekGridHeader(scheduleTableHeader, onSwitchToDayView);
     renderWeekGridBody(scheduleTableBody);
   }
 }
 
-function renderWeekGridHeader(headerEl) {
+function renderWeekGridHeader(headerEl, onSwitchToDayView) {
   if (!headerEl) return;
   const dates = getWeekDates(STATE.currentWeekStart);
   headerEl.innerHTML = `
     <tr>
       <th class="time-col">Time (30m)</th>
-      <th class="day-col" data-day="1">MON <span class="day-date">${formatHeaderDate(dates[0])}</span></th>
-      <th class="day-col" data-day="2">TUE <span class="day-date">${formatHeaderDate(dates[1])}</span></th>
-      <th class="day-col" data-day="3">WED <span class="day-date">${formatHeaderDate(dates[2])}</span></th>
-      <th class="day-col" data-day="4">THU <span class="day-date">${formatHeaderDate(dates[3])}</span></th>
-      <th class="day-col" data-day="5">FRI <span class="day-date">${formatHeaderDate(dates[4])}</span></th>
-      <th class="day-col" data-day="6">SAT <span class="day-date">${formatHeaderDate(dates[5])}</span></th>
-      <th class="day-col" data-day="7">SUN <span class="day-date">${formatHeaderDate(dates[6])}</span></th>
+      <th class="day-col" data-day="1" data-date="${dates[0]}" style="cursor: pointer;" title="Click to view full day schedule">MON <span class="day-date">${formatHeaderDate(dates[0])}</span></th>
+      <th class="day-col" data-day="2" data-date="${dates[1]}" style="cursor: pointer;" title="Click to view full day schedule">TUE <span class="day-date">${formatHeaderDate(dates[1])}</span></th>
+      <th class="day-col" data-day="3" data-date="${dates[2]}" style="cursor: pointer;" title="Click to view full day schedule">WED <span class="day-date">${formatHeaderDate(dates[2])}</span></th>
+      <th class="day-col" data-day="4" data-date="${dates[3]}" style="cursor: pointer;" title="Click to view full day schedule">THU <span class="day-date">${formatHeaderDate(dates[3])}</span></th>
+      <th class="day-col" data-day="5" data-date="${dates[4]}" style="cursor: pointer;" title="Click to view full day schedule">FRI <span class="day-date">${formatHeaderDate(dates[4])}</span></th>
+      <th class="day-col" data-day="6" data-date="${dates[5]}" style="cursor: pointer;" title="Click to view full day schedule">SAT <span class="day-date">${formatHeaderDate(dates[5])}</span></th>
+      <th class="day-col" data-day="7" data-date="${dates[6]}" style="cursor: pointer;" title="Click to view full day schedule">SUN <span class="day-date">${formatHeaderDate(dates[6])}</span></th>
     </tr>
   `;
+
+  if (onSwitchToDayView) {
+    headerEl.querySelectorAll('.day-col[data-date]').forEach(th => {
+      th.addEventListener('click', () => {
+        onSwitchToDayView(th.dataset.date);
+      });
+    });
+  }
 }
 
 function renderDayGridHeader(headerEl) {
