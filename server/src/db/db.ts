@@ -44,6 +44,9 @@ pool.connect(async (err, client, release) => {
       await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS due_date DATE;");
       await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';");
       await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'General';");
+      await client.query("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;");
+      await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;");
+      await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;");
       await client.query(`
         DO $$
         BEGIN

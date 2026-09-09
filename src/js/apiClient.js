@@ -49,6 +49,29 @@ export const ApiClient = {
     return data;
   },
 
+  async getAuthConfig() {
+    try {
+      const res = await fetch(`${API_BASE}/auth/config`, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Could not fetch auth config:', e);
+    }
+    return { googleClientId: '' };
+  },
+
+  async googleLogin(credential) {
+    const res = await fetch(`${API_BASE}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Google authentication failed');
+    return data;
+  },
+
   async fetchCurrentUser() {
     try {
       const res = await fetch(`${API_BASE}/auth/me`, {

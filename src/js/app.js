@@ -19,7 +19,7 @@ import {
   getSlotWeekKey,
   recordUndoAction
 } from './state.js?v=2.6.3';
-import { ApiClient } from './apiClient.js?v=2.6.3';
+import { ApiClient } from './apiClient.js?v=2.8.0';
 import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.6.3';
 import { initModal, openTaskModal } from './modal.js?v=2.6.3';
 import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.6.3';
@@ -120,6 +120,8 @@ function cacheDomElements() {
 
   // Auth Landing Gate Elements
   DOM.userDisplayName = document.getElementById('userDisplayName');
+  DOM.userAvatarImg = document.getElementById('userAvatarImg');
+  DOM.userDefaultIcon = document.getElementById('userDefaultIcon');
   DOM.notificationBellBtn = document.getElementById('notificationBellBtn');
   DOM.notificationBellIcon = document.getElementById('notificationBellIcon');
   DOM.logoutBtn = document.getElementById('logoutBtn');
@@ -134,6 +136,8 @@ function cacheDomElements() {
   DOM.landingRegisterEmail = document.getElementById('landingRegisterEmail');
   DOM.landingRegisterPassword = document.getElementById('landingRegisterPassword');
   DOM.landingRegisterErrorMsg = document.getElementById('landingRegisterErrorMsg');
+  DOM.googleAuthSection = document.getElementById('googleAuthSection');
+  DOM.googleSignInBtn = document.getElementById('googleSignInBtn');
 
   DOM.modalElements = {
     taskModal: document.getElementById('taskModal'),
@@ -199,6 +203,9 @@ function initAuthUI() {
     localStorage.removeItem('dayflow_token');
     localStorage.removeItem('dayflow_user');
     STATE.scheduleData = {};
+    if (typeof google !== 'undefined' && google.accounts?.id) {
+      google.accounts.id.disableAutoSelect();
+    }
     showLoginScreen();
   });
 
@@ -217,6 +224,80 @@ function initAuthUI() {
       }
     }
   });
+
+  // Initialize Google Identity Services if client ID is configured
+  setupGoogleAuth();
+}
+
+let googleAuthInitialized = false;
+
+async function setupGoogleAuth() {
+  try {
+    const config = await ApiClient.getAuthConfig();
+    if (!config || !config.googleClientId) {
+      return; // Google Auth not yet configured in server .env
+    }
+
+    const checkGoogleGSI = () => {
+      if (typeof google !== 'undefined' && google.accounts?.id) {
+        initGSI(config.googleClientId);
+      } else {
+        setTimeout(checkGoogleGSI, 200);
+      }
+    };
+
+    checkGoogleGSI();
+  } catch (err) {
+    console.warn('Failed to load Google Auth configuration:', err);
+  }
+}
+
+function initGSI(clientId) {
+  if (googleAuthInitialized) return;
+  googleAuthInitialized = true;
+
+  if (DOM.googleAuthSection) {
+    DOM.googleAuthSection.style.display = 'block';
+  }
+
+  google.accounts.id.initialize({
+    client_id: clientId,
+    callback: handleGoogleCredentialResponse,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  });
+
+  if (DOM.googleSignInBtn) {
+    google.accounts.id.renderButton(DOM.googleSignInBtn, {
+      theme: 'outline',
+      size: 'large',
+      type: 'standard',
+      text: 'continue_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: 320
+    });
+  }
+}
+
+async function handleGoogleCredentialResponse(response) {
+  try {
+    if (!response || !response.credential) {
+      throw new Error('Google credential token was not received');
+    }
+    const res = await ApiClient.googleLogin(response.credential);
+    localStorage.setItem('dayflow_token', res.token);
+    localStorage.setItem('dayflow_user', JSON.stringify(res.user));
+    showToast(`👋 Welcome, ${res.user.displayName || 'DayFlow User'}!`, 'success');
+    await onAuthSuccess(res.user);
+  } catch (err) {
+    console.error('Google login error:', err);
+    showToast(`Google Sign-In failed: ${err.message}`, 'error', 5000);
+    if (DOM.landingLoginErrorMsg) {
+      DOM.landingLoginErrorMsg.textContent = err.message;
+      DOM.landingLoginErrorMsg.style.display = 'block';
+    }
+  }
 }
 
 async function checkUserSessionGate() {
@@ -237,6 +318,16 @@ async function checkUserSessionGate() {
 
 async function onAuthSuccess(user) {
   DOM.userDisplayName.textContent = user.displayName || user.email.split('@')[0];
+  if (DOM.userAvatarImg) {
+    if (user.avatarUrl) {
+      DOM.userAvatarImg.src = user.avatarUrl;
+      DOM.userAvatarImg.style.display = 'inline-block';
+      if (DOM.userDefaultIcon) DOM.userDefaultIcon.style.display = 'none';
+    } else {
+      DOM.userAvatarImg.style.display = 'none';
+      if (DOM.userDefaultIcon) DOM.userDefaultIcon.style.display = 'inline-block';
+    }
+  }
   DOM.loginScreen.style.display = 'none';
   DOM.app.style.display = 'flex';
   
