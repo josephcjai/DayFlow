@@ -16,6 +16,16 @@ function getAuthHeaders() {
   return headers;
 }
 
+function checkUnauthorized(res) {
+  if (res && res.status === 401) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('dayflow:session-expired'));
+    }
+    return true;
+  }
+  return false;
+}
+
 export const ApiClient = {
   async register(email, password, displayName) {
     const res = await fetch(`${API_BASE}/auth/register`, {
@@ -45,6 +55,7 @@ export const ApiClient = {
         headers: getAuthHeaders(),
         signal: AbortSignal.timeout(1500)
       });
+      if (checkUnauthorized(res)) return null;
       if (res.ok) {
         const data = await res.json();
         return data.user;
@@ -68,6 +79,7 @@ export const ApiClient = {
         headers: getAuthHeaders(),
         signal: AbortSignal.timeout(2000)
       });
+      if (checkUnauthorized(res)) return null;
       if (res.ok) {
         const data = await res.json();
         return data.slots;
@@ -85,6 +97,7 @@ export const ApiClient = {
         headers: getAuthHeaders(),
         body: JSON.stringify({ weekStart, slotKey, ...slotData })
       });
+      if (checkUnauthorized(res)) return false;
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         console.error('❌ Server error saving schedule slot:', res.status, errData.error);
@@ -104,6 +117,7 @@ export const ApiClient = {
         headers: getAuthHeaders(),
         body: JSON.stringify({ weekStart, slotKey })
       });
+      if (checkUnauthorized(res)) return false;
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         console.error('❌ Server error deleting schedule slot:', res.status, errData.error);
@@ -122,6 +136,7 @@ export const ApiClient = {
         headers: getAuthHeaders(),
         signal: AbortSignal.timeout(2000)
       });
+      if (checkUnauthorized(res)) return null;
       if (res.ok) {
         const data = await res.json();
         return data.habits;
@@ -134,24 +149,30 @@ export const ApiClient = {
 
   async logHabit(weekStart, name, pts, notes, logTime) {
     try {
-      await fetch(`${API_BASE}/habits/log`, {
+      const res = await fetch(`${API_BASE}/habits/log`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ weekStart, name, pts, notes, logTime })
       });
+      if (checkUnauthorized(res)) return false;
+      return res.ok;
     } catch (e) {
       console.log('Logged habit offline');
+      return false;
     }
   },
 
   async deleteHabit(id) {
     try {
-      await fetch(`${API_BASE}/habits/${id}`, {
+      const res = await fetch(`${API_BASE}/habits/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
+      if (checkUnauthorized(res)) return false;
+      return res.ok;
     } catch (e) {
       console.log('Deleted habit offline');
+      return false;
     }
   },
 
@@ -161,6 +182,7 @@ export const ApiClient = {
         headers: getAuthHeaders(),
         signal: AbortSignal.timeout(2000)
       });
+      if (checkUnauthorized(res)) return null;
       if (res.ok) {
         return await res.json();
       }
@@ -177,6 +199,7 @@ export const ApiClient = {
         headers: getAuthHeaders(),
         body: JSON.stringify({ weekStart, text, priority, category, dueDate })
       });
+      if (checkUnauthorized(res)) return null;
       if (res.ok) {
         return await res.json();
       }
@@ -188,36 +211,45 @@ export const ApiClient = {
 
   async toggleTodo(id, completed) {
     try {
-      await fetch(`${API_BASE}/todos/${id}`, {
+      const res = await fetch(`${API_BASE}/todos/${id}`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({ completed })
       });
+      if (checkUnauthorized(res)) return false;
+      return res.ok;
     } catch (e) {
       console.log('Toggled todo offline');
+      return false;
     }
   },
 
   async deleteTodo(id) {
     try {
-      await fetch(`${API_BASE}/todos/${id}`, {
+      const res = await fetch(`${API_BASE}/todos/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
+      if (checkUnauthorized(res)) return false;
+      return res.ok;
     } catch (e) {
       console.log('Deleted todo offline');
+      return false;
     }
   },
 
   async saveNotes(weekStart, notes, noteSheets = null) {
     try {
-      await fetch(`${API_BASE}/todos/notes`, {
+      const res = await fetch(`${API_BASE}/todos/notes`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ weekStart, notes, noteSheets })
       });
+      if (checkUnauthorized(res)) return false;
+      return res.ok;
     } catch (e) {
       console.log('Saved notes offline');
+      return false;
     }
   }
 };

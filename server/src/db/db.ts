@@ -2,6 +2,7 @@
  * DayFlow Database Client
  * Connects directly to PostgreSQL server on host port 5433
  */
+// cspell:words Millis conname
 import pg from 'pg';
 import dotenv from 'dotenv';
 
@@ -41,6 +42,8 @@ pool.connect(async (err, client, release) => {
     try {
       await client.query("ALTER TABLE schedule_weeks ADD COLUMN IF NOT EXISTS note_sheets JSONB DEFAULT '[]'::jsonb;");
       await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS due_date DATE;");
+      await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';");
+      await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'General';");
       await client.query(`
         DO $$
         BEGIN

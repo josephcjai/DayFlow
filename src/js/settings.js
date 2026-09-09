@@ -128,7 +128,8 @@ export function exportUserDataJSON() {
   try {
     if (userJson) {
       const u = JSON.parse(userJson);
-      if (u.name) userName = u.name.replace(/[^a-zA-Z0-9]/g, '_');
+      const rawName = u.displayName || u.name || (u.email ? u.email.split('@')[0] : 'User');
+      if (rawName) userName = rawName.replace(/[^a-zA-Z0-9]/g, '_');
     }
   } catch (e) {}
 

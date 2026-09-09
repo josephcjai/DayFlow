@@ -8,7 +8,7 @@
  */
 import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey, formatDateDisplay } from './state.js?v=2.6.3';
 import { ApiClient } from './apiClient.js?v=2.6.3';
-import { escapeHtml } from './utils.js?v=2.6.3';
+import { escapeHtml, getPriorityPoints } from './utils.js?v=2.6.3';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🎯', name: 'Deep Focus Block', pts: 15, label: 'Deep Work / Study Complete' },
@@ -133,8 +133,7 @@ export function renderHabits(habitLogTableBody, totalPointsBadge) {
           Object.keys(weekData.slots || {}).some(k => k.startsWith(selectedDateStr) && weekData.slots[k].plannedTask === t.text);
         if (!isScheduledToday) return;
       }
-      const p = (t.priority || 'Medium').toLowerCase();
-      const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
+      const pts = getPriorityPoints(t.priority);
       totalPoints += pts;
     }
   });

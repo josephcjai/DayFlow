@@ -201,6 +201,22 @@ function initAuthUI() {
     STATE.scheduleData = {};
     showLoginScreen();
   });
+
+  // Handle Session Expiry (401 from API)
+  window.addEventListener('dayflow:session-expired', () => {
+    const hadToken = !!localStorage.getItem('dayflow_token');
+    if (hadToken) {
+      localStorage.removeItem('dayflow_token');
+      localStorage.removeItem('dayflow_user');
+      STATE.scheduleData = {};
+      showToast('⚠️ Your session has expired. Please sign in again.', 'warning', 5000);
+      showLoginScreen();
+      if (DOM.landingLoginErrorMsg) {
+        DOM.landingLoginErrorMsg.textContent = 'Session expired. Please sign in to reconnect.';
+        DOM.landingLoginErrorMsg.style.display = 'block';
+      }
+    }
+  });
 }
 
 async function checkUserSessionGate() {
@@ -486,8 +502,20 @@ function bindEvents() {
 
   if (DOM.weeklyNotesTextarea) {
     initMarkdownScratchpad(DOM);
-    DOM.weeklyNotesTextarea.addEventListener('input', () => {
+    let notesAutosaveTimer = null;
+
+    const flushNotesToApi = () => {
+      if (notesAutosaveTimer) {
+        clearTimeout(notesAutosaveTimer);
+        notesAutosaveTimer = null;
+      }
       const weekKey = getWeekKey(STATE.currentWeekStart);
+      const weekData = getCurrentWeekData();
+      ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+      DOM.notesSavedStatus.textContent = 'Saved';
+    };
+
+    DOM.weeklyNotesTextarea.addEventListener('input', () => {
       const weekData = getCurrentWeekData();
       const sheets = weekData.noteSheets || [];
       const currentActive = sheets.find(s => s.id === getActiveSheetId()) || sheets[0];
@@ -502,9 +530,13 @@ function bindEvents() {
       saveStateToStorage();
       DOM.notesSavedStatus.textContent = 'Saving...';
       
-      // Sync notes & sheets with API
-      ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
-      setTimeout(() => DOM.notesSavedStatus.textContent = 'Saved', 500);
+      // Debounce network write (600ms) to prevent request races and server flooding
+      if (notesAutosaveTimer) clearTimeout(notesAutosaveTimer);
+      notesAutosaveTimer = setTimeout(flushNotesToApi, 600);
+    });
+
+    DOM.weeklyNotesTextarea.addEventListener('blur', () => {
+      if (notesAutosaveTimer) flushNotesToApi();
     });
   }
 
@@ -529,7 +561,7 @@ function isInputTarget(e) {
 
 function initGridShortcuts() {
   document.addEventListener('keydown', async (e) => {
-    // 1. Guard: do not intercept inside inputs, textareas, or open modal
+    // 1. Guard: do not intercept inside inputs, text areas, or open modal
     if (isInputTarget(e)) return;
     if (DOM.modalElements?.taskModal?.classList.contains('active')) return;
     if (STATE.activeView !== 'grid') return;

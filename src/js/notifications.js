@@ -65,10 +65,10 @@ export function playNotificationSound(toneName = 'chime', volumePercent = 70) {
 
     } else if (toneName === 'bell') {
       // Resonant singing bell with warm harmonics
-      const freqs = [659.25, 1318.5, 1977.75]; // E5 + harmonics
+      const frequencies = [659.25, 1318.5, 1977.75]; // E5 + harmonics
       const weights = [0.8, 0.4, 0.15];
 
-      freqs.forEach((f, i) => {
+      frequencies.forEach((f, i) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
@@ -183,16 +183,16 @@ export function dispatchDesktopNotification(title, body, slotKey = null) {
   }
 
   try {
-    const notif = new Notification(title, {
+    const notification = new Notification(title, {
       body,
       icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏳</text></svg>',
       tag: slotKey ? `dayflow-${slotKey}` : 'dayflow-alert',
       requireInteraction: false
     });
 
-    notif.onclick = () => {
+    notification.onclick = () => {
       window.focus();
-      notif.close();
+      notification.close();
       if (slotKey) {
         focusSlotInGrid(slotKey);
       }
@@ -275,6 +275,13 @@ export function checkScheduleAlerts() {
     });
   });
 
+  // Prune firedAlerts: retain only today's alerts to prevent unbounded memory growth
+  for (const key of firedAlerts) {
+    if (!key.includes(todayISO)) {
+      firedAlerts.delete(key);
+    }
+  }
+
   const leadMinutes = USER_SETTINGS.notifyLeadMinutes !== undefined ? USER_SETTINGS.notifyLeadMinutes : 2;
   const leadSeconds = leadMinutes * 60;
 
@@ -293,28 +300,26 @@ export function checkScheduleAlerts() {
       if (leadMinutes > 0 && taskName) {
         const leadTriggerSecs = slotStartSecs - leadSeconds;
         const alertKey = `lead_${slotKey}`;
-        // Trigger within a 25-second window around the lead time
+        // Trigger if current time is within lead-time window prior to slot start
         if (currentTimeTotalSecs >= leadTriggerSecs && currentTimeTotalSecs < slotStartSecs && !firedAlerts.has(alertKey)) {
           firedAlerts.add(alertKey);
           triggerLeadTimeAlert(slotKey, slotStartTimeKey, taskName, leadMinutes);
         }
       }
 
-      // 2. SLOT START ALARM (at :00 or :30)
+      // 2. SLOT START ALARM (at :00 or :30, resilient to background tab throttling up to 5 mins)
       if (taskName) {
         const startAlertKey = `start_${slotKey}`;
-        // Trigger if current time is within first 45 seconds of the slot start
-        if (currentTimeTotalSecs >= slotStartSecs && currentTimeTotalSecs < slotStartSecs + 45 && !firedAlerts.has(startAlertKey)) {
+        if (currentTimeTotalSecs >= slotStartSecs && currentTimeTotalSecs < slotStartSecs + 300 && !firedAlerts.has(startAlertKey)) {
           firedAlerts.add(startAlertKey);
           triggerSlotStartAlert(slotKey, slotStartTimeKey, taskName, slotData?.category);
         }
       }
 
-      // 3. END-OF-SLOT WRAP-UP ALERT (prompts user to mark Done or log actual)
+      // 3. END-OF-SLOT WRAP-UP ALERT (resilient up to 5 mins after slot ends)
       if (USER_SETTINGS.notifySlotEnd && taskName && slotData?.status !== 'Done') {
         const endAlertKey = `end_${slotKey}`;
-        // Trigger within 45 seconds after the slot finishes
-        if (currentTimeTotalSecs >= slotEndSecs && currentTimeTotalSecs < slotEndSecs + 45 && !firedAlerts.has(endAlertKey)) {
+        if (currentTimeTotalSecs >= slotEndSecs && currentTimeTotalSecs < slotEndSecs + 300 && !firedAlerts.has(endAlertKey)) {
           firedAlerts.add(endAlertKey);
           triggerSlotWrapUpAlert(slotKey, slotStartTimeKey, taskName);
         }
@@ -384,6 +389,13 @@ export function initNotificationEngine() {
   heartbeatTimer = setInterval(() => {
     checkScheduleAlerts();
   }, 20000);
+
+  // Re-check immediately whenever user switches back to this tab (compensates for browser tab throttling)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      checkScheduleAlerts();
+    }
+  });
 
   // Resume AudioContext on any user click inside window to satisfy autoplay policy
   const unlockAudio = () => {

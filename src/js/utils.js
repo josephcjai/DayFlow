@@ -36,3 +36,13 @@ export function showToast(message, type = 'info', duration = 2500) {
   }, duration);
 }
 
+/**
+ * Standard priority-to-points mapping: High=15, Medium=10, Low=5
+ */
+export function getPriorityPoints(priority) {
+  const p = String(priority || 'medium').toLowerCase();
+  if (p === 'high') return 15;
+  if (p === 'low') return 5;
+  return 10;
+}
+

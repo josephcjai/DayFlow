@@ -6,7 +6,7 @@
  * 3. Month Mode: Monthly KPI aggregation across all weeks, monthly category breakdown, and weekly trend distribution
  */
 import { getCurrentWeekData, STATE, getWeekDates, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.6.3';
-import { escapeHtml } from './utils.js?v=2.6.3';
+import { escapeHtml, getPriorityPoints } from './utils.js?v=2.6.3';
 
 const CATEGORIES = [
   { id: 'Learning', name: 'Learning (WPF/WCF/React/Angular)', color: 'var(--cat-learning)' },
@@ -205,8 +205,7 @@ export function renderAnalytics(
         if (!isScheduledToday) return;
       }
       completedTodoCount++;
-      const p = (t.priority || 'Medium').toLowerCase();
-      const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
+      const pts = getPriorityPoints(t.priority);
       todoPoints += pts;
     }
   });
@@ -464,8 +463,7 @@ export function openPointsBreakdownModal() {
         const isScheduledToday = t.scheduledDate === selDateISO ||
           Object.keys(weekData.slots || {}).some(k => k.startsWith(selDateISO) && weekData.slots[k].plannedTask === t.text);
         if (isScheduledToday) {
-          const p = (t.priority || 'Medium').toLowerCase();
-          const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
+          const pts = getPriorityPoints(t.priority);
           goalItems.push({
             date: selDateISO,
             time: 'Completed',
@@ -505,8 +503,7 @@ export function openPointsBreakdownModal() {
       if (wKey.startsWith(monthPrefix)) {
         (wData.todos || []).forEach(t => {
           if (t.completed) {
-            const p = (t.priority || 'Medium').toLowerCase();
-            const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
+            const pts = getPriorityPoints(t.priority);
             goalItems.push({
               date: wKey,
               time: 'Completed',
@@ -547,8 +544,7 @@ export function openPointsBreakdownModal() {
 
     (weekData.todos || []).forEach(t => {
       if (t.completed) {
-        const p = (t.priority || 'Medium').toLowerCase();
-        const pts = p === 'high' ? 15 : (p === 'low' ? 5 : 10);
+        const pts = getPriorityPoints(t.priority);
         goalItems.push({
           date: dates[0],
           time: 'Completed',
