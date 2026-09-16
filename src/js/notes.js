@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.5';
-import { ApiClient } from './apiClient.js?v=2.8.5';
-import { escapeHtml, showToast } from './utils.js?v=2.8.5';
-import { TIME_SLOTS } from './grid.js?v=2.8.5';
-import { parseMarkdown } from './markdown.js?v=2.8.5';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.6';
+import { ApiClient } from './apiClient.js?v=2.8.6';
+import { escapeHtml, showToast } from './utils.js?v=2.8.6';
+import { TIME_SLOTS } from './grid.js?v=2.8.6';
+import { parseMarkdown } from './markdown.js?v=2.8.6';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
@@ -1055,7 +1055,7 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
   renderNoteSheetsTabs();
   const activeSheet = getActiveSheet();
   if (weeklyNotesTextarea) {
-    weeklyNotesTextarea.value = activeSheet ? (activeSheet.content || '') : (weekData.notes || '');
+    weeklyNotesTextarea.value = activeSheet ? getSheetContent(activeSheet) : (weekData.notes || '');
     updateMarkdownPreview(weeklyNotesTextarea);
   }
 
@@ -1185,12 +1185,69 @@ export function getWeekNoteSheets() {
   if (!weekData.noteSheets || !Array.isArray(weekData.noteSheets) || weekData.noteSheets.length === 0) {
     weekData.noteSheets = [
       { id: 'journal', title: 'Weekly Journal', icon: '📓', content: weekData.notes || '', isDefault: true },
+      { id: 'daily_journal', title: 'Daily Journal', icon: '📅', content: '', dailyContent: {}, isDefault: true },
       { id: 'tech', title: 'Tech & Architecture', icon: '💻', content: '', isDefault: true },
       { id: 'backlog', title: 'Sprint Backlog', icon: '💼', content: '', isDefault: true },
       { id: 'scratchpad', title: 'Quick Scratchpad', icon: '⚡', content: '', isDefault: true }
     ];
+  } else if (!weekData.noteSheets.some(s => s.id === 'daily_journal')) {
+    const journalIdx = weekData.noteSheets.findIndex(s => s.id === 'journal');
+    const dailySheet = { id: 'daily_journal', title: 'Daily Journal', icon: '📅', content: '', dailyContent: {}, isDefault: true };
+    if (journalIdx >= 0) {
+      weekData.noteSheets.splice(journalIdx + 1, 0, dailySheet);
+    } else {
+      weekData.noteSheets.unshift(dailySheet);
+    }
   }
   return weekData.noteSheets;
+}
+
+export function getSelectedDateISO() {
+  const d = STATE.selectedDate || new Date();
+  return formatDateISO(d);
+}
+
+export function getSheetContent(sheet) {
+  if (!sheet) return '';
+  if (sheet.id === 'daily_journal') {
+    const dateKey = getSelectedDateISO();
+    if (!sheet.dailyContent || typeof sheet.dailyContent !== 'object') {
+      sheet.dailyContent = {};
+    }
+    return sheet.dailyContent[dateKey] || '';
+  }
+  return sheet.content || '';
+}
+
+export function setSheetContent(sheet, text) {
+  if (!sheet) return;
+  if (sheet.id === 'daily_journal') {
+    const dateKey = getSelectedDateISO();
+    if (!sheet.dailyContent || typeof sheet.dailyContent !== 'object') {
+      sheet.dailyContent = {};
+    }
+    sheet.dailyContent[dateKey] = text;
+    sheet.content = text;
+  } else {
+    sheet.content = text;
+    if (sheet.id === 'journal') {
+      const weekData = getCurrentWeekData();
+      weekData.notes = text;
+    }
+  }
+}
+
+export function flushCurrentNoteEditor() {
+  const ta = document.getElementById('weeklyNotesTextarea');
+  if (!ta) return;
+  const currentActive = getActiveSheet();
+  if (currentActive) {
+    setSheetContent(currentActive, ta.value);
+    saveStateToStorage();
+    const weekKey = getWeekKey(STATE.currentWeekStart);
+    const weekData = getCurrentWeekData();
+    ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+  }
 }
 
 export function getActiveSheet() {
@@ -1219,7 +1276,17 @@ export function renderNoteSheetsTabs(tabBarEl, textarea, previewEl, wordCountEl)
     tabBtn.type = 'button';
     tabBtn.className = `note-sheet-tab ${sheet.id === activeSheetId ? 'active' : ''}`;
     tabBtn.dataset.id = sheet.id;
-    tabBtn.title = `Switch to ${sheet.title}`;
+
+    let displayTitle = sheet.title;
+    if (sheet.id === 'daily_journal') {
+      const d = STATE.selectedDate || new Date();
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const shortDate = formatDateDisplayShort(d);
+      displayTitle = `Daily Journal (${dayName}, ${shortDate})`;
+      tabBtn.title = `Switch to Daily Journal for ${dayName}, ${shortDate}`;
+    } else {
+      tabBtn.title = `Switch to ${sheet.title}`;
+    }
 
     let deleteBtnHtml = '';
     if (!sheet.isDefault) {
@@ -1228,7 +1295,7 @@ export function renderNoteSheetsTabs(tabBarEl, textarea, previewEl, wordCountEl)
 
     tabBtn.innerHTML = `
       <span class="note-sheet-tab-icon">${sheet.icon || '📝'}</span>
-      <span class="note-sheet-tab-title">${escapeHtml(sheet.title)}</span>
+      <span class="note-sheet-tab-title">${escapeHtml(displayTitle)}</span>
       ${deleteBtnHtml}
     `;
 
@@ -1240,12 +1307,12 @@ export function renderNoteSheetsTabs(tabBarEl, textarea, previewEl, wordCountEl)
       // Flush current editor content to outgoing sheet
       const outgoing = sheets.find(s => s.id === activeSheetId);
       if (outgoing && ta) {
-        outgoing.content = ta.value;
+        setSheetContent(outgoing, ta.value);
       }
 
       activeSheetId = sheet.id;
       if (ta) {
-        ta.value = sheet.content || '';
+        ta.value = getSheetContent(sheet);
       }
       updateMarkdownPreview(ta, preview, wordCount);
       saveStateToStorage();
@@ -1563,7 +1630,7 @@ export function initMarkdownScratchpad(domElements) {
       }
       const nextActive = getActiveSheet();
       if (ta) {
-        ta.value = nextActive.content || '';
+        ta.value = nextActive ? getSheetContent(nextActive) : '';
       }
       updateMarkdownPreview(ta, preview, wordCount);
       saveStateToStorage();
@@ -1585,7 +1652,7 @@ export function initMarkdownScratchpad(domElements) {
       // Flush current active sheet
       const currentActive = getActiveSheet();
       if (currentActive && ta) {
-        currentActive.content = ta.value;
+        setSheetContent(currentActive, ta.value);
       }
 
       const weekData = getCurrentWeekData();
@@ -1621,7 +1688,7 @@ export function initMarkdownScratchpad(domElements) {
   renderNoteSheetsTabs();
   const activeSheet = getActiveSheet();
   if (ta && activeSheet) {
-    ta.value = activeSheet.content || '';
+    ta.value = getSheetContent(activeSheet);
   }
   updateMarkdownPreview(ta, preview, wordCount);
 }

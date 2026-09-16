@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.5';
-import { openTaskModal } from './modal.js?v=2.8.5';
-import { escapeHtml } from './utils.js?v=2.8.5';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.6';
+import { openTaskModal } from './modal.js?v=2.8.6';
+import { escapeHtml } from './utils.js?v=2.8.6';
 
 export const TIME_SLOTS = [];
 
@@ -381,9 +381,12 @@ function renderMonthGrid(container, onSwitchToDayView) {
     let actualMins = 0;
     let taskCount = 0;
 
-    Object.keys(weekData.slots || {}).forEach(sKey => {
+    const dWeekKey = getWeekKey(dObj);
+    const dWeekData = STATE.scheduleData[dWeekKey] || weekData;
+
+    Object.keys(dWeekData.slots || {}).forEach(sKey => {
       if (sKey.startsWith(dateStr)) {
-        const s = weekData.slots[sKey];
+        const s = dWeekData.slots[sKey];
         if (s && (s.plannedTask || s.actualTask)) {
           taskCount++;
           actualMins += parseInt(s.actual || 0, 10);

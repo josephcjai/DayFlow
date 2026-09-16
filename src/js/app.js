@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.8.5';
-import { ApiClient } from './apiClient.js?v=2.8.5';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.5';
-import { initModal, openTaskModal } from './modal.js?v=2.8.5';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.5';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.5';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId } from './notes.js?v=2.8.5';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.5';
-import { showToast } from './utils.js?v=2.8.5';
+} from './state.js?v=2.8.6';
+import { ApiClient } from './apiClient.js?v=2.8.6';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.6';
+import { initModal, openTaskModal } from './modal.js?v=2.8.6';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.6';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.6';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent } from './notes.js?v=2.8.6';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.6';
+import { showToast } from './utils.js?v=2.8.6';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.8.5';
+} from './notifications.js?v=2.8.6';
 
 const DOM = {};
 
@@ -345,6 +345,15 @@ async function switchView(view, syncBackend = true) {
   if (!VALID_VIEWS.includes(view)) view = 'grid';
   STATE.activeView = view;
 
+  // Auto-switch journal mode based on schedule view granularity when entering notes
+  if (view === 'notes') {
+    if (STATE.scheduleViewMode === 'day') {
+      setActiveSheetId('daily_journal');
+    } else if (getActiveSheetId() === 'daily_journal') {
+      setActiveSheetId('journal');
+    }
+  }
+
   try {
     localStorage.setItem(getUserStorageKey('dayflow_active_view'), view);
     if (window.location.hash !== `#${view}`) {
@@ -456,7 +465,14 @@ function bindEvents() {
   // Schedule View Granularity Selector (Day / Week / Month)
   DOM.viewModeBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
-      setScheduleViewMode(btn.dataset.mode);
+      flushCurrentNoteEditor();
+      const newMode = btn.dataset.mode;
+      setScheduleViewMode(newMode);
+      if (newMode === 'day') {
+        setActiveSheetId('daily_journal');
+      } else if (getActiveSheetId() === 'daily_journal') {
+        setActiveSheetId('journal');
+      }
       renderAll();
       await syncWeekDataWithApi(renderAll);
     });
@@ -471,6 +487,7 @@ function bindEvents() {
   DOM.weekDatePicker.addEventListener('change', async (e) => {
     const val = e.target.value;
     if (val) {
+      flushCurrentNoteEditor();
       const [y, m, d] = val.split('-').map(Number);
       if (y < 1800 || y > 2200) {
         alert('Please select a date between year 1800 and 2200.');
@@ -652,10 +669,7 @@ function bindEvents() {
       const sheets = weekData.noteSheets || [];
       const currentActive = sheets.find(s => s.id === getActiveSheetId()) || sheets[0];
       if (currentActive) {
-        currentActive.content = DOM.weeklyNotesTextarea.value;
-        if (currentActive.id === 'journal') {
-          weekData.notes = DOM.weeklyNotesTextarea.value;
-        }
+        setSheetContent(currentActive, DOM.weeklyNotesTextarea.value);
       } else {
         weekData.notes = DOM.weeklyNotesTextarea.value;
       }
@@ -668,7 +682,7 @@ function bindEvents() {
     });
 
     DOM.weeklyNotesTextarea.addEventListener('blur', () => {
-      if (notesAutosaveTimer) flushNotesToApi();
+      flushCurrentNoteEditor();
     });
   }
 
@@ -1194,6 +1208,7 @@ function showContextMenu(x, y, slotKey, td) {
 }
 
 async function navigateDate(direction) {
+  flushCurrentNoteEditor();
   if (direction === 'today') {
     const now = new Date();
     STATE.selectedDate = now;
@@ -1226,11 +1241,13 @@ async function navigateDate(direction) {
 }
 
 async function handleSwitchToDayView(targetDateStr) {
+  flushCurrentNoteEditor();
   const [y, m, d] = targetDateStr.split('-').map(Number);
   const targetDate = new Date(y, m - 1, d);
   STATE.selectedDate = targetDate;
   STATE.currentWeekStart = getMonday(targetDate);
   setScheduleViewMode('day');
+  setActiveSheetId('daily_journal');
 
   renderAll();
   await syncWeekDataWithApi(renderAll);

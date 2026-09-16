@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js?v=2.8.5';
+import { ApiClient } from './apiClient.js?v=2.8.6';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -259,6 +259,34 @@ export async function syncWeekDataWithApi(onRender) {
     }
   }
 
+  // If in month mode, also fetch the other weeks in this month so Month Grid & Monthly Analytics are fully populated
+  if (STATE.scheduleViewMode === 'month') {
+    const selDate = STATE.selectedDate || new Date();
+    const y = selDate.getFullYear();
+    const m = selDate.getMonth();
+    const firstDay = new Date(y, m, 1);
+    const lastDay = new Date(y, m + 1, 0);
+    const mondaySet = new Set();
+    for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
+      mondaySet.add(getWeekKey(d));
+    }
+    for (const mKey of mondaySet) {
+      if (mKey !== weekKey) {
+        if (!STATE.scheduleData[mKey]) {
+          STATE.scheduleData[mKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+        }
+        const otherSlots = await ApiClient.fetchWeekSchedule(mKey);
+        if (otherSlots !== null && typeof otherSlots === 'object') {
+          STATE.scheduleData[mKey].slots = otherSlots;
+        }
+        const otherHabits = await ApiClient.fetchHabits(mKey);
+        if (otherHabits !== null && Array.isArray(otherHabits)) {
+          STATE.scheduleData[mKey].habits = otherHabits;
+        }
+      }
+    }
+  }
+
   saveStateToStorage();
   if (onRender) onRender();
 }
@@ -277,10 +305,19 @@ export function ensureSampleDataForCurrentWeek() {
   if (!weekData.noteSheets || !Array.isArray(weekData.noteSheets) || weekData.noteSheets.length === 0) {
     weekData.noteSheets = [
       { id: 'journal', title: 'Weekly Journal', icon: '📓', content: weekData.notes || '', isDefault: true },
+      { id: 'daily_journal', title: 'Daily Journal', icon: '📅', content: '', dailyContent: {}, isDefault: true },
       { id: 'tech', title: 'Tech & Architecture', icon: '💻', content: '', isDefault: true },
       { id: 'backlog', title: 'Sprint Backlog', icon: '💼', content: '', isDefault: true },
       { id: 'scratchpad', title: 'Quick Scratchpad', icon: '⚡', content: '', isDefault: true }
     ];
+  } else if (!weekData.noteSheets.some(s => s.id === 'daily_journal')) {
+    const journalIdx = weekData.noteSheets.findIndex(s => s.id === 'journal');
+    const dailySheet = { id: 'daily_journal', title: 'Daily Journal', icon: '📅', content: '', dailyContent: {}, isDefault: true };
+    if (journalIdx >= 0) {
+      weekData.noteSheets.splice(journalIdx + 1, 0, dailySheet);
+    } else {
+      weekData.noteSheets.unshift(dailySheet);
+    }
   }
   saveStateToStorage();
 }
