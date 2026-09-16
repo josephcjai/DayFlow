@@ -157,7 +157,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash || user.passwordHash);
+    const passwordHash = user.password_hash || user.passwordHash;
+    if (!passwordHash) {
+      return res.status(401).json({ error: 'This account was created with Google Sign-In. Please continue with Google.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, passwordHash);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
