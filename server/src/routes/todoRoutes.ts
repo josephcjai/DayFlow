@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { memoryStore, executeQuery } from '../db/db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { isValidDateRange } from '../utils/dateValidation.js';
+import { sendError } from '../utils/errorHandler.js';
 
 const router = Router();
 
@@ -58,7 +59,8 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
       } else {
         noteSheets = defaultSheets('');
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (process.env.NODE_ENV === 'production') throw e;
       const userWeekKey = `${userId}_${weekStart}`;
       if (memoryStore.scheduleWeeks[userWeekKey]) {
         todos = memoryStore.scheduleWeeks[userWeekKey].todos || [];
@@ -71,7 +73,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 
     res.json({ weekStart, todos, notes, noteSheets });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 
@@ -118,13 +120,14 @@ router.post('/todo', async (req: AuthenticatedRequest, res) => {
         newTodo.id = insertRes.rows[0].id;
         newTodo.dueDate = insertRes.rows[0].dueDate || formattedDueDate;
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (process.env.NODE_ENV === 'production') throw e;
       console.warn('PostgreSQL todo insert fallback to memory store');
     }
 
     res.json({ message: 'Todo item added', todo: newTodo });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 
@@ -223,7 +226,8 @@ router.patch('/:id', async (req: AuthenticatedRequest, res) => {
             updated = true;
           }
         }
-      } catch (e) {
+      } catch (e: any) {
+        if (process.env.NODE_ENV === 'production') throw e;
         console.warn('PostgreSQL todo patch fallback to memory store:', e);
       }
     }
@@ -234,7 +238,7 @@ router.patch('/:id', async (req: AuthenticatedRequest, res) => {
 
     res.json({ message: 'Todo updated successfully' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 
@@ -263,9 +267,10 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
         [id, userId]
       );
       if (delRes && typeof delRes.rowCount === 'number') {
-        deleted = delRes.rowCount > 0;
+        deleted = delRes.rowCount > 0 || deleted;
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (process.env.NODE_ENV === 'production') throw e;
       console.warn('PostgreSQL todo delete fallback to memory store');
     }
 
@@ -275,7 +280,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
 
     res.json({ message: 'Todo item deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 
@@ -318,13 +323,14 @@ router.post('/notes', async (req: AuthenticatedRequest, res) => {
           [userId, weekStart, legacyNotes]
         );
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (process.env.NODE_ENV === 'production') throw e;
       console.warn('PostgreSQL notes update fallback to memory store');
     }
 
     res.json({ message: 'Notes updated successfully', noteSheets });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 

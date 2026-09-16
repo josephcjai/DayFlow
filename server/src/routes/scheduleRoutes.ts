@@ -5,6 +5,7 @@ import { Router } from 'express';
 import { memoryStore, executeQuery } from '../db/db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { isValidDateRange } from '../utils/dateValidation.js';
+import { sendError } from '../utils/errorHandler.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -56,7 +57,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 
     res.json({ weekStart, slots });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 
@@ -136,8 +137,7 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
 
     res.json({ message: 'Slot saved successfully', slotKey, slot: slotObj });
   } catch (err: any) {
-    console.error('Error saving slot to PG:', err);
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 
@@ -173,9 +173,10 @@ router.delete('/slot', async (req: AuthenticatedRequest, res) => {
         [slotKey, weekStart, userId]
       );
       if (delRes && typeof delRes.rowCount === 'number') {
-        deleted = delRes.rowCount > 0;
+        deleted = delRes.rowCount > 0 || deleted;
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (process.env.NODE_ENV === 'production') throw e;
       console.warn('PostgreSQL schedule slot delete fallback');
     }
 
@@ -185,7 +186,7 @@ router.delete('/slot', async (req: AuthenticatedRequest, res) => {
 
     res.json({ message: 'Slot cleared successfully', slotKey });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 

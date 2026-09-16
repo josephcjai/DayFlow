@@ -1,6 +1,6 @@
 {
   "name": "dayflow-server",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "DayFlow Node.js Express REST API & PostgreSQL Backend",
   "main": "dist/server.js",
   "type": "module",
@@ -8,7 +8,8 @@
     "predev": "node ../scripts/freePorts.cjs 5000",
     "build": "tsc",
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts"
+    "dev": "tsx watch src/server.ts",
+    "migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {
     "@types/swagger-ui-express": "^4.1.8",
@@ -17,6 +18,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "google-auth-library": "^11.0.2",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.5",
     "swagger-ui-express": "^5.0.1"
@@ -25,6 +27,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/helmet": "^0.0.48",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.12.7",
     "@types/pg": "^8.11.5",

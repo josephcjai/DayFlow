@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { memoryStore, executeQuery } from '../db/db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { isValidDateRange } from '../utils/dateValidation.js';
+import { sendError } from '../utils/errorHandler.js';
 
 const router = Router();
 
@@ -29,7 +30,8 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
         [userId, weekStart]
       );
       habits = resPg.rows;
-    } catch (e) {
+    } catch (e: any) {
+      if (process.env.NODE_ENV === 'production') throw e;
       if (memoryStore.scheduleWeeks[`${userId}_${weekStart}`]) {
         habits = memoryStore.scheduleWeeks[`${userId}_${weekStart}`].habits || [];
       }
@@ -37,7 +39,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 
     res.json({ weekStart, habits });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 
@@ -83,13 +85,14 @@ router.post('/log', async (req: AuthenticatedRequest, res) => {
       if (insertRes.rows[0]) {
         newLog.id = insertRes.rows[0].id;
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (process.env.NODE_ENV === 'production') throw e;
       console.warn('PostgreSQL habit insert fallback to memory store');
     }
 
     res.json({ message: 'Habit logged successfully', habit: newLog });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 
@@ -115,9 +118,10 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
     try {
       const delRes = await executeQuery('DELETE FROM habit_logs WHERE id = $1 AND user_id = $2', [id, userId]);
       if (delRes && typeof delRes.rowCount === 'number') {
-        deleted = delRes.rowCount > 0;
+        deleted = delRes.rowCount > 0 || deleted;
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (process.env.NODE_ENV === 'production') throw e;
       console.warn('PostgreSQL habit delete fallback');
     }
 
@@ -127,7 +131,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
 
     res.json({ message: 'Habit log removed' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    sendError(res, 500, err);
   }
 });
 

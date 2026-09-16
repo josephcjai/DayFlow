@@ -10,61 +10,48 @@ dotenv.config();
 
 const { Pool } = pg;
 
+const isProd = process.env.NODE_ENV === 'production';
 const DB_PORT = parseInt(process.env.DB_PORT || '5433', 10);
 const DB_HOST = process.env.DB_HOST || 'localhost';
 const DB_NAME = process.env.DB_NAME || 'dayflow_db';
 const DB_USER = process.env.DB_USER || 'postgres';
 const DB_PASSWORD = process.env.DB_PASSWORD || 'postgres';
+const DB_POOL_MAX = parseInt(process.env.DB_POOL_MAX || '10', 10);
+
+const poolConfig: pg.PoolConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DB_SSL === 'true' || isProd ? { rejectUnauthorized: false } : false,
+      max: DB_POOL_MAX,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    }
+  : {
+      host: DB_HOST,
+      port: DB_PORT,
+      database: DB_NAME,
+      user: DB_USER,
+      password: DB_PASSWORD,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      max: DB_POOL_MAX,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    };
 
 // PostgreSQL Connection Pool
-export const pool = new Pool({
-  host: DB_HOST,
-  port: DB_PORT,
-  database: DB_NAME,
-  user: DB_USER,
-  password: DB_PASSWORD,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 3000,
-});
+export const pool = new Pool(poolConfig);
 
 // Handle idle client errors gracefully to prevent process crash on DB restarts or network blips
 pool.on('error', (err) => {
   console.error('⚠️ Unexpected error on idle PostgreSQL client pool:', err.message);
 });
 
-// Test PostgreSQL Connection & Ensure Migrations
-pool.connect(async (err, client, release) => {
-  if (err || !client) {
-    console.error(`❌ Connection error to PostgreSQL Database at ${DB_HOST}:${DB_PORT}:`, err ? err.message : 'No client available');
+// Verify PostgreSQL Connection on Startup
+pool.query('SELECT 1', (err) => {
+  if (err) {
+    console.error(`❌ Connection error to PostgreSQL Database at ${DB_HOST}:${DB_PORT}:`, err.message);
   } else {
     console.log(`✅ Connected directly to PostgreSQL Database ('${DB_NAME}' on ${DB_HOST}:${DB_PORT})!`);
-    try {
-      await client.query("ALTER TABLE schedule_weeks ADD COLUMN IF NOT EXISTS note_sheets JSONB DEFAULT '[]'::jsonb;");
-      await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS due_date DATE;");
-      await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'Medium';");
-      await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'General';");
-      await client.query("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;");
-      await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;");
-      await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;");
-      await client.query(`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_schedule_weeks_date_range') THEN
-            ALTER TABLE schedule_weeks ADD CONSTRAINT check_schedule_weeks_date_range CHECK (start_date BETWEEN '1800-01-01' AND '2200-12-31');
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_habit_logs_date_range') THEN
-            ALTER TABLE habit_logs ADD CONSTRAINT check_habit_logs_date_range CHECK (week_start BETWEEN '1800-01-01' AND '2200-12-31');
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_todo_items_date_range') THEN
-            ALTER TABLE todo_items ADD CONSTRAINT check_todo_items_date_range CHECK (due_date IS NULL OR (due_date BETWEEN '1800-01-01' AND '2200-12-31'));
-          END IF;
-        END $$;
-      `);
-    } catch (migErr: any) {
-      console.warn('PostgreSQL migration notice:', migErr.message);
-    }
-    release();
   }
 });
 

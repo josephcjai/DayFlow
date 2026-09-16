@@ -2,9 +2,11 @@
  * DayFlow REST API Client
  * Handles authentication & user-isolated database synchronization
  */
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? 'http://localhost:5000/api'
-  : '/api';
+const API_BASE = (typeof window !== 'undefined' && window.__DAYFLOW_API_URL__)
+  ? window.__DAYFLOW_API_URL__
+  : ((typeof window !== 'undefined' && window.location.protocol === 'http:' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '8080')
+    ? 'http://localhost:5000/api'
+    : '/api');
 
 function getAuthHeaders() {
   const token = localStorage.getItem('dayflow_token');
