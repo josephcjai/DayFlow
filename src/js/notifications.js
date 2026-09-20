@@ -5,10 +5,10 @@
  * - 30-Minute Schedule Slot transition, start, and wrap-up alerts
  * - Interactive in-app actionable toasts
  */
-import { STATE, formatDateISO, isSlotTimePassed } from './state.js?v=2.8.7';
-import { USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.7';
-import { openTaskModal } from './modal.js?v=2.8.7';
-import { showToast } from './utils.js?v=2.8.7';
+import { STATE, formatDateISO, isSlotTimePassed } from './state.js?v=2.8.8';
+import { USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.8';
+import { openTaskModal } from './modal.js?v=2.8.8';
+import { showToast } from './utils.js?v=2.8.8';
 
 let audioCtx = null;
 let heartbeatTimer = null;

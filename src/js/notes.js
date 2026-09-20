@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.7';
-import { ApiClient } from './apiClient.js?v=2.8.7';
-import { escapeHtml, showToast } from './utils.js?v=2.8.7';
-import { TIME_SLOTS } from './grid.js?v=2.8.7';
-import { parseMarkdown } from './markdown.js?v=2.8.7';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.8';
+import { ApiClient } from './apiClient.js?v=2.8.8';
+import { escapeHtml, showToast } from './utils.js?v=2.8.8';
+import { TIME_SLOTS } from './grid.js?v=2.8.8';
+import { parseMarkdown } from './markdown.js?v=2.8.8';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
@@ -1237,24 +1237,58 @@ export function setSheetContent(sheet, text) {
   }
 }
 
+// Dirty state tracking to prevent redundant, blocking network saves on pure navigation (Finding 08)
+export let isNotesDirty = false;
+let cancelAutosaveCallback = null;
+
+export function markNotesDirty() {
+  isNotesDirty = true;
+}
+
+export function clearNotesDirty() {
+  isNotesDirty = false;
+}
+
+export function isDirtyNotes() {
+  return isNotesDirty;
+}
+
+export function setCancelAutosaveCallback(fn) {
+  cancelAutosaveCallback = fn;
+}
+
 export async function flushCurrentNoteEditor() {
+  if (cancelAutosaveCallback) {
+    cancelAutosaveCallback();
+  }
+
   const ta = document.getElementById('weeklyNotesTextarea');
-  if (!ta) return;
   const currentActive = getActiveSheet();
-  if (currentActive) {
+
+  // Dirty check: if neither the dirty flag nor textarea content differs from the active sheet,
+  // return immediately with zero blocking network calls
+  const hasContentChanged = ta && currentActive && ta.value !== getSheetContent(currentActive);
+  if (!isNotesDirty && !hasContentChanged) {
+    return;
+  }
+
+  if (ta && currentActive) {
     setSheetContent(currentActive, ta.value);
-    saveStateToStorage();
-    const weekKey = getWeekKey(STATE.currentWeekStart);
-    const weekData = getCurrentWeekData();
-    const savedStatus = document.getElementById('notesSavedStatus');
-    if (savedStatus) savedStatus.textContent = 'Saving...';
-    try {
-      await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
-      if (savedStatus) savedStatus.textContent = 'Saved';
-    } catch (err) {
-      console.warn('Failed to flush notes to API:', err);
-      if (savedStatus) savedStatus.textContent = 'Save failed';
-    }
+  }
+  saveStateToStorage();
+  isNotesDirty = false;
+
+  const weekKey = getWeekKey(STATE.currentWeekStart);
+  const weekData = getCurrentWeekData();
+  const savedStatus = document.getElementById('notesSavedStatus');
+  if (savedStatus) savedStatus.textContent = 'Saving...';
+  try {
+    await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+    if (savedStatus) savedStatus.textContent = 'Saved';
+  } catch (err) {
+    isNotesDirty = true; // Retain dirty flag on failure so subsequent actions retry
+    console.warn('Failed to flush notes to API:', err);
+    if (savedStatus) savedStatus.textContent = 'Save failed';
   }
 }
 
@@ -1315,7 +1349,10 @@ export function renderNoteSheetsTabs(tabBarEl, textarea, previewEl, wordCountEl)
       // Flush current editor content to outgoing sheet
       const outgoing = sheets.find(s => s.id === activeSheetId);
       if (outgoing && ta) {
-        setSheetContent(outgoing, ta.value);
+        if (ta.value !== getSheetContent(outgoing)) {
+          setSheetContent(outgoing, ta.value);
+          isNotesDirty = true;
+        }
       }
 
       activeSheetId = sheet.id;
@@ -1436,6 +1473,7 @@ export function initMarkdownScratchpad(domElements) {
 
   // Live input update for preview and word count
   ta.addEventListener('input', () => {
+    isNotesDirty = true;
     updateMarkdownPreview(ta, preview, wordCount);
   });
 

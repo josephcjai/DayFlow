@@ -28,6 +28,9 @@ function checkUnauthorized(res) {
   return false;
 }
 
+// Serialized promise queue per weekStart to guarantee strict FIFO delivery of note updates
+const notesSaveChains = new Map();
+
 export const ApiClient = {
   async register(email, password, displayName) {
     const res = await fetch(`${API_BASE}/auth/register`, {
@@ -279,17 +282,30 @@ export const ApiClient = {
   },
 
   async saveNotes(weekStart, notes, noteSheets = null) {
+    const key = weekStart || 'default';
+    const prev = notesSaveChains.get(key) || Promise.resolve();
+    const current = prev.catch(() => {}).then(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/todos/notes`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ weekStart, notes, noteSheets })
+        });
+        if (checkUnauthorized(res)) return false;
+        return res.ok;
+      } catch (e) {
+        console.log('Saved notes offline');
+        return false;
+      }
+    });
+
+    notesSaveChains.set(key, current);
     try {
-      const res = await fetch(`${API_BASE}/todos/notes`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ weekStart, notes, noteSheets })
-      });
-      if (checkUnauthorized(res)) return false;
-      return res.ok;
-    } catch (e) {
-      console.log('Saved notes offline');
-      return false;
+      return await current;
+    } finally {
+      if (notesSaveChains.get(key) === current) {
+        notesSaveChains.delete(key);
+      }
     }
   }
 };

@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js?v=2.8.7';
+import { ApiClient } from './apiClient.js?v=2.8.8';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),

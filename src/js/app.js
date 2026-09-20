@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.8.7';
-import { ApiClient } from './apiClient.js?v=2.8.7';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.7';
-import { initModal, openTaskModal } from './modal.js?v=2.8.7';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.7';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.7';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent } from './notes.js?v=2.8.7';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.7';
-import { showToast } from './utils.js?v=2.8.7';
+} from './state.js?v=2.8.8';
+import { ApiClient } from './apiClient.js?v=2.8.8';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.8';
+import { initModal, openTaskModal } from './modal.js?v=2.8.8';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.8';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.8';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback } from './notes.js?v=2.8.8';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.8';
+import { showToast } from './utils.js?v=2.8.8';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.8.7';
+} from './notifications.js?v=2.8.8';
 
 const DOM = {};
 
@@ -654,23 +654,23 @@ function bindEvents() {
     initMarkdownScratchpad(DOM);
     let notesAutosaveTimer = null;
 
+    setCancelAutosaveCallback(() => {
+      if (notesAutosaveTimer) {
+        clearTimeout(notesAutosaveTimer);
+        notesAutosaveTimer = null;
+      }
+    });
+
     const flushNotesToApi = async () => {
       if (notesAutosaveTimer) {
         clearTimeout(notesAutosaveTimer);
         notesAutosaveTimer = null;
       }
-      const weekKey = getWeekKey(STATE.currentWeekStart);
-      const weekData = getCurrentWeekData();
-      try {
-        await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
-        DOM.notesSavedStatus.textContent = 'Saved';
-      } catch (err) {
-        console.warn('Autosave notes failed:', err);
-        DOM.notesSavedStatus.textContent = 'Save failed';
-      }
+      await flushCurrentNoteEditor();
     };
 
     DOM.weeklyNotesTextarea.addEventListener('input', () => {
+      markNotesDirty();
       const weekData = getCurrentWeekData();
       const sheets = weekData.noteSheets || [];
       const currentActive = sheets.find(s => s.id === getActiveSheetId()) || sheets[0];
