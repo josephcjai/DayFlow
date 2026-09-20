@@ -35,7 +35,7 @@ services:
       DB_NAME: ${DB_NAME:-dayflow_db}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-dayflow_prod_secret_key_2026_94bec832_secure}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set — see server/.env.example}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://localhost,https://127.0.0.1}
     depends_on:
       postgres:

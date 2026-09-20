@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js?v=2.8.6';
+import { ApiClient } from './apiClient.js?v=2.8.7';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -270,21 +270,22 @@ export async function syncWeekDataWithApi(onRender) {
     for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
       mondaySet.add(getWeekKey(d));
     }
-    for (const mKey of mondaySet) {
-      if (mKey !== weekKey) {
-        if (!STATE.scheduleData[mKey]) {
-          STATE.scheduleData[mKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
-        }
-        const otherSlots = await ApiClient.fetchWeekSchedule(mKey);
-        if (otherSlots !== null && typeof otherSlots === 'object') {
-          STATE.scheduleData[mKey].slots = otherSlots;
-        }
-        const otherHabits = await ApiClient.fetchHabits(mKey);
-        if (otherHabits !== null && Array.isArray(otherHabits)) {
-          STATE.scheduleData[mKey].habits = otherHabits;
-        }
+    const otherKeys = Array.from(mondaySet).filter(mKey => mKey !== weekKey);
+    await Promise.all(otherKeys.map(async (mKey) => {
+      if (!STATE.scheduleData[mKey]) {
+        STATE.scheduleData[mKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
       }
-    }
+      const [otherSlots, otherHabits] = await Promise.all([
+        ApiClient.fetchWeekSchedule(mKey),
+        ApiClient.fetchHabits(mKey)
+      ]);
+      if (otherSlots !== null && typeof otherSlots === 'object') {
+        STATE.scheduleData[mKey].slots = otherSlots;
+      }
+      if (otherHabits !== null && Array.isArray(otherHabits)) {
+        STATE.scheduleData[mKey].habits = otherHabits;
+      }
+    }));
   }
 
   saveStateToStorage();

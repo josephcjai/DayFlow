@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.6';
-import { ApiClient } from './apiClient.js?v=2.8.6';
-import { escapeHtml, showToast } from './utils.js?v=2.8.6';
-import { TIME_SLOTS } from './grid.js?v=2.8.6';
-import { parseMarkdown } from './markdown.js?v=2.8.6';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.7';
+import { ApiClient } from './apiClient.js?v=2.8.7';
+import { escapeHtml, showToast } from './utils.js?v=2.8.7';
+import { TIME_SLOTS } from './grid.js?v=2.8.7';
+import { parseMarkdown } from './markdown.js?v=2.8.7';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
@@ -1237,7 +1237,7 @@ export function setSheetContent(sheet, text) {
   }
 }
 
-export function flushCurrentNoteEditor() {
+export async function flushCurrentNoteEditor() {
   const ta = document.getElementById('weeklyNotesTextarea');
   if (!ta) return;
   const currentActive = getActiveSheet();
@@ -1246,7 +1246,15 @@ export function flushCurrentNoteEditor() {
     saveStateToStorage();
     const weekKey = getWeekKey(STATE.currentWeekStart);
     const weekData = getCurrentWeekData();
-    ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+    const savedStatus = document.getElementById('notesSavedStatus');
+    if (savedStatus) savedStatus.textContent = 'Saving...';
+    try {
+      await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+      if (savedStatus) savedStatus.textContent = 'Saved';
+    } catch (err) {
+      console.warn('Failed to flush notes to API:', err);
+      if (savedStatus) savedStatus.textContent = 'Save failed';
+    }
   }
 }
 

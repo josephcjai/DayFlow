@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.8.6';
-import { ApiClient } from './apiClient.js?v=2.8.6';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.6';
-import { initModal, openTaskModal } from './modal.js?v=2.8.6';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.6';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.6';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent } from './notes.js?v=2.8.6';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.6';
-import { showToast } from './utils.js?v=2.8.6';
+} from './state.js?v=2.8.7';
+import { ApiClient } from './apiClient.js?v=2.8.7';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.7';
+import { initModal, openTaskModal } from './modal.js?v=2.8.7';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.7';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.7';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent } from './notes.js?v=2.8.7';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.7';
+import { showToast } from './utils.js?v=2.8.7';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.8.6';
+} from './notifications.js?v=2.8.7';
 
 const DOM = {};
 
@@ -342,6 +342,7 @@ function getSavedActiveView() {
 }
 
 async function switchView(view, syncBackend = true) {
+  await flushCurrentNoteEditor();
   if (!VALID_VIEWS.includes(view)) view = 'grid';
   STATE.activeView = view;
 
@@ -465,7 +466,7 @@ function bindEvents() {
   // Schedule View Granularity Selector (Day / Week / Month)
   DOM.viewModeBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
-      flushCurrentNoteEditor();
+      await flushCurrentNoteEditor();
       const newMode = btn.dataset.mode;
       setScheduleViewMode(newMode);
       if (newMode === 'day') {
@@ -479,15 +480,15 @@ function bindEvents() {
   });
 
   // Navigation Buttons
-  DOM.prevWeekBtn.addEventListener('click', () => navigateDate('prev'));
-  DOM.nextWeekBtn.addEventListener('click', () => navigateDate('next'));
-  DOM.todayBtn.addEventListener('click', () => navigateDate('today'));
+  DOM.prevWeekBtn.addEventListener('click', async () => await navigateDate('prev'));
+  DOM.nextWeekBtn.addEventListener('click', async () => await navigateDate('next'));
+  DOM.todayBtn.addEventListener('click', async () => await navigateDate('today'));
 
   // Date Picker
   DOM.weekDatePicker.addEventListener('change', async (e) => {
     const val = e.target.value;
     if (val) {
-      flushCurrentNoteEditor();
+      await flushCurrentNoteEditor();
       const [y, m, d] = val.split('-').map(Number);
       if (y < 1800 || y > 2200) {
         alert('Please select a date between year 1800 and 2200.');
@@ -653,15 +654,20 @@ function bindEvents() {
     initMarkdownScratchpad(DOM);
     let notesAutosaveTimer = null;
 
-    const flushNotesToApi = () => {
+    const flushNotesToApi = async () => {
       if (notesAutosaveTimer) {
         clearTimeout(notesAutosaveTimer);
         notesAutosaveTimer = null;
       }
       const weekKey = getWeekKey(STATE.currentWeekStart);
       const weekData = getCurrentWeekData();
-      ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
-      DOM.notesSavedStatus.textContent = 'Saved';
+      try {
+        await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+        DOM.notesSavedStatus.textContent = 'Saved';
+      } catch (err) {
+        console.warn('Autosave notes failed:', err);
+        DOM.notesSavedStatus.textContent = 'Save failed';
+      }
     };
 
     DOM.weeklyNotesTextarea.addEventListener('input', () => {
@@ -681,8 +687,12 @@ function bindEvents() {
       notesAutosaveTimer = setTimeout(flushNotesToApi, 600);
     });
 
-    DOM.weeklyNotesTextarea.addEventListener('blur', () => {
-      flushCurrentNoteEditor();
+    DOM.weeklyNotesTextarea.addEventListener('blur', async () => {
+      if (notesAutosaveTimer) {
+        clearTimeout(notesAutosaveTimer);
+        notesAutosaveTimer = null;
+      }
+      await flushCurrentNoteEditor();
     });
   }
 
@@ -1208,7 +1218,7 @@ function showContextMenu(x, y, slotKey, td) {
 }
 
 async function navigateDate(direction) {
-  flushCurrentNoteEditor();
+  await flushCurrentNoteEditor();
   if (direction === 'today') {
     const now = new Date();
     STATE.selectedDate = now;
@@ -1241,7 +1251,7 @@ async function navigateDate(direction) {
 }
 
 async function handleSwitchToDayView(targetDateStr) {
-  flushCurrentNoteEditor();
+  await flushCurrentNoteEditor();
   const [y, m, d] = targetDateStr.split('-').map(Number);
   const targetDate = new Date(y, m - 1, d);
   STATE.selectedDate = targetDate;
