@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.8.9';
-import { ApiClient } from './apiClient.js?v=2.8.9';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.9';
-import { initModal, openTaskModal } from './modal.js?v=2.8.9';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.9';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.9';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback } from './notes.js?v=2.8.9';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.9';
-import { showToast } from './utils.js?v=2.8.9';
+} from './state.js?v=2.8.10';
+import { ApiClient } from './apiClient.js?v=2.8.10';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.10';
+import { initModal, openTaskModal } from './modal.js?v=2.8.10';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.10';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.10';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.8.10';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.10';
+import { showToast } from './utils.js?v=2.8.10';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.8.9';
+} from './notifications.js?v=2.8.10';
 
 const DOM = {};
 
@@ -670,10 +670,13 @@ function bindEvents() {
     };
 
     DOM.weeklyNotesTextarea.addEventListener('input', () => {
-      markNotesDirty();
+      const weekKey = getWeekKey(STATE.currentWeekStart);
+      const sheetId = getActiveSheetId();
+      const dateKey = getSelectedDateISO();
+      markNotesDirty({ weekKey, sheetId, dateKey });
       const weekData = getCurrentWeekData();
       const sheets = weekData.noteSheets || [];
-      const currentActive = sheets.find(s => s.id === getActiveSheetId()) || sheets[0];
+      const currentActive = sheets.find(s => s.id === sheetId) || sheets[0];
       if (currentActive) {
         setSheetContent(currentActive, DOM.weeklyNotesTextarea.value);
       } else {

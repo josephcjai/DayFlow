@@ -9,11 +9,13 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, isDirtyNotes } from './state.js?v=2.8.9';
-import { ApiClient } from './apiClient.js?v=2.8.9';
-import { escapeHtml, showToast } from './utils.js?v=2.8.9';
-import { TIME_SLOTS } from './grid.js?v=2.8.9';
-import { parseMarkdown } from './markdown.js?v=2.8.9';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes } from './state.js?v=2.8.10';
+import { ApiClient } from './apiClient.js?v=2.8.10';
+import { escapeHtml, showToast } from './utils.js?v=2.8.10';
+import { TIME_SLOTS } from './grid.js?v=2.8.10';
+import { parseMarkdown } from './markdown.js?v=2.8.10';
+
+let currentEditorContext = null; // { weekKey, dateKey, sheetId }
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
@@ -1055,11 +1057,32 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
   renderNoteSheetsTabs();
   const activeSheet = getActiveSheet();
   if (weeklyNotesTextarea) {
+    const currentWeekKey = getWeekKey(STATE.currentWeekStart);
+    const currentDateKey = getSelectedDateISO();
+    const currentSheetId = activeSheet?.id || 'journal';
+
+    const isSameContext = (
+      currentEditorContext !== null &&
+      currentEditorContext.weekKey === currentWeekKey &&
+      currentEditorContext.dateKey === currentDateKey &&
+      currentEditorContext.sheetId === currentSheetId
+    );
+
     const isTaFocused = typeof document !== 'undefined' && document.activeElement === weeklyNotesTextarea;
-    // Guard against clobbering an actively typed or dirty editor during background re-renders (Finding 06)
-    if (!isTaFocused && !STATE.isNotesDirty) {
+
+    // Only protect the textarea from being overwritten if we are rendering for the exact same context
+    // AND the user is actively focused or has unsaved edits in it (Finding 06).
+    // If context changed (new day, new sheet, new week), ALWAYS load that sheet's content (Findings 10, 11).
+    if (isSameContext && (isTaFocused || STATE.notesDirty)) {
+      // Keep active user edits during background re-renders
+    } else {
       weeklyNotesTextarea.value = activeSheet ? getSheetContent(activeSheet) : (weekData.notes || '');
       updateMarkdownPreview(weeklyNotesTextarea);
+      currentEditorContext = {
+        weekKey: currentWeekKey,
+        dateKey: currentDateKey,
+        sheetId: currentSheetId
+      };
     }
   }
 
@@ -1242,7 +1265,7 @@ export function setSheetContent(sheet, text) {
 }
 
 // Dirty state tracking to prevent redundant, blocking network saves on pure navigation (Finding 08)
-export { markNotesDirty, clearNotesDirty, isDirtyNotes };
+export { markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, isDirtyNotes };
 let cancelAutosaveCallback = null;
 
 export function setCancelAutosaveCallback(fn) {
@@ -1257,10 +1280,10 @@ export async function flushCurrentNoteEditor() {
   const ta = document.getElementById('weeklyNotesTextarea');
   const currentActive = getActiveSheet();
 
-  // Dirty check: if neither the dirty flag nor textarea content differs from the active sheet,
-  // return immediately with zero blocking network calls
+  // Dirty check: if neither dirty nor failed save, and textarea matches active sheet,
+  // return immediately with zero blocking network calls (Finding 08)
   const hasContentChanged = ta && currentActive && ta.value !== getSheetContent(currentActive);
-  if (!STATE.isNotesDirty && !hasContentChanged) {
+  if (!STATE.notesDirty && !STATE.notesSaveFailed && !hasContentChanged) {
     return;
   }
 
@@ -1274,19 +1297,25 @@ export async function flushCurrentNoteEditor() {
   const savedStatus = document.getElementById('notesSavedStatus');
   if (savedStatus) savedStatus.textContent = 'Saving...';
 
+  // Clear in-memory dirty flag as content is now captured in weekData and in-flight
+  clearNotesDirty();
+  setNotesInFlight(weekKey);
+
   try {
     const ok = await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
     if (ok) {
-      clearNotesDirty();
+      clearNotesSaveFailed();
       if (savedStatus) savedStatus.textContent = 'Saved';
     } else {
-      markNotesDirty(); // Retain dirty flag on failure so subsequent actions retry (Finding 09)
+      markNotesSaveFailed(weekKey); // Retain failed marker so subsequent actions retry (Finding 09)
       if (savedStatus) savedStatus.textContent = 'Save failed';
     }
   } catch (err) {
-    markNotesDirty(); // Retain dirty flag on failure so subsequent actions retry (Finding 09)
+    markNotesSaveFailed(weekKey); // Retain failed marker so subsequent actions retry (Finding 09)
     console.warn('Failed to flush notes to API:', err);
     if (savedStatus) savedStatus.textContent = 'Save failed';
+  } finally {
+    clearNotesInFlight();
   }
 }
 
@@ -1344,12 +1373,17 @@ export function renderNoteSheetsTabs(tabBarEl, textarea, previewEl, wordCountEl)
       if (e.target.closest('.note-sheet-tab-delete')) return;
       if (sheet.id === activeSheetId) return;
 
+      if (cancelAutosaveCallback) {
+        cancelAutosaveCallback();
+      }
+
       // Flush current editor content to outgoing sheet
       const outgoing = sheets.find(s => s.id === activeSheetId);
       if (outgoing && ta) {
         if (ta.value !== getSheetContent(outgoing)) {
           setSheetContent(outgoing, ta.value);
-          isNotesDirty = true;
+          const weekKey = getWeekKey(STATE.currentWeekStart);
+          markNotesDirty({ weekKey, sheetId: outgoing.id, dateKey: getSelectedDateISO() });
         }
       }
 
@@ -1357,6 +1391,11 @@ export function renderNoteSheetsTabs(tabBarEl, textarea, previewEl, wordCountEl)
       if (ta) {
         ta.value = getSheetContent(sheet);
       }
+      currentEditorContext = {
+        weekKey: getWeekKey(STATE.currentWeekStart),
+        dateKey: getSelectedDateISO(),
+        sheetId: sheet.id
+      };
       updateMarkdownPreview(ta, preview, wordCount);
       saveStateToStorage();
       renderNoteSheetsTabs(tabBar, ta, preview, wordCount);
@@ -1471,7 +1510,10 @@ export function initMarkdownScratchpad(domElements) {
 
   // Live input update for preview and word count
   ta.addEventListener('input', () => {
-    isNotesDirty = true;
+    const weekKey = getWeekKey(STATE.currentWeekStart);
+    const sheetId = getActiveSheetId();
+    const dateKey = getSelectedDateISO();
+    markNotesDirty({ weekKey, sheetId, dateKey });
     updateMarkdownPreview(ta, preview, wordCount);
   });
 
@@ -1666,6 +1708,9 @@ export function initMarkdownScratchpad(domElements) {
   if (confirmDeleteNoteSheetBtn) {
     confirmDeleteNoteSheetBtn.addEventListener('click', () => {
       if (!pendingDeleteSheet) return;
+      if (cancelAutosaveCallback) {
+        cancelAutosaveCallback();
+      }
       const sheet = pendingDeleteSheet;
       const weekData = getCurrentWeekData();
       weekData.noteSheets = (weekData.noteSheets || []).filter(s => s.id !== sheet.id);
@@ -1676,6 +1721,11 @@ export function initMarkdownScratchpad(domElements) {
       if (ta) {
         ta.value = nextActive ? getSheetContent(nextActive) : '';
       }
+      currentEditorContext = {
+        weekKey: getWeekKey(STATE.currentWeekStart),
+        dateKey: getSelectedDateISO(),
+        sheetId: activeSheetId
+      };
       updateMarkdownPreview(ta, preview, wordCount);
       saveStateToStorage();
       const weekKey = getWeekKey(STATE.currentWeekStart);
@@ -1691,6 +1741,10 @@ export function initMarkdownScratchpad(domElements) {
       if (!title) {
         if (newSheetTitleInput) newSheetTitleInput.focus();
         return;
+      }
+
+      if (cancelAutosaveCallback) {
+        cancelAutosaveCallback();
       }
 
       // Flush current active sheet
@@ -1716,6 +1770,11 @@ export function initMarkdownScratchpad(domElements) {
       if (ta) {
         ta.value = '';
       }
+      currentEditorContext = {
+        weekKey: getWeekKey(STATE.currentWeekStart),
+        dateKey: getSelectedDateISO(),
+        sheetId: newSheetId
+      };
       updateMarkdownPreview(ta, preview, wordCount);
       saveStateToStorage();
 

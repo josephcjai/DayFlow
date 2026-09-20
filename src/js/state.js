@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js?v=2.8.9';
+import { ApiClient } from './apiClient.js?v=2.8.10';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -17,19 +17,48 @@ export const STATE = {
   undoStack: [],
   redoStack: [],
   scheduleData: {},
-  isNotesDirty: false
+  notesDirty: false,
+  notesDirtyWeekKey: null,
+  notesDirtyContext: null,
+  notesSaveFailed: false,
+  notesSaveFailedWeekKey: null,
+  notesInFlightWeekKey: null
 };
 
-export function markNotesDirty() {
-  STATE.isNotesDirty = true;
+export function markNotesDirty(context) {
+  STATE.notesDirty = true;
+  if (context) {
+    STATE.notesDirtyContext = { ...context };
+    if (context.weekKey) STATE.notesDirtyWeekKey = context.weekKey;
+  }
 }
 
 export function clearNotesDirty() {
-  STATE.isNotesDirty = false;
+  STATE.notesDirty = false;
+  STATE.notesDirtyContext = null;
+  STATE.notesDirtyWeekKey = null;
+}
+
+export function markNotesSaveFailed(weekKey) {
+  STATE.notesSaveFailed = true;
+  if (weekKey) STATE.notesSaveFailedWeekKey = weekKey;
+}
+
+export function clearNotesSaveFailed() {
+  STATE.notesSaveFailed = false;
+  STATE.notesSaveFailedWeekKey = null;
+}
+
+export function setNotesInFlight(weekKey) {
+  STATE.notesInFlightWeekKey = weekKey;
+}
+
+export function clearNotesInFlight() {
+  STATE.notesInFlightWeekKey = null;
 }
 
 export function isDirtyNotes() {
-  return !!STATE.isNotesDirty;
+  return !!(STATE.notesDirty || STATE.notesSaveFailed);
 }
 
 const MAX_UNDO_DEPTH = 30;
@@ -271,13 +300,16 @@ export async function syncWeekDataWithApi(onRender) {
   if (apiTodosNotes !== null && typeof apiTodosNotes === 'object') {
     if (apiTodosNotes.todos) weekData.todos = apiTodosNotes.todos;
 
-    // Read-clobbers-local-edit guard (Addresses Finding 06):
-    // Do NOT overwrite weekData.notes or weekData.noteSheets if the user has unsaved local edits
-    const ta = typeof document !== 'undefined' ? document.getElementById('weeklyNotesTextarea') : null;
-    const isTaActive = ta && (document.activeElement === ta || (STATE.isNotesDirty && ta.value.trim().length > 0));
-    const hasUnsavedEdits = STATE.isNotesDirty || isTaActive;
+    // Scoped sync guard (Addresses Findings 06, 10, 11):
+    // Only skip updating notes if THIS week has pending local edits, a failed save needing retry,
+    // or an in-flight save request. Never block other weeks, and never block purely on focus.
+    const hasUnsavedOrInFlight = (
+      (STATE.notesDirty && STATE.notesDirtyWeekKey === weekKey) ||
+      (STATE.notesSaveFailed && STATE.notesSaveFailedWeekKey === weekKey) ||
+      (STATE.notesInFlightWeekKey === weekKey)
+    );
 
-    if (!hasUnsavedEdits) {
+    if (!hasUnsavedOrInFlight) {
       if (apiTodosNotes.notes !== undefined) weekData.notes = apiTodosNotes.notes;
       if (apiTodosNotes.noteSheets !== undefined && Array.isArray(apiTodosNotes.noteSheets)) {
         weekData.noteSheets = apiTodosNotes.noteSheets;
