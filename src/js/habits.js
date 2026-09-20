@@ -6,9 +6,9 @@
  * 3. Confirmation warning before deleting a habit history log entry
  * Robust row deletion, date & time logging for past dates, and Day/Week view filtering
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey, formatDateDisplay } from './state.js?v=2.8.8';
-import { ApiClient } from './apiClient.js?v=2.8.8';
-import { escapeHtml, getPriorityPoints } from './utils.js?v=2.8.8';
+import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey, formatDateDisplay } from './state.js?v=2.8.9';
+import { ApiClient } from './apiClient.js?v=2.8.9';
+import { escapeHtml, getPriorityPoints } from './utils.js?v=2.8.9';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🎯', name: 'Deep Focus Block', pts: 15, label: 'Deep Work / Study Complete' },

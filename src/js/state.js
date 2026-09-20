@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js?v=2.8.8';
+import { ApiClient } from './apiClient.js?v=2.8.9';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -17,7 +17,20 @@ export const STATE = {
   undoStack: [],
   redoStack: [],
   scheduleData: {},
+  isNotesDirty: false
 };
+
+export function markNotesDirty() {
+  STATE.isNotesDirty = true;
+}
+
+export function clearNotesDirty() {
+  STATE.isNotesDirty = false;
+}
+
+export function isDirtyNotes() {
+  return !!STATE.isNotesDirty;
+}
 
 const MAX_UNDO_DEPTH = 30;
 
@@ -240,22 +253,35 @@ export async function syncWeekDataWithApi(onRender) {
   const weekKey = getWeekKey(STATE.currentWeekStart);
   const weekData = getCurrentWeekData();
 
-  const apiSlots = await ApiClient.fetchWeekSchedule(weekKey);
+  // Run all 3 fetches concurrently to shrink the network latency window (Addresses Finding 06)
+  const [apiSlots, apiHabits, apiTodosNotes] = await Promise.all([
+    ApiClient.fetchWeekSchedule(weekKey),
+    ApiClient.fetchHabits(weekKey),
+    ApiClient.fetchTodosAndNotes(weekKey)
+  ]);
+
   if (apiSlots !== null && typeof apiSlots === 'object') {
     weekData.slots = apiSlots;
   }
 
-  const apiHabits = await ApiClient.fetchHabits(weekKey);
   if (apiHabits !== null && Array.isArray(apiHabits)) {
     weekData.habits = apiHabits;
   }
 
-  const apiTodosNotes = await ApiClient.fetchTodosAndNotes(weekKey);
   if (apiTodosNotes !== null && typeof apiTodosNotes === 'object') {
     if (apiTodosNotes.todos) weekData.todos = apiTodosNotes.todos;
-    if (apiTodosNotes.notes !== undefined) weekData.notes = apiTodosNotes.notes;
-    if (apiTodosNotes.noteSheets !== undefined && Array.isArray(apiTodosNotes.noteSheets)) {
-      weekData.noteSheets = apiTodosNotes.noteSheets;
+
+    // Read-clobbers-local-edit guard (Addresses Finding 06):
+    // Do NOT overwrite weekData.notes or weekData.noteSheets if the user has unsaved local edits
+    const ta = typeof document !== 'undefined' ? document.getElementById('weeklyNotesTextarea') : null;
+    const isTaActive = ta && (document.activeElement === ta || (STATE.isNotesDirty && ta.value.trim().length > 0));
+    const hasUnsavedEdits = STATE.isNotesDirty || isTaActive;
+
+    if (!hasUnsavedEdits) {
+      if (apiTodosNotes.notes !== undefined) weekData.notes = apiTodosNotes.notes;
+      if (apiTodosNotes.noteSheets !== undefined && Array.isArray(apiTodosNotes.noteSheets)) {
+        weekData.noteSheets = apiTodosNotes.noteSheets;
+      }
     }
   }
 

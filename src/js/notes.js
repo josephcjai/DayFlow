@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.8';
-import { ApiClient } from './apiClient.js?v=2.8.8';
-import { escapeHtml, showToast } from './utils.js?v=2.8.8';
-import { TIME_SLOTS } from './grid.js?v=2.8.8';
-import { parseMarkdown } from './markdown.js?v=2.8.8';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, isDirtyNotes } from './state.js?v=2.8.9';
+import { ApiClient } from './apiClient.js?v=2.8.9';
+import { escapeHtml, showToast } from './utils.js?v=2.8.9';
+import { TIME_SLOTS } from './grid.js?v=2.8.9';
+import { parseMarkdown } from './markdown.js?v=2.8.9';
 
 let activeTodoFilter = 'all';
 let todoModalsInitialized = false;
@@ -1055,8 +1055,12 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
   renderNoteSheetsTabs();
   const activeSheet = getActiveSheet();
   if (weeklyNotesTextarea) {
-    weeklyNotesTextarea.value = activeSheet ? getSheetContent(activeSheet) : (weekData.notes || '');
-    updateMarkdownPreview(weeklyNotesTextarea);
+    const isTaFocused = typeof document !== 'undefined' && document.activeElement === weeklyNotesTextarea;
+    // Guard against clobbering an actively typed or dirty editor during background re-renders (Finding 06)
+    if (!isTaFocused && !STATE.isNotesDirty) {
+      weeklyNotesTextarea.value = activeSheet ? getSheetContent(activeSheet) : (weekData.notes || '');
+      updateMarkdownPreview(weeklyNotesTextarea);
+    }
   }
 
   // Event Listeners for checkboxes and deletes
@@ -1238,20 +1242,8 @@ export function setSheetContent(sheet, text) {
 }
 
 // Dirty state tracking to prevent redundant, blocking network saves on pure navigation (Finding 08)
-export let isNotesDirty = false;
+export { markNotesDirty, clearNotesDirty, isDirtyNotes };
 let cancelAutosaveCallback = null;
-
-export function markNotesDirty() {
-  isNotesDirty = true;
-}
-
-export function clearNotesDirty() {
-  isNotesDirty = false;
-}
-
-export function isDirtyNotes() {
-  return isNotesDirty;
-}
 
 export function setCancelAutosaveCallback(fn) {
   cancelAutosaveCallback = fn;
@@ -1268,7 +1260,7 @@ export async function flushCurrentNoteEditor() {
   // Dirty check: if neither the dirty flag nor textarea content differs from the active sheet,
   // return immediately with zero blocking network calls
   const hasContentChanged = ta && currentActive && ta.value !== getSheetContent(currentActive);
-  if (!isNotesDirty && !hasContentChanged) {
+  if (!STATE.isNotesDirty && !hasContentChanged) {
     return;
   }
 
@@ -1276,17 +1268,23 @@ export async function flushCurrentNoteEditor() {
     setSheetContent(currentActive, ta.value);
   }
   saveStateToStorage();
-  isNotesDirty = false;
 
   const weekKey = getWeekKey(STATE.currentWeekStart);
   const weekData = getCurrentWeekData();
   const savedStatus = document.getElementById('notesSavedStatus');
   if (savedStatus) savedStatus.textContent = 'Saving...';
+
   try {
-    await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
-    if (savedStatus) savedStatus.textContent = 'Saved';
+    const ok = await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
+    if (ok) {
+      clearNotesDirty();
+      if (savedStatus) savedStatus.textContent = 'Saved';
+    } else {
+      markNotesDirty(); // Retain dirty flag on failure so subsequent actions retry (Finding 09)
+      if (savedStatus) savedStatus.textContent = 'Save failed';
+    }
   } catch (err) {
-    isNotesDirty = true; // Retain dirty flag on failure so subsequent actions retry
+    markNotesDirty(); // Retain dirty flag on failure so subsequent actions retry (Finding 09)
     console.warn('Failed to flush notes to API:', err);
     if (savedStatus) savedStatus.textContent = 'Save failed';
   }
