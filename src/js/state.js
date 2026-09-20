@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient } from './apiClient.js?v=2.8.10';
+import { ApiClient } from './apiClient.js?v=2.8.11';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -21,9 +21,20 @@ export const STATE = {
   notesDirtyWeekKey: null,
   notesDirtyContext: null,
   notesSaveFailed: false,
-  notesSaveFailedWeekKey: null,
+  failedNotesWeekKeys: new Set(),
   notesInFlightWeekKey: null
 };
+
+export function saveFailedNotesWeeksToStorage() {
+  try {
+    const key = getUserStorageKey('dayflow_failed_notes_weeks');
+    if (STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0) {
+      localStorage.setItem(key, JSON.stringify(Array.from(STATE.failedNotesWeekKeys)));
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch (e) {}
+}
 
 export function markNotesDirty(context) {
   STATE.notesDirty = true;
@@ -41,12 +52,26 @@ export function clearNotesDirty() {
 
 export function markNotesSaveFailed(weekKey) {
   STATE.notesSaveFailed = true;
-  if (weekKey) STATE.notesSaveFailedWeekKey = weekKey;
+  if (weekKey) {
+    if (!STATE.failedNotesWeekKeys) STATE.failedNotesWeekKeys = new Set();
+    STATE.failedNotesWeekKeys.add(weekKey);
+    saveFailedNotesWeeksToStorage();
+  }
 }
 
-export function clearNotesSaveFailed() {
-  STATE.notesSaveFailed = false;
-  STATE.notesSaveFailedWeekKey = null;
+export function clearNotesSaveFailed(weekKey) {
+  if (weekKey) {
+    if (STATE.failedNotesWeekKeys) {
+      STATE.failedNotesWeekKeys.delete(weekKey);
+      saveFailedNotesWeeksToStorage();
+    }
+  } else {
+    if (STATE.failedNotesWeekKeys) {
+      STATE.failedNotesWeekKeys.clear();
+      saveFailedNotesWeeksToStorage();
+    }
+  }
+  STATE.notesSaveFailed = !!(STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0);
 }
 
 export function setNotesInFlight(weekKey) {
@@ -58,7 +83,7 @@ export function clearNotesInFlight() {
 }
 
 export function isDirtyNotes() {
-  return !!(STATE.notesDirty || STATE.notesSaveFailed);
+  return !!(STATE.notesDirty || STATE.notesSaveFailed || (STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0));
 }
 
 const MAX_UNDO_DEPTH = 30;
@@ -250,6 +275,18 @@ export function loadStateFromStorage() {
     if (savedMode && ['day', 'week', 'month'].includes(savedMode)) {
       STATE.scheduleViewMode = savedMode;
     }
+
+    const failedKey = getUserStorageKey('dayflow_failed_notes_weeks');
+    const savedFailed = localStorage.getItem(failedKey);
+    if (savedFailed) {
+      try {
+        const arr = JSON.parse(savedFailed);
+        if (Array.isArray(arr)) {
+          STATE.failedNotesWeekKeys = new Set(arr);
+          STATE.notesSaveFailed = STATE.failedNotesWeekKeys.size > 0;
+        }
+      } catch (e) {}
+    }
   } catch (e) {
     console.error('Failed to load DayFlow state:', e);
   }
@@ -300,12 +337,13 @@ export async function syncWeekDataWithApi(onRender) {
   if (apiTodosNotes !== null && typeof apiTodosNotes === 'object') {
     if (apiTodosNotes.todos) weekData.todos = apiTodosNotes.todos;
 
-    // Scoped sync guard (Addresses Findings 06, 10, 11):
+    // Scoped sync guard (Addresses Findings 06, 10, 11, 12):
     // Only skip updating notes if THIS week has pending local edits, a failed save needing retry,
     // or an in-flight save request. Never block other weeks, and never block purely on focus.
+    const isThisWeekFailed = !!(STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.has(weekKey));
     const hasUnsavedOrInFlight = (
       (STATE.notesDirty && STATE.notesDirtyWeekKey === weekKey) ||
-      (STATE.notesSaveFailed && STATE.notesSaveFailedWeekKey === weekKey) ||
+      isThisWeekFailed ||
       (STATE.notesInFlightWeekKey === weekKey)
     );
 

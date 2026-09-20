@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes } from './state.js?v=2.8.10';
-import { ApiClient } from './apiClient.js?v=2.8.10';
-import { escapeHtml, showToast } from './utils.js?v=2.8.10';
-import { TIME_SLOTS } from './grid.js?v=2.8.10';
-import { parseMarkdown } from './markdown.js?v=2.8.10';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes } from './state.js?v=2.8.11';
+import { ApiClient } from './apiClient.js?v=2.8.11';
+import { escapeHtml, showToast } from './utils.js?v=2.8.11';
+import { TIME_SLOTS } from './grid.js?v=2.8.11';
+import { parseMarkdown } from './markdown.js?v=2.8.11';
 
 let currentEditorContext = null; // { weekKey, dateKey, sheetId }
 
@@ -1280,10 +1280,18 @@ export async function flushCurrentNoteEditor() {
   const ta = document.getElementById('weeklyNotesTextarea');
   const currentActive = getActiveSheet();
 
-  // Dirty check: if neither dirty nor failed save, and textarea matches active sheet,
-  // return immediately with zero blocking network calls (Finding 08)
+  const currentWeekKey = getWeekKey(STATE.currentWeekStart);
+  const currentWeekData = getCurrentWeekData();
+
+  // Dirty check: if neither dirty nor failed save for current week, and textarea matches active sheet,
+  // check if we have any other failed weeks needing retry.
   const hasContentChanged = ta && currentActive && ta.value !== getSheetContent(currentActive);
-  if (!STATE.notesDirty && !STATE.notesSaveFailed && !hasContentChanged) {
+  const isCurrentWeekDirty = STATE.notesDirty && STATE.notesDirtyWeekKey === currentWeekKey;
+  const isCurrentWeekFailed = !!(STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.has(currentWeekKey));
+  const hasOtherFailedWeeks = !!(STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0);
+
+  // Return immediately on pure navigation with no pending edits or retries (Finding 08)
+  if (!STATE.notesDirty && !isCurrentWeekFailed && !hasContentChanged && !hasOtherFailedWeeks) {
     return;
   }
 
@@ -1292,30 +1300,64 @@ export async function flushCurrentNoteEditor() {
   }
   saveStateToStorage();
 
-  const weekKey = getWeekKey(STATE.currentWeekStart);
-  const weekData = getCurrentWeekData();
   const savedStatus = document.getElementById('notesSavedStatus');
   if (savedStatus) savedStatus.textContent = 'Saving...';
 
   // Clear in-memory dirty flag as content is now captured in weekData and in-flight
   clearNotesDirty();
-  setNotesInFlight(weekKey);
 
-  try {
-    const ok = await ApiClient.saveNotes(weekKey, weekData.notes, weekData.noteSheets);
-    if (ok) {
-      clearNotesSaveFailed();
-      if (savedStatus) savedStatus.textContent = 'Saved';
-    } else {
-      markNotesSaveFailed(weekKey); // Retain failed marker so subsequent actions retry (Finding 09)
-      if (savedStatus) savedStatus.textContent = 'Save failed';
+  let allSucceeded = true;
+
+  // 1. Save current week if it has changes, was dirty, or previously failed
+  if (hasContentChanged || isCurrentWeekDirty || isCurrentWeekFailed) {
+    setNotesInFlight(currentWeekKey);
+    try {
+      const ok = await ApiClient.saveNotes(currentWeekKey, currentWeekData.notes, currentWeekData.noteSheets);
+      if (ok) {
+        clearNotesSaveFailed(currentWeekKey);
+      } else {
+        markNotesSaveFailed(currentWeekKey);
+        allSucceeded = false;
+      }
+    } catch (err) {
+      markNotesSaveFailed(currentWeekKey);
+      allSucceeded = false;
+      console.warn(`Failed to flush notes for week (${currentWeekKey}):`, err);
+    } finally {
+      clearNotesInFlight();
     }
-  } catch (err) {
-    markNotesSaveFailed(weekKey); // Retain failed marker so subsequent actions retry (Finding 09)
-    console.warn('Failed to flush notes to API:', err);
-    if (savedStatus) savedStatus.textContent = 'Save failed';
-  } finally {
-    clearNotesInFlight();
+  }
+
+  // 2. Retry any OTHER weeks whose saves previously failed (Addresses Finding 12)
+  if (STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0) {
+    const otherFailedWeeks = Array.from(STATE.failedNotesWeekKeys).filter(wKey => wKey !== currentWeekKey);
+    for (const failedWeekKey of otherFailedWeeks) {
+      const failedWeekData = STATE.scheduleData ? STATE.scheduleData[failedWeekKey] : null;
+      if (failedWeekData) {
+        setNotesInFlight(failedWeekKey);
+        try {
+          const ok = await ApiClient.saveNotes(failedWeekKey, failedWeekData.notes, failedWeekData.noteSheets);
+          if (ok) {
+            clearNotesSaveFailed(failedWeekKey);
+          } else {
+            allSucceeded = false;
+          }
+        } catch (err) {
+          allSucceeded = false;
+          console.warn(`Failed to retry notes for week (${failedWeekKey}):`, err);
+        } finally {
+          clearNotesInFlight();
+        }
+      }
+    }
+  }
+
+  if (savedStatus) {
+    if (allSucceeded && (!STATE.failedNotesWeekKeys || STATE.failedNotesWeekKeys.size === 0)) {
+      savedStatus.textContent = 'Saved';
+    } else {
+      savedStatus.textContent = 'Save failed';
+    }
   }
 }
 

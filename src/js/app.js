@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.8.10';
-import { ApiClient } from './apiClient.js?v=2.8.10';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.10';
-import { initModal, openTaskModal } from './modal.js?v=2.8.10';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.10';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.10';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.8.10';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.10';
-import { showToast } from './utils.js?v=2.8.10';
+} from './state.js?v=2.8.11';
+import { ApiClient } from './apiClient.js?v=2.8.11';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.11';
+import { initModal, openTaskModal } from './modal.js?v=2.8.11';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.11';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.11';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.8.11';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.11';
+import { showToast } from './utils.js?v=2.8.11';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.8.10';
+} from './notifications.js?v=2.8.11';
 
 const DOM = {};
 
@@ -404,6 +404,9 @@ async function onAuthSuccess(user) {
   await switchView(initialView, false);
   initNotificationEngine();
   await syncWeekDataWithApi(renderAll);
+  if (STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0) {
+    flushCurrentNoteEditor();
+  }
 }
 
 function showLoginScreen() {
