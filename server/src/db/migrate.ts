@@ -46,6 +46,7 @@ export async function runMigrations() {
         display_name VARCHAR(100),
         google_id VARCHAR(255) UNIQUE,
         avatar_url TEXT,
+        token_version INT NOT NULL DEFAULT 1,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -115,6 +116,7 @@ export async function runMigrations() {
     await client.query("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;");
     await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;");
     await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;");
+    await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 1;");
 
     // 4. Date validation constraints
     await client.query(`

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     display_name VARCHAR(100),
     google_id VARCHAR(255) UNIQUE,
     avatar_url TEXT,
+    token_version INT NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -65,3 +66,22 @@ CREATE TABLE IF NOT EXISTS todo_items (
     due_date DATE CHECK (due_date IS NULL OR (due_date BETWEEN '1800-01-01' AND '2200-12-31')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Password Reset Tokens
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Production Indexes
+CREATE INDEX IF NOT EXISTS idx_pwd_reset_token ON password_reset_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_pwd_reset_user ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
+CREATE INDEX IF NOT EXISTS idx_habit_logs_user_week ON habit_logs (user_id, week_start);
+CREATE INDEX IF NOT EXISTS idx_todo_items_week_id ON todo_items (week_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_slots_week ON schedule_slots (week_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_weeks_user ON schedule_weeks (user_id);

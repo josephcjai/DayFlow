@@ -244,7 +244,7 @@ export const openApiDocument = {
         responses: {
           200: { description: 'Password updated successfully' },
           400: { description: 'Validation error or incorrect current password' },
-          401: { description: 'Unauthorized' }
+          401: { description: 'Unauthorized access. Authentication token required.' }
         }
       }
     },
@@ -261,7 +261,7 @@ export const openApiDocument = {
           }
         },
         responses: {
-          200: { description: 'Reset instructions sent if account exists' }
+          200: { description: 'If an account exists for this email address, a password reset link has been dispatched. Please check your inbox.' }
         }
       }
     },
@@ -278,8 +278,8 @@ export const openApiDocument = {
           }
         },
         responses: {
-          200: { description: 'Password successfully reset' },
-          400: { description: 'Invalid or expired reset token' }
+          200: { description: 'Password reset successfully. You may now sign in with your new password.' },
+          400: { description: 'Invalid, used, or expired reset token' }
         }
       }
     },

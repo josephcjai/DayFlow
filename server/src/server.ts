@@ -20,6 +20,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const isProd = process.env.NODE_ENV === 'production';
 
+// Finding 14: Require APP_URL in production (fail fast)
+if (isProd && !process.env.APP_URL) {
+  throw new Error('FATAL: APP_URL environment variable must be set in production!');
+}
+
 // Parse allowed origins; default to strict check in production, reflect origin in dev
 const ALLOWED_ORIGINS: any = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())

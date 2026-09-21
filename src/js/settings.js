@@ -463,6 +463,9 @@ export function initAccountSecurityUI() {
 
     try {
       const res = await ApiClient.changePassword(currentPwd, newPwd);
+      if (res.token) {
+        localStorage.setItem('dayflow_token', res.token);
+      }
       showStatus(res.message || 'Password updated successfully!', 'success');
       form.reset();
 

@@ -23,12 +23,16 @@ export class EmailService {
     };
   }
 
-  private static getBaseAppUrl(reqOrigin?: string): string {
+  public static isConfigured(): boolean {
+    return !!this.getApiKey();
+  }
+
+  private static getBaseAppUrl(): string {
     if (process.env.APP_URL) {
       return process.env.APP_URL.replace(/\/+$/, '');
     }
-    if (reqOrigin && reqOrigin.startsWith('http')) {
-      return reqOrigin.replace(/\/+$/, '');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL: APP_URL environment variable must be set in production!');
     }
     return 'https://localhost';
   }
@@ -41,7 +45,11 @@ export class EmailService {
     const sender = this.getSender();
 
     if (!apiKey) {
-      console.warn('⚠️ [EmailService] BREVO_API_KEY is not set in environment. Email transmission simulated:');
+      if (process.env.NODE_ENV === 'production') {
+        console.error('❌ [EmailService] Cannot send email: BREVO_API_KEY is not configured in production.');
+        return { success: false, error: 'Email delivery service not configured in production.' };
+      }
+      console.warn('⚠️ [EmailService] BREVO_API_KEY is not set in development. Email transmission simulated:');
       console.log(`   To: ${params.to.map(t => t.email).join(', ')}`);
       console.log(`   Subject: ${params.subject}`);
       if (params.textContent) {
@@ -90,10 +98,9 @@ export class EmailService {
   public static async sendPasswordResetEmail(
     toEmail: string,
     displayName: string,
-    resetToken: string,
-    reqOrigin?: string
+    resetToken: string
   ): Promise<{ success: boolean; resetUrl: string; error?: string }> {
-    const baseUrl = this.getBaseAppUrl(reqOrigin);
+    const baseUrl = this.getBaseAppUrl();
     const resetUrl = `${baseUrl}/#reset-password?token=${resetToken}&email=${encodeURIComponent(toEmail)}`;
 
     const subject = 'Reset your DayFlow password';
@@ -131,12 +138,12 @@ export class EmailService {
       <p class="text">We received a request to reset the password for your DayFlow account. Click the button below to choose a new password:</p>
       
       <div class="btn-container">
-        <a href="${resetUrl}" class="btn" target="_blank">Reset Password</a>
+        <a href="${escapeHtml(resetUrl)}" class="btn" target="_blank">Reset Password</a>
       </div>
 
       <p class="text" style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;">If the button doesn't work, copy and paste this link into your browser:</p>
       <div class="alt-link-box">
-        <a href="${resetUrl}" target="_blank">${resetUrl}</a>
+        <a href="${escapeHtml(resetUrl)}" target="_blank">${escapeHtml(resetUrl)}</a>
       </div>
 
       <p class="text" style="font-size: 13px; color: #94a3b8; margin-top: 24px; margin-bottom: 0;">

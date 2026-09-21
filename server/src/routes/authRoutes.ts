@@ -80,7 +80,11 @@ router.post('/google', async (req, res) => {
       }
     }
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, tokenVersion: user.token_version ?? user.tokenVersion ?? 1 },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
     res.json({
       message: 'Google authentication successful',
       token,
@@ -89,6 +93,7 @@ router.post('/google', async (req, res) => {
         email: user.email,
         displayName: user.display_name || user.displayName,
         avatarUrl: user.avatar_url || user.avatarUrl || avatarUrl,
+        hasPassword: !!(user.password_hash || user.passwordHash)
       },
     });
   } catch (err: any) {
@@ -105,8 +110,13 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    if (password.length < 6) {
+    // Finding 16 & 19: String check, trim length check, and max 72 bcrypt length
+    if (typeof email !== 'string' || typeof password !== 'string' || password.trim().length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    if (password.length > 72) {
+      return res.status(400).json({ error: 'Password cannot exceed 72 characters' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -120,18 +130,31 @@ router.post('/register', async (req, res) => {
     }
 
     const result = await executeQuery(
-      'INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name',
+      'INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, display_name, token_version',
       [cleanEmail, passwordHash, displayName || 'DayFlow User']
     );
 
     let user = result.rows[0];
     if (!user) {
-      user = { id: `usr_${Date.now()}`, email: cleanEmail, displayName: displayName || 'DayFlow User' };
+      user = { id: `usr_${Date.now()}`, email: cleanEmail, displayName: displayName || 'DayFlow User', token_version: 1 };
       memoryStore.users.push({ ...user, passwordHash });
     }
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ message: 'Registration successful', token, user: { id: user.id, email: user.email, displayName: user.display_name || user.displayName } });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, tokenVersion: user.token_version ?? 1 },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    res.json({
+      message: 'Registration successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name || user.displayName,
+        hasPassword: true
+      }
+    });
   } catch (err: any) {
     sendError(res, 500, err);
   }
@@ -143,6 +166,10 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Email and password must be valid strings' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -170,8 +197,20 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { id: user.id, email: user.email, displayName: user.display_name || user.displayName } });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, tokenVersion: user.token_version ?? user.tokenVersion ?? 1 },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name || user.displayName,
+        hasPassword: true
+      }
+    });
   } catch (err: any) {
     sendError(res, 500, err);
   }
@@ -208,8 +247,18 @@ router.post('/change-password', authMiddleware, async (req: AuthenticatedRequest
     const userId = req.userId;
     const { currentPassword, newPassword } = req.body;
 
-    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+    // Finding 16: Guard against non-strings
+    if (currentPassword !== undefined && typeof currentPassword !== 'string') {
+      return res.status(400).json({ error: 'Current password must be a string' });
+    }
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 6) {
       return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    }
+
+    // Finding 19: Enforce max 72 bytes to prevent bcrypt silent truncation
+    if (newPassword.length > 72) {
+      return res.status(400).json({ error: 'Password cannot exceed 72 characters' });
     }
 
     const result = await executeQuery('SELECT * FROM users WHERE id = $1', [userId]);
@@ -233,19 +282,33 @@ router.post('/change-password', authMiddleware, async (req: AuthenticatedRequest
     const salt = await bcrypt.genSalt(10);
     const newHash = await bcrypt.hash(newPassword, salt);
 
-    await executeQuery('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, userId]);
+    // Finding 15: Increment token_version to invalidate all prior sessions
+    const updateRes = await executeQuery(
+      'UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 1) + 1 WHERE id = $2 RETURNING token_version',
+      [newHash, userId]
+    );
 
+    const newTokenVersion = updateRes.rows[0]?.token_version ?? ((user.token_version || 1) + 1);
     if (user.passwordHash !== undefined) {
       user.passwordHash = newHash;
     }
     user.password_hash = newHash;
+    user.token_version = newTokenVersion;
+    if (user.tokenVersion !== undefined) user.tokenVersion = newTokenVersion;
+
+    // Issue fresh token with new tokenVersion so current active session remains valid
+    const freshToken = jwt.sign(
+      { userId: user.id, email: user.email, tokenVersion: newTokenVersion },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
     // Send security notification asynchronously
     EmailService.sendPasswordChangedNotice(user.email, user.display_name || user.displayName).catch(err => {
       console.warn('Could not dispatch password change notice:', err);
     });
 
-    res.json({ message: 'Password updated successfully' });
+    res.json({ message: 'Password updated successfully', token: freshToken });
   } catch (err: any) {
     sendError(res, 500, err);
   }
@@ -264,6 +327,11 @@ router.post('/forgot-password', async (req, res) => {
       message: 'If an account exists for this email address, a password reset link has been dispatched. Please check your inbox.'
     };
 
+    // Finding 20: In production, surface failure if email delivery service is unconfigured
+    if (process.env.NODE_ENV === 'production' && !EmailService.isConfigured()) {
+      return res.status(503).json({ error: 'Email delivery service is currently unavailable. Please try again later.' });
+    }
+
     const userResult = await executeQuery('SELECT id, email, display_name FROM users WHERE LOWER(email) = $1', [cleanEmail]);
     let user = userResult.rows[0];
 
@@ -273,7 +341,9 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     if (!user) {
-      // Return generic message to prevent email enumeration
+      // Finding 17: Timing mitigation for non-existent users (perform dummy crypto work)
+      crypto.randomBytes(32).toString('hex');
+      crypto.createHash('sha256').update(cleanEmail).digest('hex');
       return res.json(genericSuccess);
     }
 
@@ -301,9 +371,16 @@ router.post('/forgot-password', async (req, res) => {
       });
     }
 
-    // Send email via Brevo REST API
-    const reqOrigin = (req.headers.origin as string) || (req.headers.referer as string);
-    await EmailService.sendPasswordResetEmail(cleanEmail, user.display_name || user.displayName || 'User', rawToken, reqOrigin);
+    // Finding 14: Never pass client Origin/Referer headers
+    // In dev/test, await email send so QA mailbox reader can capture link from log
+    const sendPromise = EmailService.sendPasswordResetEmail(cleanEmail, user.display_name || user.displayName || 'User', rawToken);
+    if (process.env.NODE_ENV !== 'production') {
+      await sendPromise;
+    } else {
+      sendPromise.catch(err => {
+        console.error('Failed to dispatch password reset email:', err);
+      });
+    }
 
     res.json(genericSuccess);
   } catch (err: any) {
@@ -316,12 +393,22 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
 
+    // Finding 16: Guard against non-strings
     if (!email || !token || !newPassword) {
       return res.status(400).json({ error: 'Email, reset token, and new password are required' });
     }
 
-    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+    if (typeof email !== 'string' || typeof token !== 'string' || typeof newPassword !== 'string') {
+      return res.status(400).json({ error: 'Email, token, and new password must be valid strings' });
+    }
+
+    // Finding 19: Enforce min 6 characters and max 72 characters
+    if (newPassword.trim().length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    if (newPassword.length > 72) {
+      return res.status(400).json({ error: 'Password cannot exceed 72 characters' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -368,14 +455,18 @@ router.post('/reset-password', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(newPassword, salt);
 
-    // Update user password and mark token as used
-    await executeQuery('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, record.user_id]);
+    // Finding 15: Increment token_version to invalidate prior/stolen sessions
+    await executeQuery(
+      'UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 1) + 1 WHERE id = $2',
+      [passwordHash, record.user_id]
+    );
     await executeQuery('UPDATE password_reset_tokens SET used = TRUE WHERE id = $1', [record.token_id]);
 
     const memUser = memoryStore.users.find(u => u.id === record.user_id);
     if (memUser) {
       memUser.passwordHash = passwordHash;
       memUser.password_hash = passwordHash;
+      memUser.token_version = (memUser.token_version || 1) + 1;
     }
 
     // Send security notification
@@ -390,3 +481,4 @@ router.post('/reset-password', async (req, res) => {
 });
 
 export default router;
+

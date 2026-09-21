@@ -319,6 +319,12 @@ function initAuthUI() {
         if (DOM.landingResetSubmitBtn) {
           DOM.landingResetSubmitBtn.style.display = 'none';
         }
+
+        // Finding 22: Clear token from URL bar and browser history
+        if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+
         setTimeout(() => {
           switchLandingTab('signin');
           if (DOM.landingLoginEmail) DOM.landingLoginEmail.value = email;
