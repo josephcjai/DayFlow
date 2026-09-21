@@ -110,13 +110,27 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Finding 16 & 19: String check, trim length check, and max 72 bcrypt length
+    // Finding 23: displayName validation (string check and 100-char max cap)
+    if (displayName !== undefined && displayName !== null) {
+      if (typeof displayName !== 'string') {
+        return res.status(400).json({ error: 'Display name must be a string' });
+      }
+      if (displayName.length > 100) {
+        return res.status(400).json({ error: 'Display name cannot exceed 100 characters' });
+      }
+    }
+
+    // Finding 16 & 19: String check, trim length check, and max 72 bcrypt length (chars & bytes)
     if (typeof email !== 'string' || typeof password !== 'string' || password.trim().length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
     if (password.length > 72) {
       return res.status(400).json({ error: 'Password cannot exceed 72 characters' });
+    }
+
+    if (Buffer.byteLength(password, 'utf8') > 72) {
+      return res.status(400).json({ error: 'Password cannot exceed 72 bytes' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -170,6 +184,11 @@ router.post('/login', async (req, res) => {
 
     if (typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ error: 'Email and password must be valid strings' });
+    }
+
+    // Finding 19: Reject passwords exceeding bcrypt 72 bytes to prevent truncation bypass
+    if (password.length > 72 || Buffer.byteLength(password, 'utf8') > 72) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -256,9 +275,13 @@ router.post('/change-password', authMiddleware, async (req: AuthenticatedRequest
       return res.status(400).json({ error: 'New password must be at least 6 characters long' });
     }
 
-    // Finding 19: Enforce max 72 bytes to prevent bcrypt silent truncation
+    // Finding 19: Enforce max 72 characters and max 72 bytes to prevent bcrypt silent truncation
     if (newPassword.length > 72) {
       return res.status(400).json({ error: 'Password cannot exceed 72 characters' });
+    }
+
+    if (Buffer.byteLength(newPassword, 'utf8') > 72) {
+      return res.status(400).json({ error: 'Password cannot exceed 72 bytes' });
     }
 
     const result = await executeQuery('SELECT * FROM users WHERE id = $1', [userId]);
@@ -316,6 +339,7 @@ router.post('/change-password', authMiddleware, async (req: AuthenticatedRequest
 
 // Forgot Password (Public - Generates reset token & sends Brevo email)
 router.post('/forgot-password', async (req, res) => {
+  const startTime = Date.now();
   try {
     const { email } = req.body;
     if (!email || typeof email !== 'string') {
@@ -341,45 +365,54 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     if (!user) {
-      // Finding 17: Timing mitigation for non-existent users (perform dummy crypto work)
-      crypto.randomBytes(32).toString('hex');
-      crypto.createHash('sha256').update(cleanEmail).digest('hex');
-      return res.json(genericSuccess);
-    }
-
-    // Generate secure 32-byte hex token and store its SHA-256 hash
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiration
-
-    // Invalidate any previous unused tokens for this user
-    await executeQuery('UPDATE password_reset_tokens SET used = TRUE WHERE user_id = $1 AND used = FALSE', [user.id]);
-
-    // Insert new reset token
-    await executeQuery(
-      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-      [user.id, tokenHash, expiresAt]
-    );
-
-    if (memoryStore.passwordResetTokens) {
-      memoryStore.passwordResetTokens.push({
-        userId: user.id,
-        email: cleanEmail,
-        tokenHash,
-        expiresAt,
-        used: false
-      });
-    }
-
-    // Finding 14: Never pass client Origin/Referer headers
-    // In dev/test, await email send so QA mailbox reader can capture link from log
-    const sendPromise = EmailService.sendPasswordResetEmail(cleanEmail, user.display_name || user.displayName || 'User', rawToken);
-    if (process.env.NODE_ENV !== 'production') {
-      await sendPromise;
+      // Finding 17: Timing mitigation for non-existent users (perform dummy crypto work and DB query)
+      const dummyToken = crypto.randomBytes(32).toString('hex');
+      crypto.createHash('sha256').update(dummyToken).digest('hex');
+      try {
+        await executeQuery('SELECT id FROM users WHERE id = $1', ['00000000-0000-0000-0000-000000000000']);
+      } catch {}
     } else {
-      sendPromise.catch(err => {
-        console.error('Failed to dispatch password reset email:', err);
-      });
+      // Generate secure 32-byte hex token and store its SHA-256 hash
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiration
+
+      // Invalidate any previous unused tokens for this user
+      await executeQuery('UPDATE password_reset_tokens SET used = TRUE WHERE user_id = $1 AND used = FALSE', [user.id]);
+
+      // Insert new reset token
+      await executeQuery(
+        'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+        [user.id, tokenHash, expiresAt]
+      );
+
+      if (memoryStore.passwordResetTokens) {
+        memoryStore.passwordResetTokens.push({
+          userId: user.id,
+          email: cleanEmail,
+          tokenHash,
+          expiresAt,
+          used: false
+        });
+      }
+
+      // Finding 14: Never pass client Origin/Referer headers
+      // In dev/test, await email send so QA mailbox reader can capture link from log
+      const sendPromise = EmailService.sendPasswordResetEmail(cleanEmail, user.display_name || user.displayName || 'User', rawToken);
+      if (process.env.NODE_ENV !== 'production') {
+        await sendPromise;
+      } else {
+        sendPromise.catch(err => {
+          console.error('Failed to dispatch password reset email:', err);
+        });
+      }
+    }
+
+    // Finding 17: Pad response time to eliminate timing side-channel differences between existing and unknown accounts
+    const MIN_RESPONSE_TIME_MS = 100;
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_RESPONSE_TIME_MS) {
+      await new Promise(resolve => setTimeout(resolve, MIN_RESPONSE_TIME_MS - elapsed));
     }
 
     res.json(genericSuccess);
@@ -402,13 +435,17 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Email, token, and new password must be valid strings' });
     }
 
-    // Finding 19: Enforce min 6 characters and max 72 characters
+    // Finding 19: Enforce min 6 characters and max 72 characters & bytes
     if (newPassword.trim().length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
     if (newPassword.length > 72) {
       return res.status(400).json({ error: 'Password cannot exceed 72 characters' });
+    }
+
+    if (Buffer.byteLength(newPassword, 'utf8') > 72) {
+      return res.status(400).json({ error: 'Password cannot exceed 72 bytes' });
     }
 
     const cleanEmail = email.trim().toLowerCase();

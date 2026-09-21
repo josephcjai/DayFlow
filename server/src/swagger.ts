@@ -261,7 +261,9 @@ export const openApiDocument = {
           }
         },
         responses: {
-          200: { description: 'If an account exists for this email address, a password reset link has been dispatched. Please check your inbox.' }
+          200: { description: 'If an account exists for this email address, a password reset link has been dispatched. Please check your inbox.' },
+          400: { description: 'Valid email address is required' },
+          503: { description: 'Email delivery service is currently unavailable. Please try again later.' }
         }
       }
     },
@@ -279,7 +281,7 @@ export const openApiDocument = {
         },
         responses: {
           200: { description: 'Password reset successfully. You may now sign in with your new password.' },
-          400: { description: 'Invalid, used, or expired reset token' }
+          400: { description: 'Validation error, invalid, used, or expired reset link' }
         }
       }
     },
