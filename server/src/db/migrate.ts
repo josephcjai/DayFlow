@@ -96,6 +96,15 @@ export async function runMigrations() {
         due_date DATE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        token_hash VARCHAR(64) NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // 3. Incremental column upgrades
@@ -130,6 +139,8 @@ export async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_schedule_slots_week ON schedule_slots (week_id);
       CREATE INDEX IF NOT EXISTS idx_schedule_weeks_user ON schedule_weeks (user_id);
       CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
+      CREATE INDEX IF NOT EXISTS idx_pwd_reset_token ON password_reset_tokens (token_hash);
+      CREATE INDEX IF NOT EXISTS idx_pwd_reset_user ON password_reset_tokens (user_id);
     `);
 
     await client.query('COMMIT');

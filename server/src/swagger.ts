@@ -50,9 +50,34 @@ export const openApiDocument = {
             properties: {
               id: { type: 'string', example: 'usr_1723456789' },
               email: { type: 'string', example: 'joseph@example1.com' },
-              displayName: { type: 'string', example: 'Joseph' }
+              displayName: { type: 'string', example: 'Joseph' },
+              hasPassword: { type: 'boolean', example: true }
             }
           }
+        }
+      },
+      ChangePasswordRequest: {
+        type: 'object',
+        required: ['newPassword'],
+        properties: {
+          currentPassword: { type: 'string', example: 'oldPassword123' },
+          newPassword: { type: 'string', example: 'newSecurePassword456' }
+        }
+      },
+      ForgotPasswordRequest: {
+        type: 'object',
+        required: ['email'],
+        properties: {
+          email: { type: 'string', example: 'joseph@example1.com' }
+        }
+      },
+      ResetPasswordRequest: {
+        type: 'object',
+        required: ['email', 'token', 'newPassword'],
+        properties: {
+          email: { type: 'string', example: 'joseph@example1.com' },
+          token: { type: 'string', example: 'b3f5a8947e914d79...' },
+          newPassword: { type: 'string', example: 'newSecurePassword456' }
         }
       },
       SaveSlotRequest: {
@@ -200,6 +225,61 @@ export const openApiDocument = {
         responses: {
           200: { description: 'Authenticated user profile details' },
           401: { description: 'Unauthorized' }
+        }
+      }
+    },
+    '/auth/change-password': {
+      post: {
+        summary: 'Change User Password (Authenticated)',
+        tags: ['Authentication'],
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Password updated successfully' },
+          400: { description: 'Validation error or incorrect current password' },
+          401: { description: 'Unauthorized' }
+        }
+      }
+    },
+    '/auth/forgot-password': {
+      post: {
+        summary: 'Request Password Reset Email via Brevo',
+        tags: ['Authentication'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Reset instructions sent if account exists' }
+        }
+      }
+    },
+    '/auth/reset-password': {
+      post: {
+        summary: 'Reset Password with Token from Email',
+        tags: ['Authentication'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Password successfully reset' },
+          400: { description: 'Invalid or expired reset token' }
         }
       }
     },

@@ -25,7 +25,7 @@
         <p class="tagline">30-Minute Schedule, Habit Ledger & Focus Analytics</p>
       </div>
 
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="authTabs">
         <button id="tabLandingSignIn" class="auth-tab-btn active">Sign In</button>
         <button id="tabLandingRegister" class="auth-tab-btn">Create Account</button>
       </div>
@@ -40,6 +40,9 @@
           <div class="form-group">
             <label for="landingLoginPassword">Password *</label>
             <input type="password" id="landingLoginPassword" placeholder="••••••••" required class="text-input">
+          </div>
+          <div style="display: flex; justify-content: flex-end; margin-top: -6px; margin-bottom: 12px;">
+            <a href="#forgot-password" id="landingForgotPasswordLink" class="text-link" style="font-size: 0.85rem; color: var(--primary, #4f46e5); text-decoration: none; cursor: pointer;">Forgot Password?</a>
           </div>
           <div id="landingLoginErrorMsg" class="auth-error-msg" style="display: none;"></div>
           <button type="submit" class="btn btn-primary btn-block">Sign In & Open Schedule</button>
@@ -61,6 +64,46 @@
           </div>
           <div id="landingRegisterErrorMsg" class="auth-error-msg" style="display: none;"></div>
           <button type="submit" class="btn btn-primary btn-block">Create Account & Enter</button>
+        </form>
+
+        <!-- Forgot Password Form -->
+        <form id="landingForgotPasswordForm" style="display: none;">
+          <div style="margin-bottom: 1.25rem; text-align: center;">
+            <h3 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-primary, #0f172a);">Reset Password</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted, #64748b);">Enter your registered email to receive a secure password reset link via Brevo.</p>
+          </div>
+          <div class="form-group">
+            <label for="landingForgotEmail">Email Address *</label>
+            <input type="email" id="landingForgotEmail" placeholder="your.email@example.com" required class="text-input">
+          </div>
+          <div id="landingForgotStatusMsg" class="auth-error-msg" style="display: none;"></div>
+          <button type="submit" id="landingForgotSubmitBtn" class="btn btn-primary btn-block">Send Reset Link</button>
+          <div style="text-align: center; margin-top: 1rem;">
+            <a href="#signin" id="landingForgotBackToSignIn" class="text-link" style="font-size: 0.85rem; color: var(--primary, #4f46e5); text-decoration: none; cursor: pointer;">← Back to Sign In</a>
+          </div>
+        </form>
+
+        <!-- Reset Password Form (from email link) -->
+        <form id="landingResetPasswordForm" style="display: none;">
+          <div style="margin-bottom: 1.25rem; text-align: center;">
+            <h3 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-primary, #0f172a);">Set New Password</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted, #64748b);">Enter and confirm your new account password.</p>
+          </div>
+          <input type="hidden" id="landingResetToken" value="">
+          <input type="hidden" id="landingResetEmail" value="">
+          <div class="form-group">
+            <label for="landingResetNewPassword">New Password *</label>
+            <input type="password" id="landingResetNewPassword" placeholder="Minimum 6 characters" required minlength="6" class="text-input">
+          </div>
+          <div class="form-group">
+            <label for="landingResetConfirmPassword">Confirm New Password *</label>
+            <input type="password" id="landingResetConfirmPassword" placeholder="Re-enter new password" required minlength="6" class="text-input">
+          </div>
+          <div id="landingResetStatusMsg" class="auth-error-msg" style="display: none;"></div>
+          <button type="submit" id="landingResetSubmitBtn" class="btn btn-primary btn-block">Update & Set Password</button>
+          <div style="text-align: center; margin-top: 1rem;">
+            <a href="#signin" id="landingResetBackToSignIn" class="text-link" style="font-size: 0.85rem; color: var(--primary, #4f46e5); text-decoration: none; cursor: pointer;">← Back to Sign In</a>
+          </div>
         </form>
 
         <!-- Google Sign-In Section -->
@@ -797,8 +840,45 @@
                   </label>
                 </label>
                 <span class="field-hint" style="margin-top: 0.35rem;">Reminds you to mark the block Done or log actual executed time</span>
+            </div>
+          </div>
+
+          <!-- CARD 6: Account & Security -->
+          <div class="settings-card" id="settingsAccountCard">
+            <div class="settings-card-header">
+              <span class="settings-card-icon">🔐</span>
+              <div>
+                <h3>Account & Security</h3>
+                <p class="settings-card-desc">Change your password and manage account security credentials.</p>
               </div>
             </div>
+
+            <form id="settingsChangePasswordForm">
+              <div class="form-group" id="settingsCurrentPasswordGroup">
+                <label for="settingsCurrentPassword">Current Password *</label>
+                <input type="password" id="settingsCurrentPassword" placeholder="Enter your current password" class="text-input" autocomplete="current-password">
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label for="settingsNewPassword">New Password *</label>
+                  <input type="password" id="settingsNewPassword" placeholder="Minimum 6 characters" minlength="6" required class="text-input" autocomplete="new-password">
+                </div>
+
+                <div class="form-group">
+                  <label for="settingsConfirmPassword">Confirm New Password *</label>
+                  <input type="password" id="settingsConfirmPassword" placeholder="Re-enter new password" minlength="6" required class="text-input" autocomplete="new-password">
+                </div>
+              </div>
+
+              <div id="settingsPasswordStatusMsg" class="auth-error-msg" style="display: none; margin-bottom: 1rem;"></div>
+
+              <div style="display: flex; justify-content: flex-end;">
+                <button type="submit" id="settingsSavePasswordBtn" class="btn btn-primary">
+                  <span>🔒</span> Update Password
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </section>

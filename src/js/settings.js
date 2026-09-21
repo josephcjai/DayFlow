@@ -11,6 +11,7 @@
 import { generateTimeSlots } from './grid.js?v=2.8.11';
 import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.8.11';
 import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.8.11';
+import { ApiClient } from './apiClient.js?v=2.8.11';
 
 export const DEFAULT_SETTINGS = {
   timelineStartHour: 0,
@@ -407,5 +408,94 @@ export function initSettingsUI(domElements, renderAllCallback) {
         }
       }
     });
+  }
+
+  // Initialize Account & Security Card
+  initAccountSecurityUI();
+}
+
+export function initAccountSecurityUI() {
+  const form = document.getElementById('settingsChangePasswordForm');
+  if (!form) return;
+
+  const currentGroup = document.getElementById('settingsCurrentPasswordGroup');
+  const currentInput = document.getElementById('settingsCurrentPassword');
+  const newInput = document.getElementById('settingsNewPassword');
+  const confirmInput = document.getElementById('settingsConfirmPassword');
+  const statusMsg = document.getElementById('settingsPasswordStatusMsg');
+  const saveBtn = document.getElementById('settingsSavePasswordBtn');
+
+  // Check if user has password set (OAuth-only users might not have a password initially)
+  try {
+    const rawUser = localStorage.getItem('dayflow_user');
+    if (rawUser) {
+      const u = JSON.parse(rawUser);
+      if (u.hasPassword === false && currentGroup) {
+        currentGroup.style.display = 'none';
+        if (currentInput) currentInput.required = false;
+        if (saveBtn) saveBtn.innerHTML = '<span>🔒</span> Set Account Password';
+      }
+    }
+  } catch (e) {}
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (statusMsg) {
+      statusMsg.style.display = 'none';
+      statusMsg.className = 'auth-error-msg';
+    }
+
+    const newPwd = newInput ? newInput.value : '';
+    const confirmPwd = confirmInput ? confirmInput.value : '';
+    const currentPwd = currentInput ? currentInput.value : '';
+
+    if (newPwd.length < 6) {
+      showStatus('Password must be at least 6 characters.', 'error');
+      return;
+    }
+
+    if (newPwd !== confirmPwd) {
+      showStatus('New passwords do not match.', 'error');
+      return;
+    }
+
+    if (saveBtn) saveBtn.disabled = true;
+
+    try {
+      const res = await ApiClient.changePassword(currentPwd, newPwd);
+      showStatus(res.message || 'Password updated successfully!', 'success');
+      form.reset();
+
+      // Update local storage user flag hasPassword to true
+      try {
+        const rawUser = localStorage.getItem('dayflow_user');
+        if (rawUser) {
+          const u = JSON.parse(rawUser);
+          u.hasPassword = true;
+          localStorage.setItem('dayflow_user', JSON.stringify(u));
+          if (currentGroup) currentGroup.style.display = 'block';
+          if (saveBtn) saveBtn.innerHTML = '<span>🔒</span> Update Password';
+        }
+      } catch (e) {}
+    } catch (err) {
+      showStatus(err.message || 'Failed to update password.', 'error');
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  });
+
+  function showStatus(text, type) {
+    if (!statusMsg) return;
+    statusMsg.textContent = text;
+    statusMsg.style.display = 'block';
+    if (type === 'success') {
+      statusMsg.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+      statusMsg.style.color = '#10b981';
+      statusMsg.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+    } else {
+      statusMsg.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+      statusMsg.style.color = '#ef4444';
+      statusMsg.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+    }
   }
 }

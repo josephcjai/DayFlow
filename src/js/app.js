@@ -141,6 +141,23 @@ function cacheDomElements() {
   DOM.googleAuthSection = document.getElementById('googleAuthSection');
   DOM.googleSignInBtn = document.getElementById('googleSignInBtn');
 
+  // Forgot & Reset Password Elements
+  DOM.authTabs = document.getElementById('authTabs');
+  DOM.landingForgotPasswordLink = document.getElementById('landingForgotPasswordLink');
+  DOM.landingForgotPasswordForm = document.getElementById('landingForgotPasswordForm');
+  DOM.landingForgotEmail = document.getElementById('landingForgotEmail');
+  DOM.landingForgotStatusMsg = document.getElementById('landingForgotStatusMsg');
+  DOM.landingForgotSubmitBtn = document.getElementById('landingForgotSubmitBtn');
+  DOM.landingForgotBackToSignIn = document.getElementById('landingForgotBackToSignIn');
+  DOM.landingResetPasswordForm = document.getElementById('landingResetPasswordForm');
+  DOM.landingResetToken = document.getElementById('landingResetToken');
+  DOM.landingResetEmail = document.getElementById('landingResetEmail');
+  DOM.landingResetNewPassword = document.getElementById('landingResetNewPassword');
+  DOM.landingResetConfirmPassword = document.getElementById('landingResetConfirmPassword');
+  DOM.landingResetStatusMsg = document.getElementById('landingResetStatusMsg');
+  DOM.landingResetSubmitBtn = document.getElementById('landingResetSubmitBtn');
+  DOM.landingResetBackToSignIn = document.getElementById('landingResetBackToSignIn');
+
   DOM.modalElements = {
     taskModal: document.getElementById('taskModal'),
     closeModalBtn: document.getElementById('closeModalBtn'),
@@ -200,6 +217,138 @@ function initAuthUI() {
       DOM.landingRegisterErrorMsg.style.display = 'block';
     }
   });
+
+  // Forgot Password Navigation
+  if (DOM.landingForgotPasswordLink) {
+    DOM.landingForgotPasswordLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchLandingTab('forgot');
+    });
+  }
+  if (DOM.landingForgotBackToSignIn) {
+    DOM.landingForgotBackToSignIn.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchLandingTab('signin');
+    });
+  }
+  if (DOM.landingResetBackToSignIn) {
+    DOM.landingResetBackToSignIn.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchLandingTab('signin');
+    });
+  }
+
+  // Submit Forgot Password Request
+  if (DOM.landingForgotPasswordForm) {
+    DOM.landingForgotPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!DOM.landingForgotEmail) return;
+      const email = DOM.landingForgotEmail.value.trim();
+      if (!email) return;
+
+      if (DOM.landingForgotSubmitBtn) {
+        DOM.landingForgotSubmitBtn.disabled = true;
+        DOM.landingForgotSubmitBtn.textContent = 'Sending reset link...';
+      }
+      if (DOM.landingForgotStatusMsg) {
+        DOM.landingForgotStatusMsg.style.display = 'none';
+      }
+
+      try {
+        const res = await ApiClient.forgotPassword(email);
+        if (DOM.landingForgotStatusMsg) {
+          DOM.landingForgotStatusMsg.textContent = res.message || 'If an account exists, a reset link has been dispatched to your email.';
+          DOM.landingForgotStatusMsg.style.display = 'block';
+          DOM.landingForgotStatusMsg.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+          DOM.landingForgotStatusMsg.style.color = '#10b981';
+          DOM.landingForgotStatusMsg.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        }
+      } catch (err) {
+        if (DOM.landingForgotStatusMsg) {
+          DOM.landingForgotStatusMsg.textContent = err.message || 'Failed to send reset link. Please try again.';
+          DOM.landingForgotStatusMsg.style.display = 'block';
+          DOM.landingForgotStatusMsg.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+          DOM.landingForgotStatusMsg.style.color = '#ef4444';
+          DOM.landingForgotStatusMsg.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+        }
+      } finally {
+        if (DOM.landingForgotSubmitBtn) {
+          DOM.landingForgotSubmitBtn.disabled = false;
+          DOM.landingForgotSubmitBtn.textContent = 'Send Reset Link';
+        }
+      }
+    });
+  }
+
+  // Submit Reset Password Request
+  if (DOM.landingResetPasswordForm) {
+    DOM.landingResetPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = DOM.landingResetEmail ? DOM.landingResetEmail.value.trim() : '';
+      const token = DOM.landingResetToken ? DOM.landingResetToken.value.trim() : '';
+      const newPwd = DOM.landingResetNewPassword ? DOM.landingResetNewPassword.value : '';
+      const confirmPwd = DOM.landingResetConfirmPassword ? DOM.landingResetConfirmPassword.value : '';
+
+      if (DOM.landingResetStatusMsg) {
+        DOM.landingResetStatusMsg.style.display = 'none';
+      }
+
+      if (!token || !email) {
+        showResetStatus('Invalid or missing reset token. Please request a new link.', 'error');
+        return;
+      }
+
+      if (newPwd.length < 6) {
+        showResetStatus('Password must be at least 6 characters.', 'error');
+        return;
+      }
+
+      if (newPwd !== confirmPwd) {
+        showResetStatus('New passwords do not match.', 'error');
+        return;
+      }
+
+      if (DOM.landingResetSubmitBtn) {
+        DOM.landingResetSubmitBtn.disabled = true;
+        DOM.landingResetSubmitBtn.textContent = 'Updating password...';
+      }
+
+      try {
+        const res = await ApiClient.resetPassword(email, token, newPwd);
+        showResetStatus(res.message || 'Password reset successfully! You can now sign in.', 'success');
+        if (DOM.landingResetSubmitBtn) {
+          DOM.landingResetSubmitBtn.style.display = 'none';
+        }
+        setTimeout(() => {
+          switchLandingTab('signin');
+          if (DOM.landingLoginEmail) DOM.landingLoginEmail.value = email;
+          if (DOM.landingLoginPassword) DOM.landingLoginPassword.focus();
+        }, 2200);
+      } catch (err) {
+        showResetStatus(err.message || 'Failed to reset password. The link may have expired.', 'error');
+      } finally {
+        if (DOM.landingResetSubmitBtn && DOM.landingResetSubmitBtn.style.display !== 'none') {
+          DOM.landingResetSubmitBtn.disabled = false;
+          DOM.landingResetSubmitBtn.textContent = 'Update & Set Password';
+        }
+      }
+    });
+  }
+
+  function showResetStatus(text, type) {
+    if (!DOM.landingResetStatusMsg) return;
+    DOM.landingResetStatusMsg.textContent = text;
+    DOM.landingResetStatusMsg.style.display = 'block';
+    if (type === 'success') {
+      DOM.landingResetStatusMsg.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+      DOM.landingResetStatusMsg.style.color = '#10b981';
+      DOM.landingResetStatusMsg.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+    } else {
+      DOM.landingResetStatusMsg.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+      DOM.landingResetStatusMsg.style.color = '#ef4444';
+      DOM.landingResetStatusMsg.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+    }
+  }
 
   DOM.logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('dayflow_token');
@@ -309,7 +458,36 @@ async function handleGoogleCredentialResponse(response) {
   }
 }
 
+function getResetPasswordParams() {
+  const hash = window.location.hash || '';
+  if (hash.startsWith('#reset-password')) {
+    const qIndex = hash.indexOf('?');
+    if (qIndex !== -1) {
+      const sp = new URLSearchParams(hash.slice(qIndex));
+      return {
+        token: sp.get('token') || '',
+        email: sp.get('email') || ''
+      };
+    }
+  }
+  const sp = new URLSearchParams(window.location.search);
+  if (sp.has('token') && sp.has('email')) {
+    return {
+      token: sp.get('token') || '',
+      email: sp.get('email') || ''
+    };
+  }
+  return null;
+}
+
 async function checkUserSessionGate() {
+  const resetParams = getResetPasswordParams();
+  if (resetParams && resetParams.token && resetParams.email) {
+    showLoginScreen();
+    switchLandingTab('reset', resetParams);
+    return;
+  }
+
   const token = localStorage.getItem('dayflow_token');
   const storedUser = localStorage.getItem('dayflow_user');
 
@@ -415,21 +593,56 @@ function showLoginScreen() {
   switchLandingTab('signin');
 }
 
-function switchLandingTab(tab) {
+function switchLandingTab(tab, params = null) {
+  // Hide all landing forms initially
+  if (DOM.landingLoginForm) DOM.landingLoginForm.style.display = 'none';
+  if (DOM.landingRegisterForm) DOM.landingRegisterForm.style.display = 'none';
+  if (DOM.landingForgotPasswordForm) DOM.landingForgotPasswordForm.style.display = 'none';
+  if (DOM.landingResetPasswordForm) DOM.landingResetPasswordForm.style.display = 'none';
+
   if (tab === 'signin') {
-    DOM.tabLandingSignIn.classList.add('active');
-    DOM.tabLandingRegister.classList.remove('active');
-    DOM.landingLoginForm.style.display = 'block';
-    DOM.landingRegisterForm.style.display = 'none';
-  } else {
-    DOM.tabLandingRegister.classList.add('active');
-    DOM.tabLandingSignIn.classList.remove('active');
-    DOM.landingLoginForm.style.display = 'none';
-    DOM.landingRegisterForm.style.display = 'block';
+    if (DOM.authTabs) DOM.authTabs.style.display = 'flex';
+    if (DOM.tabLandingSignIn) DOM.tabLandingSignIn.classList.add('active');
+    if (DOM.tabLandingRegister) DOM.tabLandingRegister.classList.remove('active');
+    if (DOM.landingLoginForm) DOM.landingLoginForm.style.display = 'block';
+    if (DOM.googleAuthSection && googleAuthInitialized) DOM.googleAuthSection.style.display = 'block';
+    if (DOM.landingLoginErrorMsg) DOM.landingLoginErrorMsg.style.display = 'none';
+  } else if (tab === 'register') {
+    if (DOM.authTabs) DOM.authTabs.style.display = 'flex';
+    if (DOM.tabLandingRegister) DOM.tabLandingRegister.classList.add('active');
+    if (DOM.tabLandingSignIn) DOM.tabLandingSignIn.classList.remove('active');
+    if (DOM.landingRegisterForm) DOM.landingRegisterForm.style.display = 'block';
+    if (DOM.googleAuthSection && googleAuthInitialized) DOM.googleAuthSection.style.display = 'block';
+    if (DOM.landingRegisterErrorMsg) DOM.landingRegisterErrorMsg.style.display = 'none';
+  } else if (tab === 'forgot') {
+    if (DOM.authTabs) DOM.authTabs.style.display = 'none';
+    if (DOM.landingForgotPasswordForm) DOM.landingForgotPasswordForm.style.display = 'block';
+    if (DOM.googleAuthSection) DOM.googleAuthSection.style.display = 'none';
+    if (DOM.landingForgotStatusMsg) DOM.landingForgotStatusMsg.style.display = 'none';
+    if (DOM.landingForgotEmail) DOM.landingForgotEmail.focus();
+  } else if (tab === 'reset') {
+    if (DOM.authTabs) DOM.authTabs.style.display = 'none';
+    if (DOM.landingResetPasswordForm) DOM.landingResetPasswordForm.style.display = 'block';
+    if (DOM.googleAuthSection) DOM.googleAuthSection.style.display = 'none';
+    if (DOM.landingResetStatusMsg) DOM.landingResetStatusMsg.style.display = 'none';
+    if (params) {
+      if (DOM.landingResetToken) DOM.landingResetToken.value = params.token || '';
+      if (DOM.landingResetEmail) DOM.landingResetEmail.value = params.email || '';
+    }
   }
 }
 
 function bindEvents() {
+  // Listen for reset password URL navigation
+  window.addEventListener('hashchange', () => {
+    const resetParams = getResetPasswordParams();
+    if (resetParams && resetParams.token && resetParams.email) {
+      DOM.app.style.display = 'none';
+      DOM.loginScreen.style.display = 'flex';
+      switchLandingTab('reset', resetParams);
+    }
+  });
+
   // Notification Bell Quick Toggle / Permission
   if (DOM.notificationBellBtn) {
     DOM.notificationBellBtn.addEventListener('click', async () => {
