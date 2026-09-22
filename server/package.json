@@ -1,6 +1,6 @@
 {
   "name": "dayflow-server",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "DayFlow Node.js Express REST API & PostgreSQL Backend",
   "main": "dist/server.js",
   "type": "module",

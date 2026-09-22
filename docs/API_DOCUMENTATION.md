@@ -1,6 +1,6 @@
 # DayFlow REST API Documentation
 
-**Version:** 2.4.0  
+**Version:** 2.4.1  
 **Base URL (Local):** `http://localhost:5000/api`  
 **Base URL (Production HTTPS):** `https://<your_domain>/api`  
 **Authentication Method:** JSON Web Token (`Authorization: Bearer <token>`)
