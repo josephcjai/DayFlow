@@ -14,6 +14,9 @@ import { EmailService } from '../utils/emailService.js';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'dayflow_local_secret_key_2026';
 
+// Finding 26: Pre-computed dummy bcrypt hash (10 rounds) to equalize login timing for non-existent users
+const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET environment variable must be set in production!');
 }
@@ -46,7 +49,7 @@ router.post('/google', async (req, res) => {
 
     const payload = ticket.getPayload();
     if (!payload || !payload.email) {
-      return res.status(400).json({ error: 'Unable to verify Google user payload' });
+      return res.status(401).json({ error: 'Unable to verify Google credential token.' });
     }
 
     const googleId = payload.sub;
@@ -110,6 +113,15 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Email and password must be valid strings' });
+    }
+
+    // Finding 27: Email length validation (max 255 chars for database column)
+    if (email.length > 255) {
+      return res.status(400).json({ error: 'Email address cannot exceed 255 characters' });
+    }
+
     // Finding 23: displayName validation (string check and 100-char max cap)
     if (displayName !== undefined && displayName !== null) {
       if (typeof displayName !== 'string') {
@@ -121,7 +133,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Finding 16 & 19: String check, trim length check, and max 72 bcrypt length (chars & bytes)
-    if (typeof email !== 'string' || typeof password !== 'string' || password.trim().length < 6) {
+    if (password.trim().length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
@@ -186,9 +198,11 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password must be valid strings' });
     }
 
-    // Finding 19: Reject passwords exceeding bcrypt 72 bytes to prevent truncation bypass
-    if (password.length > 72 || Buffer.byteLength(password, 'utf8') > 72) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+    // Finding 25: For login, truncate password to 72 bytes (matching bcrypt's historical behavior)
+    // so legacy accounts registered with >72-byte passwords prior to the limit can still sign in.
+    let passwordToCompare = password;
+    if (Buffer.byteLength(password, 'utf8') > 72) {
+      passwordToCompare = Buffer.from(password, 'utf8').subarray(0, 72).toString('utf8');
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -202,16 +216,18 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    if (!user) {
+    const passwordHash = user ? (user.password_hash || user.passwordHash) : null;
+
+    if (!user || !passwordHash) {
+      // Finding 26: Always run bcrypt compare against dummy hash to prevent user enumeration via response timing
+      await bcrypt.compare(passwordToCompare, DUMMY_BCRYPT_HASH);
+      if (user && !passwordHash) {
+        return res.status(401).json({ error: 'This account was created with Google Sign-In. Please continue with Google.' });
+      }
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const passwordHash = user.password_hash || user.passwordHash;
-    if (!passwordHash) {
-      return res.status(401).json({ error: 'This account was created with Google Sign-In. Please continue with Google.' });
-    }
-
-    const isMatch = await bcrypt.compare(password, passwordHash);
+    const isMatch = await bcrypt.compare(passwordToCompare, passwordHash);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
@@ -489,6 +505,26 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'This password reset link has expired. Password reset links are valid for 1 hour.' });
     }
 
+    // Finding 28: Atomically consume the token BEFORE doing the slow bcrypt hashing (~60-100ms)
+    // This prevents concurrent requests from spending the same reset token more than once.
+    if (record.token_id !== 'mem_tok') {
+      const consumeResult = await executeQuery(
+        'UPDATE password_reset_tokens SET used = TRUE WHERE id = $1 AND used = FALSE AND expires_at > NOW() RETURNING id',
+        [record.token_id]
+      );
+      if (!consumeResult.rows || consumeResult.rows.length === 0) {
+        return res.status(400).json({ error: 'This password reset link is invalid or has already been used. Please request a new one.' });
+      }
+    } else if (memoryStore.passwordResetTokens) {
+      const memToken = memoryStore.passwordResetTokens.find(
+        t => t.email.toLowerCase() === cleanEmail && t.tokenHash === tokenHash
+      );
+      if (!memToken || memToken.used) {
+        return res.status(400).json({ error: 'This password reset link is invalid or has already been used. Please request a new one.' });
+      }
+      memToken.used = true;
+    }
+
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(newPassword, salt);
 
@@ -497,7 +533,6 @@ router.post('/reset-password', async (req, res) => {
       'UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 1) + 1 WHERE id = $2',
       [passwordHash, record.user_id]
     );
-    await executeQuery('UPDATE password_reset_tokens SET used = TRUE WHERE id = $1', [record.token_id]);
 
     const memUser = memoryStore.users.find(u => u.id === record.user_id);
     if (memUser) {

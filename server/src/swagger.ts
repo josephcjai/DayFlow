@@ -280,7 +280,7 @@ export const openApiDocument = {
           }
         },
         responses: {
-          200: { description: 'Password reset successfully. You may now sign in with your new password.' },
+          200: { description: 'Password has been reset successfully. You can now sign in with your new password.' },
           400: { description: 'Validation error, invalid, used, or expired reset link' }
         }
       }
