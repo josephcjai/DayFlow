@@ -18,8 +18,20 @@ function getAuthHeaders() {
   return headers;
 }
 
+export function isDemoMode() {
+  try {
+    return (typeof localStorage !== 'undefined' && localStorage.getItem('dayflow_token') === 'demo-token')
+      || (typeof window !== 'undefined' && (window.location.search.includes('demo=true') || window.location.hash.includes('demo')));
+  } catch (e) {
+    return false;
+  }
+}
+
 function checkUnauthorized(res) {
   if (res && res.status === 401) {
+    if (isDemoMode()) {
+      return true; // Ignore 401 in demo mode, never trigger session expiry
+    }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('dayflow:session-expired'));
     }
@@ -78,6 +90,9 @@ export const ApiClient = {
   },
 
   async fetchCurrentUser() {
+    if (isDemoMode()) {
+      return { id: 1, email: 'demo@dayflow.app', displayName: 'Demo User' };
+    }
     try {
       const res = await fetch(`${API_BASE}/auth/me`, {
         headers: getAuthHeaders(),
@@ -93,6 +108,7 @@ export const ApiClient = {
   },
 
   async changePassword(currentPassword, newPassword) {
+    if (isDemoMode()) return { success: true };
     const res = await fetch(`${API_BASE}/auth/change-password`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -135,6 +151,7 @@ export const ApiClient = {
   },
 
   async fetchWeekSchedule(weekStart) {
+    if (isDemoMode()) return null;
     try {
       const res = await fetch(`${API_BASE}/schedule/week/${weekStart}`, {
         headers: getAuthHeaders(),
@@ -152,6 +169,7 @@ export const ApiClient = {
   },
 
   async saveSlot(weekStart, slotKey, slotData) {
+    if (isDemoMode()) return true;
     try {
       const res = await fetch(`${API_BASE}/schedule/slot`, {
         method: 'POST',
@@ -172,6 +190,7 @@ export const ApiClient = {
   },
 
   async deleteSlot(weekStart, slotKey) {
+    if (isDemoMode()) return true;
     try {
       const res = await fetch(`${API_BASE}/schedule/slot`, {
         method: 'DELETE',
@@ -192,6 +211,7 @@ export const ApiClient = {
   },
 
   async fetchHabits(weekStart) {
+    if (isDemoMode()) return null;
     try {
       const res = await fetch(`${API_BASE}/habits/week/${weekStart}`, {
         headers: getAuthHeaders(),
@@ -209,6 +229,7 @@ export const ApiClient = {
   },
 
   async logHabit(weekStart, name, pts, notes, logTime) {
+    if (isDemoMode()) return true;
     try {
       const res = await fetch(`${API_BASE}/habits/log`, {
         method: 'POST',
@@ -224,6 +245,7 @@ export const ApiClient = {
   },
 
   async deleteHabit(id) {
+    if (isDemoMode()) return true;
     try {
       const res = await fetch(`${API_BASE}/habits/${id}`, {
         method: 'DELETE',
@@ -238,6 +260,7 @@ export const ApiClient = {
   },
 
   async fetchTodosAndNotes(weekStart) {
+    if (isDemoMode()) return null;
     try {
       const res = await fetch(`${API_BASE}/todos/week/${weekStart}`, {
         headers: getAuthHeaders(),
@@ -254,6 +277,7 @@ export const ApiClient = {
   },
 
   async addTodo(weekStart, text, priority = 'Medium', category = 'General', dueDate = null) {
+    if (isDemoMode()) return { id: 'demo_' + Date.now(), text, priority, category, dueDate, completed: false };
     try {
       const res = await fetch(`${API_BASE}/todos/todo`, {
         method: 'POST',
@@ -271,6 +295,7 @@ export const ApiClient = {
   },
 
   async toggleTodo(id, completed) {
+    if (isDemoMode()) return true;
     try {
       const res = await fetch(`${API_BASE}/todos/${id}`, {
         method: 'PATCH',
@@ -286,6 +311,7 @@ export const ApiClient = {
   },
 
   async updateTodo(id, updates) {
+    if (isDemoMode()) return true;
     try {
       const res = await fetch(`${API_BASE}/todos/${id}`, {
         method: 'PATCH',
@@ -301,6 +327,7 @@ export const ApiClient = {
   },
 
   async deleteTodo(id) {
+    if (isDemoMode()) return true;
     try {
       const res = await fetch(`${API_BASE}/todos/${id}`, {
         method: 'DELETE',
@@ -315,6 +342,7 @@ export const ApiClient = {
   },
 
   async saveNotes(weekStart, notes, noteSheets = null) {
+    if (isDemoMode()) return true;
     const key = weekStart || 'default';
     const prev = notesSaveChains.get(key) || Promise.resolve();
     const current = prev.catch(() => {}).then(async () => {

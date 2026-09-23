@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/styles.css?v=2.8.11">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.9.3">
   <!-- Google Identity Services (Sign in with Google) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -127,26 +127,26 @@
         <div class="logo-icon">⏳</div>
         <div class="brand-text">
           <h1>DayFlow</h1>
-          <span class="badge">v2.3 Web</span>
+          <span class="badge">v2.4.1 Web</span>
         </div>
       </div>
 
       <!-- Navigation Views -->
       <nav class="view-nav">
-        <button class="nav-btn active" data-view="grid">
-          <span class="icon">📅</span> Schedule Grid
+        <button class="nav-btn active" data-view="grid" title="Schedule Grid">
+          <span class="icon">📅</span> <span class="nav-btn-text">Schedule Grid</span>
         </button>
-        <button class="nav-btn" data-view="habits">
-          <span class="icon">⚡</span> Habit Ledger
+        <button class="nav-btn" data-view="habits" title="Habit Ledger">
+          <span class="icon">⚡</span> <span class="nav-btn-text">Habit Ledger</span>
         </button>
-        <button class="nav-btn" data-view="analytics">
-          <span class="icon">📊</span> Focus Analytics
+        <button class="nav-btn" data-view="analytics" title="Focus Analytics">
+          <span class="icon">📊</span> <span class="nav-btn-text">Focus Analytics</span>
         </button>
-        <button class="nav-btn" data-view="notes">
-          <span class="icon">📝</span> Notes & Todo
+        <button class="nav-btn" data-view="notes" title="Notes & Todo">
+          <span class="icon">📝</span> <span class="nav-btn-text">Notes & Todo</span>
         </button>
-        <button class="nav-btn" data-view="settings">
-          <span class="icon">⚙️</span> Settings
+        <button class="nav-btn" data-view="settings" title="Settings">
+          <span class="icon">⚙️</span> <span class="nav-btn-text">Settings</span>
         </button>
       </nav>
 
@@ -202,7 +202,7 @@
         <label for="categoryFilter">Filter Category:</label>
         <select id="categoryFilter" class="select-input">
           <option value="ALL">All Categories</option>
-          <option value="Learning">Learning (WPF/WCF/React/Angular)</option>
+          <option value="Learning">Learning (WPF/WCF/Web)</option>
           <option value="Work">Work / Job Tasks</option>
           <option value="Household">Household & Daily Chores</option>
           <option value="Family">Family & Personal</option>
@@ -221,6 +221,15 @@
 
         <!-- Day & Week Grid Table Wrapper -->
         <div id="gridWrapper" class="grid-wrapper">
+          <!-- Mobile & Tablet Quick Day Jump & Horizontal Scroll Bar -->
+          <div id="gridHorizontalScrollNav" class="grid-horizontal-scroll-nav">
+            <button type="button" id="gridScrollLeftBtn" class="grid-scroll-arrow-btn" title="Scroll left" aria-label="Scroll left">◀</button>
+            <div class="grid-day-pills-bar" id="gridDayPillsBar">
+              <!-- Dynamically populated: Mon - Sun -->
+            </div>
+            <button type="button" id="gridScrollRightBtn" class="grid-scroll-arrow-btn" title="Scroll right" aria-label="Scroll right">▶</button>
+          </div>
+
           <div class="timeline-table-container">
             <table class="schedule-table" id="scheduleTable">
               <thead id="scheduleTableHeader">
@@ -231,6 +240,7 @@
               </tbody>
             </table>
           </div>
+          <div id="gridScrollFadeRight" class="grid-scroll-fade-right"></div>
         </div>
       </section>
 
@@ -483,11 +493,13 @@
 
               <!-- Note Sheets Sub-Navigation Tab Bar -->
               <div class="notes-sheets-header">
+                <button type="button" id="notesSheetsScrollLeft" class="sheets-scroll-btn" aria-label="Scroll note sheets left" style="display: none;" title="Scroll tabs left">‹</button>
                 <div id="notesSheetsTabBar" class="notes-sheets-tab-bar" role="tablist" aria-label="Categorized Note Sheets">
                   <!-- Dynamically populated sheets tabs -->
                 </div>
+                <button type="button" id="notesSheetsScrollRight" class="sheets-scroll-btn" aria-label="Scroll note sheets right" style="display: none;" title="Scroll tabs right">›</button>
                 <button type="button" id="addNoteSheetBtn" class="add-sheet-btn" title="Add New Categorized Note Sheet">
-                  <span>➕</span> Add Sheet
+                  <span>➕</span> <span class="add-sheet-text">Add Sheet</span>
                 </button>
               </div>
 
@@ -940,7 +952,7 @@
             <div class="form-group">
               <label for="taskCategorySelect">Category Tag *</label>
               <select id="taskCategorySelect" class="select-input">
-                <option value="Learning">Learning (WPF/WCF/React/Angular)</option>
+                <option value="Learning">Learning (WPF/WCF/Web)</option>
                 <option value="Work">Work / Job Tasks</option>
                 <option value="Household">Household & Daily Chores</option>
                 <option value="Family">Family & Personal</option>
@@ -1479,6 +1491,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.8.11"></script>
+  <script type="module" src="src/js/app.js?v=2.9.3"></script>
 </body>
 </html>

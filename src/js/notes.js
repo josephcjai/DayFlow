@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes } from './state.js?v=2.8.11';
-import { ApiClient } from './apiClient.js?v=2.8.11';
-import { escapeHtml, showToast } from './utils.js?v=2.8.11';
-import { TIME_SLOTS } from './grid.js?v=2.8.11';
-import { parseMarkdown } from './markdown.js?v=2.8.11';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes } from './state.js?v=2.9.3';
+import { ApiClient } from './apiClient.js?v=2.9.3';
+import { escapeHtml, showToast } from './utils.js?v=2.9.3';
+import { TIME_SLOTS } from './grid.js?v=2.9.3';
+import { parseMarkdown } from './markdown.js?v=2.9.3';
 
 let currentEditorContext = null; // { weekKey, dateKey, sheetId }
 
@@ -1454,6 +1454,42 @@ export function renderNoteSheetsTabs(tabBarEl, textarea, previewEl, wordCountEl)
 
     tabBar.appendChild(tabBtn);
   });
+
+  // Scroll active tab into view and update scroll buttons
+  const activeTab = tabBar.querySelector('.note-sheet-tab.active');
+  if (activeTab) {
+    setTimeout(() => {
+      activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      updateSheetsScrollButtons(tabBar);
+    }, 50);
+  } else {
+    updateSheetsScrollButtons(tabBar);
+  }
+}
+
+export function updateSheetsScrollButtons(tabBarEl) {
+  const tabBar = tabBarEl || document.getElementById('notesSheetsTabBar');
+  const leftBtn = document.getElementById('notesSheetsScrollLeft');
+  const rightBtn = document.getElementById('notesSheetsScrollRight');
+  if (!tabBar) return;
+  const canScroll = tabBar.scrollWidth > tabBar.clientWidth + 4;
+  if (!canScroll) {
+    if (leftBtn) leftBtn.style.display = 'none';
+    if (rightBtn) rightBtn.style.display = 'none';
+    return;
+  }
+  if (leftBtn) {
+    leftBtn.style.display = 'inline-flex';
+    const canScrollLeft = tabBar.scrollLeft > 4;
+    leftBtn.style.opacity = canScrollLeft ? '1' : '0.35';
+    leftBtn.style.pointerEvents = canScrollLeft ? 'auto' : 'none';
+  }
+  if (rightBtn) {
+    rightBtn.style.display = 'inline-flex';
+    const isAtEnd = tabBar.scrollLeft + tabBar.clientWidth >= tabBar.scrollWidth - 4;
+    rightBtn.style.opacity = isAtEnd ? '0.35' : '1';
+    rightBtn.style.pointerEvents = isAtEnd ? 'none' : 'auto';
+  }
 }
 
 let pendingDeleteSheet = null;
@@ -1826,6 +1862,29 @@ export function initMarkdownScratchpad(domElements) {
       renderNoteSheetsTabs();
       closeAddSheetModal();
       if (ta) ta.focus();
+    });
+  }
+
+  // Scroll buttons wiring for notes sheets tabs
+  const leftBtn = document.getElementById('notesSheetsScrollLeft');
+  const rightBtn = document.getElementById('notesSheetsScrollRight');
+  const tabBar = document.getElementById('notesSheetsTabBar');
+  if (leftBtn && tabBar) {
+    leftBtn.addEventListener('click', () => {
+      tabBar.scrollBy({ left: -140, behavior: 'smooth' });
+    });
+  }
+  if (rightBtn && tabBar) {
+    rightBtn.addEventListener('click', () => {
+      tabBar.scrollBy({ left: 140, behavior: 'smooth' });
+    });
+  }
+  if (tabBar) {
+    tabBar.addEventListener('scroll', () => {
+      updateSheetsScrollButtons(tabBar);
+    }, { passive: true });
+    window.addEventListener('resize', () => {
+      updateSheetsScrollButtons(tabBar);
     });
   }
 

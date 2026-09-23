@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.8.11';
-import { openTaskModal } from './modal.js?v=2.8.11';
-import { escapeHtml } from './utils.js?v=2.8.11';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.3';
+import { openTaskModal } from './modal.js?v=2.9.3';
+import { escapeHtml } from './utils.js?v=2.9.3';
 
 export const TIME_SLOTS = [];
 
@@ -67,9 +67,96 @@ export function renderGrid(scheduleTableBody, onSwitchToDayView) {
   }
 }
 
+function renderGridScrollNav(dates) {
+  const nav = document.getElementById('gridHorizontalScrollNav');
+  const pillsBar = document.getElementById('gridDayPillsBar');
+  const leftBtn = document.getElementById('gridScrollLeftBtn');
+  const rightBtn = document.getElementById('gridScrollRightBtn');
+  const fadeRight = document.getElementById('gridScrollFadeRight');
+  const container = document.querySelector('.timeline-table-container');
+
+  if (!nav || !pillsBar || !container) return;
+
+  const mode = STATE.scheduleViewMode || 'week';
+  if (mode !== 'week') {
+    nav.style.display = 'none';
+    if (fadeRight) fadeRight.style.display = 'none';
+    return;
+  }
+
+  nav.style.display = '';
+  if (fadeRight) fadeRight.style.display = '';
+
+  const dayNamesShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  pillsBar.innerHTML = '';
+
+  dates.forEach((dateStr, idx) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'grid-day-pill' + (idx === 0 ? ' active' : '');
+    const dayNum = dateStr.split('-')[2];
+    btn.textContent = `${dayNamesShort[idx]} ${dayNum}`;
+    btn.dataset.dayIndex = idx;
+    btn.title = `Scroll to ${dayNamesShort[idx]} (${dateStr})`;
+
+    btn.addEventListener('click', () => {
+      const th = document.querySelector(`.schedule-table th.day-col[data-day="${idx + 1}"]`);
+      if (th) {
+        const timeCol = document.querySelector('.schedule-table th.time-col');
+        const timeColWidth = timeCol ? timeCol.offsetWidth : 80;
+        const targetLeft = Math.max(0, th.offsetLeft - timeColWidth);
+        container.scrollTo({ left: targetLeft, behavior: 'smooth' });
+      }
+    });
+
+    pillsBar.appendChild(btn);
+  });
+
+  if (leftBtn && !leftBtn.dataset.bound) {
+    leftBtn.dataset.bound = 'true';
+    leftBtn.addEventListener('click', () => {
+      container.scrollBy({ left: -140, behavior: 'smooth' });
+    });
+  }
+
+  if (rightBtn && !rightBtn.dataset.bound) {
+    rightBtn.dataset.bound = 'true';
+    rightBtn.addEventListener('click', () => {
+      container.scrollBy({ left: 140, behavior: 'smooth' });
+    });
+  }
+
+  if (!container.dataset.scrollNavBound) {
+    container.dataset.scrollNavBound = 'true';
+    container.addEventListener('scroll', () => {
+      const scrollLeft = container.scrollLeft;
+      const maxScroll = container.scrollWidth - container.clientWidth;
+
+      if (fadeRight) {
+        fadeRight.style.opacity = (scrollLeft >= maxScroll - 10) ? '0' : '1';
+      }
+
+      const ths = document.querySelectorAll('.schedule-table th.day-col');
+      const timeCol = document.querySelector('.schedule-table th.time-col');
+      const timeColWidth = timeCol ? timeCol.offsetWidth : 80;
+      let activeIdx = 0;
+
+      ths.forEach((th, i) => {
+        if (th.offsetLeft - timeColWidth <= scrollLeft + 30) {
+          activeIdx = i;
+        }
+      });
+
+      const pills = pillsBar.querySelectorAll('.grid-day-pill');
+      pills.forEach((p, i) => p.classList.toggle('active', i === activeIdx));
+    });
+  }
+}
+
 function renderWeekGridHeader(headerEl, onSwitchToDayView) {
   if (!headerEl) return;
   const dates = getWeekDates(STATE.currentWeekStart);
+  renderGridScrollNav(dates);
   headerEl.innerHTML = `
     <tr>
       <th class="time-col">Time (30m)</th>
@@ -94,6 +181,11 @@ function renderWeekGridHeader(headerEl, onSwitchToDayView) {
 
 function renderDayGridHeader(headerEl) {
   if (!headerEl) return;
+  const nav = document.getElementById('gridHorizontalScrollNav');
+  if (nav) nav.style.display = 'none';
+  const fadeRight = document.getElementById('gridScrollFadeRight');
+  if (fadeRight) fadeRight.style.display = 'none';
+
   const d = STATE.selectedDate || new Date();
   const dayName = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
   const dateStr = formatDateISO(d);

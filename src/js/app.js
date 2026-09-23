@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.8.11';
-import { ApiClient } from './apiClient.js?v=2.8.11';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.8.11';
-import { initModal, openTaskModal } from './modal.js?v=2.8.11';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.8.11';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.8.11';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.8.11';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.8.11';
-import { showToast } from './utils.js?v=2.8.11';
+} from './state.js?v=2.9.3';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.3';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.9.3';
+import { initModal, openTaskModal } from './modal.js?v=2.9.3';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.3';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.3';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.3';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.3';
+import { showToast } from './utils.js?v=2.9.3';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.8.11';
+} from './notifications.js?v=2.9.3';
 
 const DOM = {};
 
@@ -375,6 +375,7 @@ function initAuthUI() {
 
   // Handle Session Expiry (401 from API)
   window.addEventListener('dayflow:session-expired', () => {
+    if (isDemoMode()) return;
     const hadToken = !!localStorage.getItem('dayflow_token');
     if (hadToken) {
       localStorage.removeItem('dayflow_token');
@@ -568,7 +569,7 @@ async function switchView(view, syncBackend = true) {
   }
 
   renderAll();
-  if (syncBackend && view !== 'settings') {
+  if (syncBackend && view !== 'settings' && !isDemoMode()) {
     await syncWeekDataWithApi(renderAll);
   }
 }
@@ -596,7 +597,9 @@ async function onAuthSuccess(user) {
   const initialView = getSavedActiveView();
   await switchView(initialView, false);
   initNotificationEngine();
-  await syncWeekDataWithApi(renderAll);
+  if (!isDemoMode()) {
+    await syncWeekDataWithApi(renderAll);
+  }
   if (STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0) {
     flushCurrentNoteEditor();
   }
