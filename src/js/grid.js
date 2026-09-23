@@ -55,10 +55,13 @@ export function renderGrid(scheduleTableBody, onSwitchToDayView) {
   if (monthViewContainer) monthViewContainer.style.display = 'none';
   if (gridWrapper) gridWrapper.style.display = 'block';
 
+  const scheduleTable = document.getElementById('scheduleTable');
   if (mode === 'day') {
+    if (scheduleTable) scheduleTable.classList.add('day-view-mode');
     renderDayGridHeader(scheduleTableHeader);
     renderDayGridBody(scheduleTableBody);
   } else {
+    if (scheduleTable) scheduleTable.classList.remove('day-view-mode');
     renderWeekGridHeader(scheduleTableHeader, onSwitchToDayView);
     renderWeekGridBody(scheduleTableBody);
   }

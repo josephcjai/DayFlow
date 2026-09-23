@@ -56,7 +56,7 @@ function cacheDomElements() {
   DOM.loginScreen = document.getElementById('loginScreen');
   DOM.app = document.getElementById('app');
 
-  DOM.navBtns = document.querySelectorAll('.nav-btn');
+  DOM.navBtns = document.querySelectorAll('.nav-btn, .mobile-nav-btn');
   DOM.viewPanels = document.querySelectorAll('.view-panel');
 
   DOM.viewModeBtns = document.querySelectorAll('.view-mode-btn');
@@ -491,6 +491,15 @@ async function checkUserSessionGate() {
   if (resetParams && resetParams.token && resetParams.email) {
     showLoginScreen();
     switchLandingTab('reset', resetParams);
+    return;
+  }
+
+  // Support ?demo=true or #demo for instant offline preview & responsive verification
+  if (window.location.search.includes('demo=true') || window.location.hash.includes('demo')) {
+    const demoUser = { id: 1, email: 'demo@dayflow.app', displayName: 'Demo User' };
+    localStorage.setItem('dayflow_token', 'demo-token');
+    localStorage.setItem('dayflow_user', JSON.stringify(demoUser));
+    await onAuthSuccess(demoUser);
     return;
   }
 

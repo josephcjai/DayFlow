@@ -161,13 +161,13 @@
           <span id="notificationBellIcon">🔔</span>
         </button>
         <button id="logoutBtn" class="btn btn-outline" title="Sign Out">
-          <span>🚪</span> Logout
+          <span>🚪</span> <span class="btn-label">Logout</span>
         </button>
         <button id="exportBtn" class="btn btn-outline" title="Export Schedule JSON">
-          <span>📤</span> Export
+          <span>📤</span> <span class="btn-label">Export</span>
         </button>
         <button id="importBtn" class="btn btn-outline" title="Import Schedule JSON">
-          <span>📥</span> Import
+          <span>📥</span> <span class="btn-label">Import</span>
         </button>
         <input type="file" id="importFileInput" accept=".json" style="display: none;">
       </div>
@@ -883,6 +883,30 @@
         </div>
       </section>
     </main>
+
+    <!-- Mobile Bottom Navigation Bar (Visible on screens < 768px) -->
+    <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobile Navigation">
+      <button type="button" class="mobile-nav-btn active" data-view="grid" title="Schedule Grid">
+        <span class="mobile-nav-icon">📅</span>
+        <span class="mobile-nav-label">Grid</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-view="habits" title="Habit Ledger">
+        <span class="mobile-nav-icon">⚡</span>
+        <span class="mobile-nav-label">Habits</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-view="analytics" title="Focus Analytics">
+        <span class="mobile-nav-icon">📊</span>
+        <span class="mobile-nav-label">Stats</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-view="notes" title="Notes & Todos">
+        <span class="mobile-nav-icon">📝</span>
+        <span class="mobile-nav-label">Notes</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-view="settings" title="Settings">
+        <span class="mobile-nav-icon">⚙️</span>
+        <span class="mobile-nav-label">Settings</span>
+      </button>
+    </nav>
   </div>
 
   <!-- TASK EDITOR MODAL -->
