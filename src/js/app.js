@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.9.3';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.3';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.9.3';
-import { initModal, openTaskModal } from './modal.js?v=2.9.3';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.3';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.3';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.3';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.3';
-import { showToast } from './utils.js?v=2.9.3';
+} from './state.js?v=2.9.4';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.4';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.9.4';
+import { initModal, openTaskModal } from './modal.js?v=2.9.4';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.4';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.4';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.4';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.4';
+import { showToast } from './utils.js?v=2.9.4';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.3';
+} from './notifications.js?v=2.9.4';
 
 const DOM = {};
 

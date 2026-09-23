@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.3';
-import { openTaskModal } from './modal.js?v=2.9.3';
-import { escapeHtml } from './utils.js?v=2.9.3';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.4';
+import { openTaskModal } from './modal.js?v=2.9.4';
+import { escapeHtml } from './utils.js?v=2.9.4';
 
 export const TIME_SLOTS = [];
 
@@ -67,6 +67,9 @@ export function renderGrid(scheduleTableBody, onSwitchToDayView) {
   }
 }
 
+let isNavPillScrolling = false;
+let navPillScrollTimeout = null;
+
 function renderGridScrollNav(dates) {
   const nav = document.getElementById('gridHorizontalScrollNav');
   const pillsBar = document.getElementById('gridDayPillsBar');
@@ -100,6 +103,12 @@ function renderGridScrollNav(dates) {
     btn.title = `Scroll to ${dayNamesShort[idx]} (${dateStr})`;
 
     btn.addEventListener('click', () => {
+      const pills = pillsBar.querySelectorAll('.grid-day-pill');
+      pills.forEach((p, i) => p.classList.toggle('active', i === idx));
+      isNavPillScrolling = true;
+      clearTimeout(navPillScrollTimeout);
+      navPillScrollTimeout = setTimeout(() => { isNavPillScrolling = false; }, 500);
+
       const th = document.querySelector(`.schedule-table th.day-col[data-day="${idx + 1}"]`);
       if (th) {
         const timeCol = document.querySelector('.schedule-table th.time-col');
@@ -136,19 +145,21 @@ function renderGridScrollNav(dates) {
         fadeRight.style.opacity = (scrollLeft >= maxScroll - 10) ? '0' : '1';
       }
 
-      const ths = document.querySelectorAll('.schedule-table th.day-col');
-      const timeCol = document.querySelector('.schedule-table th.time-col');
-      const timeColWidth = timeCol ? timeCol.offsetWidth : 80;
-      let activeIdx = 0;
+      if (!isNavPillScrolling) {
+        const ths = document.querySelectorAll('.schedule-table th.day-col');
+        const timeCol = document.querySelector('.schedule-table th.time-col');
+        const timeColWidth = timeCol ? timeCol.offsetWidth : 80;
+        let activeIdx = 0;
 
-      ths.forEach((th, i) => {
-        if (th.offsetLeft - timeColWidth <= scrollLeft + 30) {
-          activeIdx = i;
-        }
-      });
+        ths.forEach((th, i) => {
+          if (th.offsetLeft - timeColWidth <= scrollLeft + 30) {
+            activeIdx = i;
+          }
+        });
 
-      const pills = pillsBar.querySelectorAll('.grid-day-pill');
-      pills.forEach((p, i) => p.classList.toggle('active', i === activeIdx));
+        const pills = pillsBar.querySelectorAll('.grid-day-pill');
+        pills.forEach((p, i) => p.classList.toggle('active', i === activeIdx));
+      }
     });
   }
 }
