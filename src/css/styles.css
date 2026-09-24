@@ -138,8 +138,7 @@ body {
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   gap: 0.25rem;
-  flex-shrink: 1;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 .nav-btn {
@@ -3002,6 +3001,11 @@ body {
 }
 
 /* Month View Matrix Styling */
+#monthViewContainer {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .month-grid-wrapper {
   padding: 1.5rem;
   background: var(--bg-glass);
@@ -3030,6 +3034,12 @@ body {
   font-size: 0.8rem;
   color: var(--text-secondary);
   margin-bottom: 0.75rem;
+}
+.month-days-header .day-short {
+  display: none;
+}
+.month-days-header .day-full {
+  display: inline;
 }
 .month-days-matrix {
   display: grid;
@@ -3101,6 +3111,13 @@ body {
   font-size: 0.7rem;
   color: var(--text-muted);
   text-align: center;
+}
+
+.month-metric-badge .badge-mini {
+  display: none;
+}
+.month-metric-badge .badge-full {
+  display: inline;
 }
 
 /* ==========================================================================
@@ -3817,10 +3834,10 @@ body.theme-light {
 }
 
 /* ==========================================================================
-   BREAKPOINT 0: COMPACT DESKTOPS & LAPTOPS (<= 1279px)
-   Eliminates header overflow between 1024px and 1228px (Finding 29)
+   BREAKPOINT 0: COMPACT DESKTOPS & LAPTOPS (<= 1350px)
+   Eliminates header overflow and nav overlap up to 1350px (Findings 29 & 35)
    ========================================================================== */
-@media (max-width: 1279px) {
+@media (max-width: 1350px) {
   .app-header {
     padding: 0.75rem 1.25rem;
     gap: 0.5rem;
@@ -4219,6 +4236,83 @@ body.theme-light {
 
   .time-dur-badge {
     font-size: 0.65rem;
+  }
+
+  /* Mobile Month View Matrix Adaptation */
+  #monthViewContainer {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .month-grid-wrapper {
+    padding: 0.65rem 0.35rem;
+  }
+
+  .month-header-bar {
+    margin-bottom: 0.65rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .month-header-bar h3 {
+    font-size: 1.1rem;
+  }
+
+  .month-subtitle {
+    font-size: 0.72rem;
+  }
+
+  .month-days-header {
+    gap: 3px;
+    font-size: 0.68rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .month-days-matrix {
+    gap: 3px;
+  }
+
+  .month-day-cell {
+    min-height: 54px;
+    padding: 0.25rem 0.15rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .month-day-num {
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+  }
+
+  .today-tag {
+    font-size: 0.5rem;
+    padding: 0.05rem 0.2rem;
+  }
+
+  .month-day-body {
+    gap: 2px;
+  }
+
+  .month-metric-badge {
+    font-size: 0.6rem;
+    padding: 1px 2px;
+    text-align: center;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .month-metric-badge .badge-full {
+    display: none;
+  }
+
+  .month-metric-badge .badge-mini {
+    display: inline;
+  }
+
+  .month-empty-text {
+    display: none;
   }
 
   /* Habit Ledger */
@@ -4773,5 +4867,41 @@ body.theme-light {
     font-size: 0.72rem;
     min-width: 24px;
     height: 26px;
+  }
+
+  /* Ultra-narrow Month View */
+  .month-grid-wrapper {
+    padding: 0.35rem 0.15rem;
+  }
+
+  .month-days-header .day-full {
+    display: none;
+  }
+
+  .month-days-header .day-short {
+    display: inline;
+  }
+
+  .month-days-header {
+    gap: 2px;
+    font-size: 0.62rem;
+  }
+
+  .month-days-matrix {
+    gap: 2px;
+  }
+
+  .month-day-cell {
+    min-height: 46px;
+    padding: 0.15rem 0.05rem;
+  }
+
+  .month-day-num {
+    font-size: 0.68rem;
+  }
+
+  .month-metric-badge {
+    font-size: 0.52rem;
+    padding: 1px 0;
   }
 }

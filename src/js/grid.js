@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.4';
-import { openTaskModal } from './modal.js?v=2.9.4';
-import { escapeHtml } from './utils.js?v=2.9.4';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.5';
+import { openTaskModal } from './modal.js?v=2.9.5';
+import { escapeHtml } from './utils.js?v=2.9.5';
 
 export const TIME_SLOTS = [];
 
@@ -468,7 +468,13 @@ function renderMonthGrid(container, onSwitchToDayView) {
         <span class="month-subtitle">Click any day card to open Day View</span>
       </div>
       <div class="month-days-header">
-        <div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div><div>SUN</div>
+        <div title="Monday"><span class="day-full">MON</span><span class="day-short">M</span></div>
+        <div title="Tuesday"><span class="day-full">TUE</span><span class="day-short">T</span></div>
+        <div title="Wednesday"><span class="day-full">WED</span><span class="day-short">W</span></div>
+        <div title="Thursday"><span class="day-full">THU</span><span class="day-short">T</span></div>
+        <div title="Friday"><span class="day-full">FRI</span><span class="day-short">F</span></div>
+        <div title="Saturday"><span class="day-full">SAT</span><span class="day-short">S</span></div>
+        <div title="Sunday"><span class="day-full">SUN</span><span class="day-short">S</span></div>
       </div>
       <div class="month-days-matrix">
   `;
@@ -507,8 +513,8 @@ function renderMonthGrid(container, onSwitchToDayView) {
         <div class="month-day-num">${dayNum} ${isToday ? '<span class="today-tag">TODAY</span>' : ''}</div>
         <div class="month-day-body">
           ${taskCount > 0 ? `
-            <div class="month-metric-badge">🎯 ${taskCount} Tasks</div>
-            <div class="month-metric-badge actual">⏱️ ${hoursLogged} hrs</div>
+            <div class="month-metric-badge" title="${taskCount} Tasks"><span class="badge-icon">🎯</span> <span class="badge-full">${taskCount} Tasks</span><span class="badge-mini">${taskCount}t</span></div>
+            <div class="month-metric-badge actual" title="${hoursLogged} hrs logged"><span class="badge-icon">⏱️</span> <span class="badge-full">${hoursLogged} hrs</span><span class="badge-mini">${hoursLogged}h</span></div>
           ` : `
             <div class="month-empty-text">No tasks</div>
           `}

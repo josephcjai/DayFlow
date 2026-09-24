@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes } from './state.js?v=2.9.4';
-import { ApiClient } from './apiClient.js?v=2.9.4';
-import { escapeHtml, showToast } from './utils.js?v=2.9.4';
-import { TIME_SLOTS } from './grid.js?v=2.9.4';
-import { parseMarkdown } from './markdown.js?v=2.9.4';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes } from './state.js?v=2.9.5';
+import { ApiClient } from './apiClient.js?v=2.9.5';
+import { escapeHtml, showToast } from './utils.js?v=2.9.5';
+import { TIME_SLOTS } from './grid.js?v=2.9.5';
+import { parseMarkdown } from './markdown.js?v=2.9.5';
 
 let currentEditorContext = null; // { weekKey, dateKey, sheetId }
 
@@ -1283,22 +1283,22 @@ export async function flushCurrentNoteEditor() {
   const currentWeekKey = getWeekKey(STATE.currentWeekStart);
   const currentWeekData = getCurrentWeekData();
 
-  // Dirty check: if neither dirty nor failed save for current week, and textarea matches active sheet,
-  // check if we have any other failed weeks needing retry.
-  const hasContentChanged = ta && currentActive && ta.value !== getSheetContent(currentActive);
+  const isNotesViewActive = STATE.activeView === 'notes';
+  // Dirty check: only treat textarea as having changed if the notes view is active and content differs
+  const hasContentChanged = isNotesViewActive && ta && currentActive && ta.value !== getSheetContent(currentActive);
   const isCurrentWeekDirty = STATE.notesDirty && STATE.notesDirtyWeekKey === currentWeekKey;
   const isCurrentWeekFailed = !!(STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.has(currentWeekKey));
   const hasOtherFailedWeeks = !!(STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0);
 
   // Return immediately on pure navigation with no pending edits or retries (Finding 08)
-  if (!STATE.notesDirty && !isCurrentWeekFailed && !hasContentChanged && !hasOtherFailedWeeks) {
+  if (!isCurrentWeekDirty && !isCurrentWeekFailed && !hasContentChanged && !hasOtherFailedWeeks) {
     return;
   }
 
-  if (ta && currentActive) {
+  if (isNotesViewActive && ta && currentActive) {
     setSheetContent(currentActive, ta.value);
+    saveStateToStorage();
   }
-  saveStateToStorage();
 
   const savedStatus = document.getElementById('notesSavedStatus');
   if (savedStatus) savedStatus.textContent = 'Saving...';

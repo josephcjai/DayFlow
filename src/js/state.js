@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.4';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.5';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -433,19 +433,19 @@ export function ensureSampleDataForCurrentWeek() {
     const thuISO = formatDateISO(thuDate);
 
     weekData.slots = {
-      [`${monISO}_09:00`]: { title: 'Sprint Planning & Objectives', category: 'Work', plannedDuration: 60, actualDuration: 60, status: 'Completed', notes: 'Defined weekly priorities and roadmap' },
-      [`${monISO}_14:00`]: { title: 'System Architecture Design', category: 'Work', plannedDuration: 90, actualDuration: 90, status: 'Completed', notes: 'Reviewed database schema and scaling' },
-      [`${tueISO}_10:30`]: { title: 'Deep Work: Core API Modules', category: 'Learning', plannedDuration: 60, actualDuration: 60, status: 'Completed', notes: 'Implemented caching & query optimization' },
-      [`${wedISO}_09:00`]: { title: 'Focus Session: Responsive UI Revamp', category: 'Work', plannedDuration: 60, actualDuration: 60, status: 'Completed', notes: 'Mobile, tablet and desktop layout audits' },
-      [`${wedISO}_14:30`]: { title: 'Algorithm Study & Code Review', category: 'Learning', plannedDuration: 60, actualDuration: 30, status: 'In-Progress', notes: 'Reviewing performance bottlenecks' },
-      [`${thuISO}_11:00`]: { title: 'Client Sync & Deliverable Prep', category: 'Work', plannedDuration: 60, actualDuration: 0, status: 'Pending', notes: 'Prepare slide deck and demo' }
+      [`${monISO}_09:00`]: { title: 'Sprint Planning & Objectives', plannedTask: 'Sprint Planning & Objectives', actualTask: 'Sprint Planning & Objectives', category: 'Work', planned: 60, actual: 60, status: 'Completed', notes: 'Defined weekly priorities and roadmap' },
+      [`${monISO}_14:00`]: { title: 'System Architecture Design', plannedTask: 'System Architecture Design', actualTask: 'System Architecture Design', category: 'Work', planned: 90, actual: 90, status: 'Completed', notes: 'Reviewed database schema and scaling' },
+      [`${tueISO}_10:30`]: { title: 'Deep Work: Core API Modules', plannedTask: 'Deep Work: Core API Modules', actualTask: 'Deep Work: Core API Modules', category: 'Learning', planned: 60, actual: 60, status: 'Completed', notes: 'Implemented caching & query optimization' },
+      [`${wedISO}_09:00`]: { title: 'Focus Session: Responsive UI Revamp', plannedTask: 'Focus Session: Responsive UI Revamp', actualTask: 'Focus Session: Responsive UI Revamp', category: 'Work', planned: 60, actual: 60, status: 'Completed', notes: 'Mobile, tablet and desktop layout audits' },
+      [`${wedISO}_14:30`]: { title: 'Algorithm Study & Code Review', plannedTask: 'Algorithm Study & Code Review', actualTask: 'Algorithm Study & Code Review', category: 'Learning', planned: 60, actual: 30, status: 'In-Progress', notes: 'Reviewing performance bottlenecks' },
+      [`${thuISO}_11:00`]: { title: 'Client Sync & Deliverable Prep', plannedTask: 'Client Sync & Deliverable Prep', actualTask: 'Client Sync & Deliverable Prep', category: 'Work', planned: 60, actual: 0, status: 'Pending', notes: 'Prepare slide deck and demo' }
     };
 
     if (weekData.habits.length === 0) {
       weekData.habits = [
-        { id: 'demo_h1', name: 'Morning Focus & Planning', category: 'General', targetDays: 7, history: { [monISO]: true, [tueISO]: true, [wedISO]: true } },
-        { id: 'demo_h2', name: 'Deep Coding & Architecture (2h+)', category: 'Learning', targetDays: 5, history: { [monISO]: true, [tueISO]: true, [wedISO]: true } },
-        { id: 'demo_h3', name: 'Physical Exercise / Health', category: 'Health', targetDays: 5, history: { [monISO]: true, [wedISO]: true } }
+        { id: 'demo_h1', name: 'Morning Focus & Planning', pts: 15, time: `${monISO} 08:30`, notes: 'Completed morning routine & planning' },
+        { id: 'demo_h2', name: 'Deep Coding & Architecture (2h+)', pts: 15, time: `${tueISO} 10:00`, notes: '2 hours deep coding focus session' },
+        { id: 'demo_h3', name: 'Physical Exercise / Health', pts: 15, time: `${wedISO} 07:30`, notes: '30-minute cardio & stretch workout' }
       ];
     }
 
@@ -457,9 +457,26 @@ export function ensureSampleDataForCurrentWeek() {
       ];
     }
 
-    if (weekData.noteSheets && weekData.noteSheets[0] && !weekData.noteSheets[0].content) {
-      weekData.noteSheets[0].content = `# Weekly Focus & Objectives\n\n- [x] Complete responsive UI design revamp\n- [x] Test continuous sweeping across all breakpoints\n- [ ] Ship production update\n\n### Key Highlights\nDiscipline score reached 92% with consistent deep work blocks.`;
-      weekData.notes = weekData.noteSheets[0].content;
+    const demoNotes = `# Weekly Focus & Objectives\n\n- [x] Complete responsive UI design revamp\n- [x] Test continuous sweeping across all breakpoints\n- [ ] Ship production update\n\n### Key Highlights\nDiscipline score reached 92% with consistent deep work blocks.`;
+    if (weekData.noteSheets && weekData.noteSheets.length > 0) {
+      const journalSheet = weekData.noteSheets.find(s => s.id === 'journal') || weekData.noteSheets[0];
+      if (journalSheet && !journalSheet.content) {
+        journalSheet.content = demoNotes;
+      }
+      const dailySheet = weekData.noteSheets.find(s => s.id === 'daily_journal');
+      if (dailySheet && !dailySheet.content) {
+        dailySheet.content = demoNotes;
+        if (!dailySheet.dailyContent) dailySheet.dailyContent = {};
+        dailySheet.dailyContent[monISO] = demoNotes;
+        dailySheet.dailyContent[formatDateISO(new Date())] = demoNotes;
+      }
+    }
+    if (!weekData.notes) {
+      weekData.notes = demoNotes;
+    }
+    const ta = typeof document !== 'undefined' ? document.getElementById('weeklyNotesTextarea') : null;
+    if (ta && !ta.value) {
+      ta.value = demoNotes;
     }
   }
 
