@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.9.5';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.5';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.9.5';
-import { initModal, openTaskModal } from './modal.js?v=2.9.5';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.5';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.5';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.5';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.5';
-import { showToast } from './utils.js?v=2.9.5';
+} from './state.js?v=2.9.6';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.6';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.9.6';
+import { initModal, openTaskModal } from './modal.js?v=2.9.6';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.6';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.6';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.6';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.6';
+import { showToast } from './utils.js?v=2.9.6';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.5';
+} from './notifications.js?v=2.9.6';
 
 const DOM = {};
 
@@ -597,6 +597,7 @@ async function onAuthSuccess(user) {
   const initialView = getSavedActiveView();
   await switchView(initialView, false);
   initNotificationEngine();
+  initHeaderLayoutManager();
   if (!isDemoMode()) {
     await syncWeekDataWithApi(renderAll);
   }
@@ -1771,3 +1772,71 @@ function importDataJson(e) {
   reader.readAsText(file);
   e.target.value = '';
 }
+
+/**
+ * Dynamic Header Layout Manager (Single Source of Truth)
+ * Monitors header bounding boxes and ensures action buttons and navigation
+ * never render off-screen or overlap across any viewport width (Findings 35 & 36).
+ */
+export function initHeaderLayoutManager() {
+  const header = document.querySelector('.app-header');
+  if (!header) return;
+
+  const updateHeader = () => {
+    const windowWidth = window.innerWidth;
+    // On mobile (< 768px), mobile bottom bar handles nav
+    if (windowWidth < 768) {
+      header.classList.remove('nav-compact', 'actions-compact', 'brand-compact');
+      return;
+    }
+
+    const headerActions = header.querySelector('.header-actions');
+    const brand = header.querySelector('.brand');
+    const nav = header.querySelector('.view-nav');
+    if (!headerActions || !brand || !nav) return;
+
+    const importBtn = document.getElementById('importBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const rightmostBtn = logoutBtn || importBtn || headerActions.lastElementChild;
+
+    // Check if right edge exceeds viewport
+    const rightEdge = rightmostBtn ? rightmostBtn.getBoundingClientRect().right : headerActions.getBoundingClientRect().right;
+    const isOverflowing = rightEdge > windowWidth - 4;
+
+    if (isOverflowing) {
+      // Step 1: compact actions
+      if (!header.classList.contains('actions-compact')) {
+        header.classList.add('actions-compact');
+      }
+      // Step 2: if still overflowing, compact nav
+      const newRight = rightmostBtn ? rightmostBtn.getBoundingClientRect().right : headerActions.getBoundingClientRect().right;
+      if (newRight > windowWidth - 4 && !header.classList.contains('nav-compact')) {
+        header.classList.add('nav-compact');
+      }
+      // Step 3: if still tight (e.g. tablet edge), compact brand
+      const finalRight = rightmostBtn ? rightmostBtn.getBoundingClientRect().right : headerActions.getBoundingClientRect().right;
+      if (finalRight > windowWidth - 4 && !header.classList.contains('brand-compact')) {
+        header.classList.add('brand-compact');
+      }
+    } else {
+      // Hysteresis release with comfortable headroom (+50px buffer)
+      if (windowWidth >= 1520 && header.classList.contains('actions-compact')) {
+        header.classList.remove('actions-compact');
+      }
+      if (windowWidth >= 1320 && header.classList.contains('nav-compact')) {
+        header.classList.remove('nav-compact');
+      }
+      if (windowWidth >= 820 && header.classList.contains('brand-compact')) {
+        header.classList.remove('brand-compact');
+      }
+    }
+  };
+
+  updateHeader();
+  window.addEventListener('resize', updateHeader);
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => updateHeader());
+    ro.observe(header);
+  }
+}
+

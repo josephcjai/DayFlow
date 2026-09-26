@@ -8,10 +8,10 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.5';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.5';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.5';
-import { ApiClient } from './apiClient.js?v=2.9.5';
+import { generateTimeSlots } from './grid.js?v=2.9.6';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.6';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.6';
+import { ApiClient } from './apiClient.js?v=2.9.6';
 
 export const DEFAULT_SETTINGS = {
   timelineStartHour: 0,
