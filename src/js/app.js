@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.9.6';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.6';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.9.6';
-import { initModal, openTaskModal } from './modal.js?v=2.9.6';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.6';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.6';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.6';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.6';
-import { showToast } from './utils.js?v=2.9.6';
+} from './state.js?v=2.9.7';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.7';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey } from './grid.js?v=2.9.7';
+import { initModal, openTaskModal } from './modal.js?v=2.9.7';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.7';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.7';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.7';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.7';
+import { showToast } from './utils.js?v=2.9.7';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.6';
+} from './notifications.js?v=2.9.7';
 
 const DOM = {};
 
@@ -1842,6 +1842,10 @@ export function initHeaderLayoutManager() {
   if (typeof ResizeObserver !== 'undefined') {
     const ro = new ResizeObserver(() => updateHeader());
     ro.observe(header);
+    const headerActions = header.querySelector('.header-actions');
+    if (headerActions) ro.observe(headerActions);
+    const nav = header.querySelector('.view-nav');
+    if (nav) ro.observe(nav);
   }
 }
 
