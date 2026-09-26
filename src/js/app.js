@@ -1795,13 +1795,20 @@ export function initHeaderLayoutManager() {
     const nav = header.querySelector('.view-nav');
     if (!headerActions || !brand || !nav) return;
 
-    const importBtn = document.getElementById('importBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const rightmostBtn = logoutBtn || importBtn || headerActions.lastElementChild;
+    const getRightmostActionEdge = () => {
+      let maxRight = 0;
+      const elements = headerActions.querySelectorAll('button, .user-badge');
+      elements.forEach(el => {
+        if (el.offsetWidth > 0 || (el.getClientRects && el.getClientRects().length > 0)) {
+          const r = el.getBoundingClientRect().right;
+          if (r > maxRight) maxRight = r;
+        }
+      });
+      return maxRight > 0 ? maxRight : headerActions.getBoundingClientRect().right;
+    };
 
     // Check if right edge exceeds viewport
-    const rightEdge = rightmostBtn ? rightmostBtn.getBoundingClientRect().right : headerActions.getBoundingClientRect().right;
-    const isOverflowing = rightEdge > windowWidth - 4;
+    const isOverflowing = getRightmostActionEdge() > windowWidth - 4;
 
     if (isOverflowing) {
       // Step 1: compact actions
@@ -1809,13 +1816,11 @@ export function initHeaderLayoutManager() {
         header.classList.add('actions-compact');
       }
       // Step 2: if still overflowing, compact nav
-      const newRight = rightmostBtn ? rightmostBtn.getBoundingClientRect().right : headerActions.getBoundingClientRect().right;
-      if (newRight > windowWidth - 4 && !header.classList.contains('nav-compact')) {
+      if (getRightmostActionEdge() > windowWidth - 4 && !header.classList.contains('nav-compact')) {
         header.classList.add('nav-compact');
       }
       // Step 3: if still tight (e.g. tablet edge), compact brand
-      const finalRight = rightmostBtn ? rightmostBtn.getBoundingClientRect().right : headerActions.getBoundingClientRect().right;
-      if (finalRight > windowWidth - 4 && !header.classList.contains('brand-compact')) {
+      if (getRightmostActionEdge() > windowWidth - 4 && !header.classList.contains('brand-compact')) {
         header.classList.add('brand-compact');
       }
     } else {
