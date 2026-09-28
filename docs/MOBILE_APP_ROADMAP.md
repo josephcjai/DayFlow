@@ -33,16 +33,19 @@
 
 
 ### Phase 1: Data Layer, API Client & Room Database
-- [ ] Implement DTOs matching backend REST API contracts (`/api/auth/*`, `/api/schedule/*`, `/api/habits/*`, `/api/todos/*`).
-- [ ] Implement `DayFlowApiService` Retrofit client pointing to `https://dayflowlive.com/api` (prod) and `http://10.0.2.2:5000/api` (dev emulator).
-- [ ] Implement `AuthInterceptor` with `EncryptedSharedPreferences` for secure Bearer token handling.
-- [ ] Set up Room Database:
+- [x] Implement DTOs matching backend REST API contracts (`/api/auth/*`, `/api/schedule/*`, `/api/habits/*`, `/api/todos/*`).
+- [x] Implement `DayFlowApiService` Retrofit client pointing to `https://dayflowlive.com/api` (prod) and `http://10.0.2.2:5000/api` (dev emulator).
+- [x] Implement `AuthInterceptor` with `EncryptedSharedPreferences` for secure Bearer token handling.
+- [x] Set up Room Database:
   - `ScheduleSlotEntity` + `ScheduleSlotDao`
   - `HabitLogEntity` + `HabitLogDao`
   - `TodoEntity` + `TodoDao`
+  - `WeeklyNotesEntity` + `WeeklyNotesDao`
   - `MutationQueueEntity` + `MutationQueueDao`
-- [ ] Implement repository interfaces and implementations (`ScheduleRepository`, `HabitRepository`, `AuthRepository`).
-- [ ] **Test Gate 1:** User verification of local database operations and mock network interaction.
+- [x] Implement repository interfaces and implementations (`ScheduleRepository`, `HabitRepository`, `TodoRepository`, `AuthRepository`).
+- [x] Unit test verifying JSON serialization/deserialization with Kotlinx Serialization.
+- [ ] **Test Gate 1:** User verification of local database operations, models, and compile status. (READY FOR TEST)
+
 
 ### Phase 2: Domain Layer & Golden Time-Lock Logic
 - [ ] Create domain entities (`Slot`, `Habit`, `Todo`, `Category`, `SlotStatus`).

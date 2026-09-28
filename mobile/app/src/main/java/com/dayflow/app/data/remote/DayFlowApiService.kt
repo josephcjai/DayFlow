@@ -1,0 +1,98 @@
+package com.dayflow.app.data.remote
+
+import com.dayflow.app.data.model.AuthResponse
+import com.dayflow.app.data.model.CreateTodoRequest
+import com.dayflow.app.data.model.DeleteSlotRequest
+import com.dayflow.app.data.model.ForgotPasswordRequest
+import com.dayflow.app.data.model.HabitLogDto
+import com.dayflow.app.data.model.LogHabitRequest
+import com.dayflow.app.data.model.LogHabitResponse
+import com.dayflow.app.data.model.LoginRequest
+import com.dayflow.app.data.model.MessageResponse
+import com.dayflow.app.data.model.RegisterRequest
+import com.dayflow.app.data.model.SaveNotesRequest
+import com.dayflow.app.data.model.SaveSlotRequest
+import com.dayflow.app.data.model.SaveSlotResponse
+import com.dayflow.app.data.model.TodoItemDto
+import com.dayflow.app.data.model.UpdateTodoRequest
+import com.dayflow.app.data.model.UserProfileResponse
+import com.dayflow.app.data.model.WeekScheduleResponse
+import com.dayflow.app.data.model.WeekTodosResponse
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.HTTP
+import retrofit2.http.PATCH
+import retrofit2.http.POST
+import retrofit2.http.Path
+
+interface DayFlowApiService {
+
+    // ==========================================
+    // 1. Authentication Endpoints
+    // ==========================================
+
+    @POST("auth/register")
+    suspend fun register(@Body request: RegisterRequest): Response<AuthResponse>
+
+    @POST("auth/login")
+    suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
+
+    @GET("auth/me")
+    suspend fun getCurrentUser(): Response<UserProfileResponse>
+
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<MessageResponse>
+
+    // ==========================================
+    // 2. Schedule Endpoints
+    // ==========================================
+
+    @GET("schedule/week/{weekStart}")
+    suspend fun getWeekSchedule(@Path("weekStart") weekStart: String): Response<WeekScheduleResponse>
+
+    @POST("schedule/slot")
+    suspend fun saveSlot(@Body request: SaveSlotRequest): Response<SaveSlotResponse>
+
+    @HTTP(method = "DELETE", path = "schedule/slot", hasBody = true)
+    suspend fun deleteSlot(@Body request: DeleteSlotRequest): Response<MessageResponse>
+
+    // ==========================================
+    // 3. Habit Endpoints
+    // ==========================================
+
+    @POST("habits/log")
+    suspend fun logHabit(@Body request: LogHabitRequest): Response<LogHabitResponse>
+
+    @DELETE("habits/{id}")
+    suspend fun deleteHabit(@Path("id") id: String): Response<MessageResponse>
+
+    // ==========================================
+    // 4. Todo & Notes Endpoints
+    // ==========================================
+
+    @GET("todos/week/{weekStart}")
+    suspend fun getWeekTodos(@Path("weekStart") weekStart: String): Response<WeekTodosResponse>
+
+    @POST("todos/todo")
+    suspend fun createTodo(@Body request: CreateTodoRequest): Response<TodoItemDto>
+
+    @PATCH("todos/{id}")
+    suspend fun updateTodo(
+        @Path("id") id: String,
+        @Body request: UpdateTodoRequest
+    ): Response<TodoItemDto>
+
+    @DELETE("todos/{id}")
+    suspend fun deleteTodo(@Path("id") id: String): Response<MessageResponse>
+
+    @POST("todos/notes")
+    suspend fun saveNotes(@Body request: SaveNotesRequest): Response<MessageResponse>
+
+    companion object {
+        const val PROD_BASE_URL = "https://dayflowlive.com/api/"
+        const val DEV_EMULATOR_BASE_URL = "http://10.0.2.2:5000/api/"
+        const val DEV_PHYSICAL_BASE_URL = "http://192.168.1.100:5000/api/"
+    }
+}
