@@ -5,7 +5,7 @@ export const openApiDocument = {
   openapi: '3.0.0',
   info: {
     title: 'DayFlow REST API Specification',
-    version: '2.4.1',
+    version: '2.5.0',
     description: 'Interactive API documentation for DayFlow multi-view schedule planner, habit ledger, and focus tracker. Test endpoints directly with "Try it out".'
   },
   servers: [

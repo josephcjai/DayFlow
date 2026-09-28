@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.9.8';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.8';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker } from './grid.js?v=2.9.8';
-import { initModal, openTaskModal } from './modal.js?v=2.9.8';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.8';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.8';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.8';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.8';
-import { showToast } from './utils.js?v=2.9.8';
+} from './state.js?v=2.9.9';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.9';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker } from './grid.js?v=2.9.9';
+import { initModal, openTaskModal } from './modal.js?v=2.9.9';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.9';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.9';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.9';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.9';
+import { showToast } from './utils.js?v=2.9.9';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.8';
+} from './notifications.js?v=2.9.9';
 
 const DOM = {};
 
@@ -1794,6 +1794,7 @@ export function initHeaderLayoutManager() {
     const headerActions = header.querySelector('.header-actions');
     const brand = header.querySelector('.brand');
     const nav = header.querySelector('.view-nav');
+    const userDisplayName = header.querySelector('#userDisplayName');
     if (!headerActions || !brand || !nav) return;
 
     const getRightmostActionEdge = () => {
@@ -1825,15 +1826,48 @@ export function initHeaderLayoutManager() {
         header.classList.add('brand-compact');
       }
     } else {
-      // Hysteresis release with comfortable headroom (+50px buffer)
-      if (windowWidth >= 1520 && header.classList.contains('actions-compact')) {
-        header.classList.remove('actions-compact');
+      const currentEdge = getRightmostActionEdge();
+
+      // Release Step 3: Brand compact (re-enable brand badge)
+      // Only release if the uncompacted badge (~75px) fits with at least 28px headroom
+      if (header.classList.contains('brand-compact')) {
+        const brandDelta = 75;
+        if (currentEdge + brandDelta <= windowWidth - 28) {
+          header.classList.remove('brand-compact');
+          if (getRightmostActionEdge() > windowWidth - 4) {
+            header.classList.add('brand-compact');
+          }
+        }
       }
-      if (windowWidth >= 1320 && header.classList.contains('nav-compact')) {
-        header.classList.remove('nav-compact');
+
+      // Release Step 2: Nav compact (re-enable nav button text)
+      // Only release if nav text labels (~420px) fit with at least 28px headroom
+      // and brand-compact is not active
+      if (header.classList.contains('nav-compact') && !header.classList.contains('brand-compact')) {
+        const navDelta = 420;
+        if (currentEdge + navDelta <= windowWidth - 28) {
+          header.classList.remove('nav-compact');
+          if (getRightmostActionEdge() > windowWidth - 4) {
+            header.classList.add('nav-compact');
+          }
+        }
       }
-      if (windowWidth >= 820 && header.classList.contains('brand-compact')) {
-        header.classList.remove('brand-compact');
+
+      // Release Step 1: Actions compact (re-enable action button labels & unclamp user name)
+      // Only release if windowWidth >= 1520 (below which CSS media query enforces compaction anyway)
+      // and uncompacted actions (labels ~150px + natural display name width) fit with at least 28px headroom
+      // and nav-compact is not active
+      if (header.classList.contains('actions-compact') && !header.classList.contains('nav-compact')) {
+        if (windowWidth >= 1520) {
+          const nameOverflow = userDisplayName ? Math.max(0, userDisplayName.scrollWidth - userDisplayName.clientWidth) : 0;
+          const actionsDelta = 150 + nameOverflow;
+          if (currentEdge + actionsDelta <= windowWidth - 28) {
+            header.classList.remove('actions-compact');
+            if (getRightmostActionEdge() > windowWidth - 4) {
+              header.classList.add('actions-compact');
+            }
+          }
+        }
       }
     }
   };

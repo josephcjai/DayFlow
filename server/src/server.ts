@@ -59,8 +59,16 @@ app.use(cors({
 // Request Body Parser with payload limit
 app.use(express.json({ limit: '200kb' }));
 
-// Interactive Swagger UI API Documentation at /docs and /api-docs
-app.use(['/docs', '/api-docs'], swaggerUi.serve, swaggerUi.setup(openApiDocument));
+export const APP_VERSION = '2.5.0';
+
+// Interactive Swagger UI API Documentation at /docs and /api-docs (disabled in production - Finding 39)
+if (!isProd) {
+  app.use(['/docs', '/api-docs'], swaggerUi.serve, swaggerUi.setup(openApiDocument));
+} else {
+  app.use(['/docs', '/api-docs'], (_req, res) => {
+    res.status(404).json({ error: 'Interactive API documentation is disabled in production.' });
+  });
+}
 
 // API Base Info Endpoint
 app.get(['/', '/api'], (req, res) => {
@@ -70,9 +78,9 @@ app.get(['/', '/api'], (req, res) => {
 
   res.json({
     name: 'DayFlow REST API Server',
-    version: '2.5.0',
+    version: APP_VERSION,
     status: 'online',
-    interactiveDocs: `${baseUrl}/docs`,
+    ...(isProd ? {} : { interactiveDocs: `${baseUrl}/docs` }),
     healthCheck: `${baseUrl}/api/health`,
     endpoints: {
       auth: '/api/auth (POST /register, POST /login, POST /google, GET /me)',
@@ -90,7 +98,7 @@ app.use('/api/schedule', scheduleRoutes);
 app.use('/api/habits', habitRoutes);
 app.use('/api/todos', todoRoutes);
 
-// Health & Database Readiness Check Endpoint
+// Health & Database Readiness Check Endpoint (Finding 37)
 app.get('/api/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -98,7 +106,7 @@ app.get('/api/health', async (_req, res) => {
       status: 'online',
       database: 'connected',
       service: 'DayFlow API Server',
-      version: '2.4.0',
+      version: APP_VERSION,
       timestamp: new Date()
     });
   } catch (err: any) {
@@ -106,6 +114,8 @@ app.get('/api/health', async (_req, res) => {
     res.status(503).json({
       status: 'degraded',
       database: 'disconnected',
+      service: 'DayFlow API Server',
+      version: APP_VERSION,
       error: isProd ? 'Database connection unavailable' : err.message,
       timestamp: new Date()
     });
@@ -128,7 +138,9 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 // Start Express Listener
 const server = app.listen(PORT, () => {
   console.log(`🚀 DayFlow Express REST API running on http://localhost:${PORT}`);
-  console.log(`📚 Interactive Swagger API Documentation available at http://localhost:${PORT}/docs`);
+  if (!isProd) {
+    console.log(`📚 Interactive Swagger API Documentation available at http://localhost:${PORT}/docs`);
+  }
 });
 
 // Graceful Shutdown on SIGTERM / SIGINT
