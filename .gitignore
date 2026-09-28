@@ -13,18 +13,14 @@ dist/
 build/
 .cache/
 
-# Flutter / Dart (For Mobile Phase)
-.dart_tool/
-.fvm/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-build/
-ios/Runner.xcworkspace
-android/.gradle
-android/app/build
+# Mobile Android Build Artifacts & Tooling
+mobile/.gradle/
+mobile/**/build/
+mobile/local.properties
+mobile/.idea/
+*.apk
+*.aab
+
 
 # IDE & Editor Configurations
 .vscode/

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DayFlow Core Brand Colors -->
+    <color name="primary">#0284C7</color>
+    <color name="primary_dark">#0369A1</color>
+    <color name="accent">#6366F1</color>
+    
+    <!-- DayFlow Category Colors -->
+    <color name="cat_learning">#6366F1</color>
+    <color name="cat_work">#0284C7</color>
+    <color name="cat_household">#D97706</color>
+    <color name="cat_family">#DB2777</color>
+    <color name="cat_health">#059669</color>
+    <color name="cat_travel">#7C3AED</color>
+
+    <!-- Dark Theme Backgrounds -->
+    <color name="background_dark">#0F172A</color>
+    <color name="surface_dark">#1E293B</color>
+</resources>
