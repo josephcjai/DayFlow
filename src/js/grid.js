@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.7';
-import { openTaskModal } from './modal.js?v=2.9.7';
-import { escapeHtml } from './utils.js?v=2.9.7';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.8';
+import { openTaskModal } from './modal.js?v=2.9.8';
+import { escapeHtml } from './utils.js?v=2.9.8';
 
 export const TIME_SLOTS = [];
 
@@ -35,6 +35,107 @@ export function getCurrentSlotKey() {
   return `${dateStr}_${hour}:${slotMin}`;
 }
 
+let currentSlotTicker = null;
+let tickerListenersAttached = false;
+
+/**
+ * Dynamically updates the current active slot (NOW pill & highlight) across
+ * Week, Day, and Month views without re-rendering the full grid or resetting scroll.
+ */
+export function updateCurrentSlotIndicator() {
+  const currentSlotKey = getCurrentSlotKey();
+
+  // 1. Clear NOW highlighting from any slot cells that are no longer the current slot
+  const activeCells = document.querySelectorAll('.slot-cell.current-active-slot');
+  activeCells.forEach(cell => {
+    if (cell.dataset.slotKey !== currentSlotKey) {
+      cell.classList.remove('current-active-slot');
+
+      // Remove .now-pill elements
+      const nowPills = cell.querySelectorAll('.now-pill');
+      nowPills.forEach(p => p.remove());
+
+      // If this cell was an empty slot displaying the current-empty-content prompt, restore clean empty cell
+      const emptyContent = cell.querySelector('.current-empty-content');
+      if (emptyContent) {
+        cell.innerHTML = '';
+        cell.classList.add('empty');
+      }
+    }
+  });
+
+  // 2. Add NOW highlighting to the new current slot cell (if present in the current DOM view)
+  const newActiveCell = document.querySelector(`.slot-cell[data-slot-key="${currentSlotKey}"]`);
+  if (newActiveCell) {
+    if (!newActiveCell.classList.contains('current-active-slot')) {
+      newActiveCell.classList.add('current-active-slot');
+    }
+
+    // Ensure it has the NOW pill
+    if (!newActiveCell.querySelector('.now-pill')) {
+      const statusIndicator = newActiveCell.querySelector('.status-indicator');
+      if (statusIndicator) {
+        // Populated task cell: insert NOW badge at start of status indicator
+        statusIndicator.insertAdjacentHTML('afterbegin', '<span class="now-pill">📍 NOW</span>');
+      } else if (newActiveCell.classList.contains('empty') || !newActiveCell.querySelector('.slot-content')) {
+        // Empty slot cell: display the current empty slot prompt
+        newActiveCell.classList.add('empty');
+        const isDayView = newActiveCell.classList.contains('day-view-cell');
+        newActiveCell.innerHTML = `
+          <div class="slot-content current-empty-content">
+            <div class="now-badge-row"><span class="now-pill">📍 NOW</span></div>
+            <div class="now-hint-text">${isDayView ? '+ Click to log task for current 30-min slot' : '+ Log current task'}</div>
+          </div>
+        `;
+      }
+    }
+  }
+
+  // 3. Update Month View if active (update TODAY badge on day rollover)
+  const todayDateStr = formatDateISO(new Date());
+  const activeTodayCells = document.querySelectorAll('.month-day-cell.today-cell');
+  activeTodayCells.forEach(cell => {
+    if (cell.dataset.date !== todayDateStr) {
+      cell.classList.remove('today-cell');
+      const tag = cell.querySelector('.today-tag');
+      if (tag) tag.remove();
+    }
+  });
+  const newTodayCell = document.querySelector(`.month-day-cell[data-date="${todayDateStr}"]`);
+  if (newTodayCell && !newTodayCell.classList.contains('today-cell')) {
+    newTodayCell.classList.add('today-cell');
+    const dayNumEl = newTodayCell.querySelector('.month-day-num');
+    if (dayNumEl && !dayNumEl.querySelector('.today-tag')) {
+      dayNumEl.insertAdjacentHTML('beforeend', ' <span class="today-tag">TODAY</span>');
+    }
+  }
+}
+
+/**
+ * Starts the live background interval to ensure the NOW indicator stays accurate
+ * as time elapses, without requiring a manual page refresh.
+ */
+export function startCurrentSlotTicker() {
+  if (!currentSlotTicker) {
+    // Check every 10 seconds so the NOW indicator advances smoothly across 30-min marks
+    currentSlotTicker = setInterval(() => {
+      updateCurrentSlotIndicator();
+    }, 10000);
+  }
+
+  if (!tickerListenersAttached && typeof document !== 'undefined') {
+    tickerListenersAttached = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        updateCurrentSlotIndicator();
+      }
+    });
+    window.addEventListener('focus', () => {
+      updateCurrentSlotIndicator();
+    });
+  }
+}
+
 export function renderGrid(scheduleTableBody, onSwitchToDayView) {
   const gridWrapper = document.getElementById('gridWrapper');
   const monthViewContainer = document.getElementById('monthViewContainer');
@@ -48,6 +149,7 @@ export function renderGrid(scheduleTableBody, onSwitchToDayView) {
       monthViewContainer.style.display = 'block';
       renderMonthGrid(monthViewContainer, onSwitchToDayView);
     }
+    startCurrentSlotTicker();
     return;
   }
 
@@ -65,6 +167,9 @@ export function renderGrid(scheduleTableBody, onSwitchToDayView) {
     renderWeekGridHeader(scheduleTableHeader, onSwitchToDayView);
     renderWeekGridBody(scheduleTableBody);
   }
+
+  // Ensure live slot ticker is running
+  startCurrentSlotTicker();
 }
 
 let isNavPillScrolling = false;

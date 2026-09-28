@@ -70,7 +70,7 @@ app.get(['/', '/api'], (req, res) => {
 
   res.json({
     name: 'DayFlow REST API Server',
-    version: '2.4.0',
+    version: '2.5.0',
     status: 'online',
     interactiveDocs: `${baseUrl}/docs`,
     healthCheck: `${baseUrl}/api/health`,
