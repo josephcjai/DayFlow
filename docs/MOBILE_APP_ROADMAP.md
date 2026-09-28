@@ -1,4 +1,4 @@
-# DayFlow Mobile & Cross-Platform Roadmap
+﻿# DayFlow Mobile & Cross-Platform Roadmap
 
 | Document Metadata | Details |
 |---|---|
@@ -9,7 +9,7 @@
 
 ---
 
-## 🧭 High-Level Milestones
+## ðŸ§­ High-Level Milestones
 
 - [ ] **Milestone 1: Android Foundation & Offline Data Engine** (In Progress)
 - [ ] **Milestone 2: Android Core UX (30-Min Schedule Grid, Time-Lock, Task Modal)**
@@ -20,7 +20,7 @@
 
 ---
 
-## 📋 Detailed Task Checklist
+## ðŸ“‹ Detailed Task Checklist
 
 ### Phase 0: Workspace Scaffolding & Clean Code Isolation
 - [x] Create isolated `/mobile` directory structure decoupled from Web code (`/src`, `/index.html`).
@@ -107,7 +107,7 @@
 
 ---
 
-## 🖥️ Future macOS Expansion (Milestone 6)
+## ðŸ–¥ï¸ Future macOS Expansion (Milestone 6)
 
 *Note: Scheduled after Android release.*
 
