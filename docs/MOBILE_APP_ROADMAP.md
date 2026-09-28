@@ -58,12 +58,12 @@
 - [ ] **Test Gate 2:** User verification of time-lock and date calculation tests.
 
 ### Phase 3: Auth, Biometrics & Instant Demo Mode
-- [ ] Welcome & Onboarding screen with DayFlow branding.
-- [ ] Login screen (Email + Password) with form validation.
-- [ ] Register screen (Email, Display Name, Password).
-- [ ] **Instant Demo Mode:** 1-tap local sandbox with pre-loaded mock data (no credentials required).
+- [x] Welcome & Onboarding screen with DayFlow branding and dark focus palette.
+- [x] Login screen (Email + Password) with form validation and password visibility toggle.
+- [x] Register screen (Email, Display Name, Password).
+- [x] **Instant Demo Mode:** 1-tap local sandbox with pre-loaded mock schedule, habits, and todos.
 - [ ] Biometric prompt (`BiometricPrompt`) for secure quick-resume.
-- [ ] **Test Gate 3:** User testing of login, registration, and Demo Mode flow.
+- [ ] **Test Gate 3:** User testing of login, registration, biometric unlock, and Demo Mode flow. (READY FOR TEST)
 
 ### Phase 4: Core 30-Minute Schedule Grid & Task Modal
 - [ ] Day View: Vertical scrollable timeline of 48 slots (`00:00` to `23:30`).
