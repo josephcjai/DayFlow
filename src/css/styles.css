@@ -533,6 +533,310 @@ body {
   background: rgba(239, 68, 68, 0.05);
 }
 
+/* Strike-through and subtle dimming for Done tasks */
+.slot-cell.status-Done .slot-title {
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+/* ==========================================================================
+   INLINE GRID TASK TITLE & DURATION EDITING
+   ========================================================================== */
+
+.slot-title.inline-editable {
+  cursor: text;
+  border-radius: var(--radius-sm, 4px);
+  padding: 0 0.2rem;
+  margin-left: -0.2rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.slot-title.inline-editable:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  text-decoration: underline dashed rgba(255, 255, 255, 0.45);
+}
+
+.slot-cell.status-Done .slot-title.inline-editable:hover {
+  text-decoration: line-through underline dashed rgba(255, 255, 255, 0.45);
+}
+
+.inline-title-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid var(--accent-primary, #6366f1);
+  border-radius: var(--radius-sm, 4px);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 0.12rem 0.35rem;
+  line-height: 1.2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
+  box-sizing: border-box;
+  z-index: 5;
+  position: relative;
+}
+
+.actual-time-badge.inline-editable {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm, 4px);
+  padding: 0 0.25rem;
+  margin: -0.05rem -0.15rem;
+  transition: all 0.15s ease;
+  border-bottom: 1px dashed rgba(165, 180, 252, 0.4);
+}
+
+.actual-time-badge.inline-editable:hover {
+  background: rgba(99, 102, 241, 0.25);
+  color: #c7d2fe;
+  border-bottom-color: #a5b4fc;
+  transform: scale(1.05);
+}
+
+.inline-duration-input {
+  width: 52px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid var(--accent-primary, #6366f1);
+  border-radius: var(--radius-sm, 4px);
+  color: #a5b4fc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 0.05rem 0.2rem;
+  text-align: center;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
+  box-sizing: border-box;
+  z-index: 5;
+  position: relative;
+}
+
+/* Hide spin buttons on inline number input for clean look */
+.inline-duration-input::-webkit-outer-spin-button,
+.inline-duration-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.inline-duration-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* ==========================================================================
+   INTERACTIVE GRID TASK STATUS CONTROLS (Option 3: Quick Toggle & Popover)
+   ========================================================================== */
+
+.status-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  line-height: 1;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.status-quick-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.08);
+}
+
+.status-quick-btn:active {
+  transform: scale(0.95);
+}
+
+.status-quick-btn .status-btn-icon {
+  display: inline-block;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.status-quick-btn .status-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: 0.15rem;
+}
+
+/* Status-specific button badge styling */
+.status-quick-btn.status-btn-Done {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+.status-quick-btn.status-btn-Done:hover {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: #34d399;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.status-quick-btn.status-btn-Partially {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+.status-quick-btn.status-btn-Partially:hover {
+  background: rgba(245, 158, 11, 0.3);
+  border-color: #fbbf24;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+.status-quick-btn.status-btn-Not {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #f87171;
+}
+.status-quick-btn.status-btn-Not:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #f87171;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.status-quick-btn.status-btn-Pending {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text-muted);
+}
+.status-quick-btn.status-btn-Pending:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+/* Status Quick Popover Menu */
+.status-quick-menu {
+  position: fixed;
+  z-index: 10000;
+  background: rgba(20, 24, 36, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-highlight, rgba(255, 255, 255, 0.18));
+  border-radius: var(--radius-md, 10px);
+  padding: 0.35rem;
+  min-width: 175px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  animation: contextMenuPop 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.status-menu-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  padding: 0.3rem 0.5rem 0.2rem;
+}
+
+.status-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+}
+
+.status-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.status-menu-item.active {
+  background: rgba(99, 102, 241, 0.22);
+  color: #a5b4fc;
+  font-weight: 600;
+}
+
+.status-menu-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.status-menu-label {
+  flex: 1;
+}
+
+.status-menu-check {
+  font-size: 0.85rem;
+  color: #34d399;
+  opacity: 0;
+}
+
+.status-menu-item.active .status-menu-check {
+  opacity: 1;
+}
+
+/* Status Chips inside Main Grid Context Menu */
+.context-menu-section-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  padding: 0.3rem 0.6rem 0.2rem;
+}
+
+.context-menu-status-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem 0.45rem;
+}
+
+.status-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.status-chip-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.status-chip-btn.active {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: var(--accent-primary, #6366f1);
+  color: #fff;
+}
+
 /* Habit Ledger & Cards */
 .habits-container, .analytics-container, .notes-container {
   display: flex;

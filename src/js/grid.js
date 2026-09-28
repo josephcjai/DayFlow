@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.9';
-import { openTaskModal } from './modal.js?v=2.9.9';
-import { escapeHtml } from './utils.js?v=2.9.9';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.11';
+import { openTaskModal } from './modal.js?v=2.9.11';
+import { escapeHtml } from './utils.js?v=2.9.11';
 
 export const TIME_SLOTS = [];
 
@@ -376,18 +376,20 @@ function renderWeekGridBody(scheduleTableBody) {
         td.innerHTML = `
           <div class="slot-content">
             <div class="slot-header-row">
-              <span class="slot-title" title="Actual: ${escapeHtml(actualText)} | Planned: ${escapeHtml(plannedText)}">
+              <span class="slot-title inline-editable" data-slot-key="${slotKey}" title="Click to edit task title | Double-click slot for full modal">
                 ${escapeHtml(actualText)}
               </span>
               <span class="status-indicator">
                 ${isCurrentSlot ? '<span class="now-pill">📍 NOW</span>' : ''}
-                ${statusIcon}
+                <button type="button" class="status-quick-btn status-btn-${escapeHtml((slotData.status || 'Pending').split(' ')[0])}" data-slot-key="${slotKey}" title="Status: ${escapeHtml(slotData.status || 'Pending')} (Click: Toggle Done | Right-Click: Status Menu | Alt+Click: Cycle)" aria-label="Status: ${escapeHtml(slotData.status || 'Pending')}">
+                  <span class="status-btn-icon">${statusIcon}</span>
+                </button>
               </span>
             </div>
             ${isDifferent ? `<div class="planned-subtext">Plan: ${escapeHtml(plannedText)}</div>` : ''}
             <div class="slot-footer-row">
               <span class="category-tag ${escapedCat}">${escapedCat}</span>
-              <span class="time-dur-badge">${slotData.planned || 30}m | <strong>${slotData.actual || 0}m</strong></span>
+              <span class="time-dur-badge">${slotData.planned || 30}m | <strong class="actual-time-badge inline-editable" data-slot-key="${slotKey}" title="Click to edit actual duration">${slotData.actual !== undefined ? slotData.actual : 0}m</strong></span>
             </div>
           </div>
         `;
@@ -404,6 +406,9 @@ function renderWeekGridBody(scheduleTableBody) {
       }
 
       td.addEventListener('click', (e) => {
+        if (e.target.closest('.status-quick-btn') || e.target.closest('.inline-editable') || e.target.closest('input')) {
+          return;
+        }
         if (STATE.selectedSlotKey === slotKey) {
           openTaskModal(slotKey, td.dataset.dayName, slotInfo.label, slotData);
         } else {
@@ -493,19 +498,22 @@ function renderDayGridBody(scheduleTableBody) {
       td.innerHTML = `
         <div class="slot-content day-view-content">
           <div class="slot-header-row">
-            <span class="slot-title lg-title">
+            <span class="slot-title lg-title inline-editable" data-slot-key="${slotKey}" title="Click to edit task title | Double-click slot for full modal">
               ${escapeHtml(actualText)}
             </span>
             <span class="status-indicator">
               ${isCurrentSlot ? '<span class="now-pill">📍 NOW</span>' : ''}
-              ${statusIcon} <span class="status-name">${slotData.status || 'Pending'}</span>
+              <button type="button" class="status-quick-btn status-btn-${escapeHtml((slotData.status || 'Pending').split(' ')[0])}" data-slot-key="${slotKey}" title="Status: ${escapeHtml(slotData.status || 'Pending')} (Click: Toggle Done | Right-Click: Status Menu | Alt+Click: Cycle)" aria-label="Status: ${escapeHtml(slotData.status || 'Pending')}">
+                <span class="status-btn-icon">${statusIcon}</span>
+                <span class="status-name">${escapeHtml(slotData.status || 'Pending')}</span>
+              </button>
             </span>
           </div>
           ${plannedText && plannedText !== actualText ? `<div class="planned-subtext">Baseline Plan: ${escapeHtml(plannedText)}</div>` : ''}
           ${slotData.notes ? `<div class="slot-notes-preview">📝 ${escapeHtml(slotData.notes)}</div>` : ''}
           <div class="slot-footer-row">
             <span class="category-tag ${escapedCat}">${escapedCat}</span>
-            <span class="time-dur-badge">Planned: ${slotData.planned || 30}m | <strong>Actual: ${slotData.actual || 0}m</strong></span>
+            <span class="time-dur-badge">Planned: ${slotData.planned || 30}m | <strong class="actual-time-badge inline-editable" data-slot-key="${slotKey}" title="Click to edit actual duration">Actual: ${slotData.actual !== undefined ? slotData.actual : 0}m</strong></span>
           </div>
         </div>
       `;
@@ -522,6 +530,9 @@ function renderDayGridBody(scheduleTableBody) {
     }
 
     td.addEventListener('click', (e) => {
+      if (e.target.closest('.status-quick-btn') || e.target.closest('.inline-editable') || e.target.closest('input')) {
+        return;
+      }
       if (STATE.selectedSlotKey === slotKey) {
         openTaskModal(slotKey, dayName, slotInfo.label, slotData);
       } else {

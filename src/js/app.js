@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.9.9';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.9';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker } from './grid.js?v=2.9.9';
-import { initModal, openTaskModal } from './modal.js?v=2.9.9';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.9';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.9';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.9';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.9';
-import { showToast } from './utils.js?v=2.9.9';
+} from './state.js?v=2.9.11';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.11';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker } from './grid.js?v=2.9.11';
+import { initModal, openTaskModal } from './modal.js?v=2.9.11';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.11';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.11';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.11';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.11';
+import { showToast } from './utils.js?v=2.9.11';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.9';
+} from './notifications.js?v=2.9.11';
 
 const DOM = {};
 
@@ -935,13 +935,15 @@ function bindEvents() {
     });
   }
 
-  // Grid keyboard shortcuts (Ctrl+C, Ctrl+V, Ctrl+D, Ctrl+Z, Ctrl+Y, Arrows, Enter, Delete, Escape)
+  // Grid keyboard shortcuts (Ctrl+C, Ctrl+V, Ctrl+D, Ctrl+Z, Ctrl+Y, Arrows, Enter, Delete, Escape, Space/D/P/X/U, e/F2)
   initGridShortcuts();
   initGridContextMenu();
+  initStatusQuickMenu();
+  initInlineEditing();
 
   // Clear cell selection when clicking outside grid cells or modal
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.slot-cell') && !e.target.closest('#taskModal') && !e.target.closest('#gridContextMenu')) {
+    if (!e.target.closest('.slot-cell') && !e.target.closest('#taskModal') && !e.target.closest('#gridContextMenu') && !e.target.closest('#statusQuickMenu') && !e.target.closest('.inline-title-input') && !e.target.closest('.inline-duration-input')) {
       clearSlotSelection();
     }
   });
@@ -1074,8 +1076,76 @@ function initGridShortcuts() {
       return;
     }
 
-    // 8. Enter or Space -> Open Modal for selected slot
-    if (e.key === 'Enter' || e.key === ' ') {
+    // 8. Keyboard Status Shortcuts & Modal Opening
+    // Space or 'd'/'D' -> Toggle Done/Pending if slot has a task; if empty slot, Space opens modal
+    if (e.key === ' ' || ((e.key === 'd' || e.key === 'D') && !isCmdOrCtrl && !e.altKey)) {
+      if (!STATE.selectedSlotKey) return;
+      const weekKey = getSlotWeekKey(STATE.selectedSlotKey);
+      const slotData = STATE.scheduleData[weekKey]?.slots?.[STATE.selectedSlotKey];
+      if (slotData && (slotData.plannedTask || slotData.actualTask || slotData.title)) {
+        e.preventDefault();
+        await toggleSlotDone(STATE.selectedSlotKey);
+        return;
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        const targetTd = document.querySelector(`.slot-cell[data-slot-key="${STATE.selectedSlotKey}"]`);
+        const dayName = targetTd?.dataset?.dayName || '';
+        const timeLabel = targetTd?.dataset?.timeLabel || '';
+        openTaskModal(STATE.selectedSlotKey, dayName, timeLabel, slotData);
+        return;
+      }
+    }
+
+    // 'p'/'P' -> Mark Partially Done
+    if ((e.key === 'p' || e.key === 'P') && !isCmdOrCtrl && !e.altKey) {
+      if (!STATE.selectedSlotKey) return;
+      const weekKey = getSlotWeekKey(STATE.selectedSlotKey);
+      const slotData = STATE.scheduleData[weekKey]?.slots?.[STATE.selectedSlotKey];
+      if (slotData && (slotData.plannedTask || slotData.actualTask || slotData.title)) {
+        e.preventDefault();
+        await changeSlotStatus(STATE.selectedSlotKey, 'Partially Done');
+        return;
+      }
+    }
+
+    // 'x'/'X' -> Mark Not Done
+    if ((e.key === 'x' || e.key === 'X') && !isCmdOrCtrl && !e.altKey) {
+      if (!STATE.selectedSlotKey) return;
+      const weekKey = getSlotWeekKey(STATE.selectedSlotKey);
+      const slotData = STATE.scheduleData[weekKey]?.slots?.[STATE.selectedSlotKey];
+      if (slotData && (slotData.plannedTask || slotData.actualTask || slotData.title)) {
+        e.preventDefault();
+        await changeSlotStatus(STATE.selectedSlotKey, 'Not Done');
+        return;
+      }
+    }
+
+    // 'u'/'U' -> Mark Pending
+    if ((e.key === 'u' || e.key === 'U') && !isCmdOrCtrl && !e.altKey) {
+      if (!STATE.selectedSlotKey) return;
+      const weekKey = getSlotWeekKey(STATE.selectedSlotKey);
+      const slotData = STATE.scheduleData[weekKey]?.slots?.[STATE.selectedSlotKey];
+      if (slotData && (slotData.plannedTask || slotData.actualTask || slotData.title)) {
+        e.preventDefault();
+        await changeSlotStatus(STATE.selectedSlotKey, 'Pending');
+        return;
+      }
+    }
+
+    // 'e' or 'F2' -> Start inline title edit for selected slot
+    if (e.key === 'F2' || ((e.key === 'e' || e.key === 'E') && !isCmdOrCtrl && !e.altKey)) {
+      if (!STATE.selectedSlotKey) return;
+      const weekKey = getSlotWeekKey(STATE.selectedSlotKey);
+      const slotData = STATE.scheduleData[weekKey]?.slots?.[STATE.selectedSlotKey];
+      if (slotData && (slotData.plannedTask || slotData.actualTask || slotData.title)) {
+        e.preventDefault();
+        startInlineTitleEdit(STATE.selectedSlotKey);
+        return;
+      }
+    }
+
+    // Enter -> Open Modal for selected slot
+    if (e.key === 'Enter') {
       if (!STATE.selectedSlotKey) return;
       e.preventDefault();
       const targetTd = document.querySelector(`.slot-cell[data-slot-key="${STATE.selectedSlotKey}"]`);
@@ -1320,8 +1390,24 @@ function showContextMenu(x, y, slotKey, td) {
   const isFuture = isSlotInFuture(slotKey);
 
   const pasteSubtext = hasClipboard && isFuture ? ' <span style="font-size:0.68rem;opacity:0.75;margin-left:4px;">(Pending)</span>' : '';
+  const currentStatus = slotData?.status || 'Pending';
+
+  let statusSectionHtml = '';
+  if (hasTask) {
+    statusSectionHtml = `
+      <div class="context-menu-section-header">Set Status</div>
+      <div class="context-menu-status-chips">
+        <button type="button" class="status-chip-btn ${currentStatus === 'Done' ? 'active' : ''}" data-set-status="Done">✅ Done</button>
+        <button type="button" class="status-chip-btn ${currentStatus === 'Partially Done' ? 'active' : ''}" data-set-status="Partially Done">🟡 Partial</button>
+        <button type="button" class="status-chip-btn ${currentStatus === 'Not Done' ? 'active' : ''}" data-set-status="Not Done">❌ Missed</button>
+        <button type="button" class="status-chip-btn ${currentStatus === 'Pending' ? 'active' : ''}" data-set-status="Pending">⚪ Plan</button>
+      </div>
+      <div class="context-menu-divider"></div>
+    `;
+  }
 
   contextMenuEl.innerHTML = `
+    ${statusSectionHtml}
     <div class="context-menu-item" data-action="edit">
       <div class="context-menu-item-left">
         <span>✏️</span>
@@ -1444,6 +1530,18 @@ function showContextMenu(x, y, slotKey, td) {
     });
   });
 
+  // Attach click listener to status chips in context menu
+  contextMenuEl.querySelectorAll('.status-chip-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const targetStatus = btn.dataset.setStatus;
+      hideContextMenu();
+      if (targetStatus) {
+        await changeSlotStatus(slotKey, targetStatus);
+      }
+    });
+  });
+
   contextMenuEl.style.display = 'block';
   const menuWidth = contextMenuEl.offsetWidth || 210;
   const menuHeight = contextMenuEl.offsetHeight || 270;
@@ -1455,6 +1553,492 @@ function showContextMenu(x, y, slotKey, td) {
   contextMenuEl.style.left = `${Math.max(10, posX)}px`;
   contextMenuEl.style.top = `${Math.max(10, posY)}px`;
 }
+
+/* ==========================================================================
+   INTERACTIVE TASK STATUS CONTROLLERS
+   ========================================================================== */
+
+export async function changeSlotStatus(slotKey, newStatus) {
+  if (!slotKey || !newStatus) return;
+  const weekKey = getSlotWeekKey(slotKey);
+  if (!STATE.scheduleData[weekKey]) {
+    STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+  }
+  const weekData = STATE.scheduleData[weekKey];
+  const existing = weekData.slots[slotKey];
+  if (!existing || (!existing.plannedTask && !existing.actualTask && !existing.title)) return;
+
+  const currentStatus = existing.status || 'Pending';
+  if (currentStatus === newStatus) return;
+
+  const previousData = JSON.parse(JSON.stringify(existing));
+
+  let newActualDuration = existing.actual !== undefined ? existing.actual : 0;
+  
+  // Smart duration updates based on status
+  if (newStatus === 'Not Done') {
+    newActualDuration = 0;
+  } else if (newStatus === 'Done') {
+    if (!newActualDuration || newActualDuration === 0) {
+      newActualDuration = existing.planned || 30;
+    }
+  } else if (newStatus === 'Partially Done') {
+    if (!newActualDuration || newActualDuration === 0 || newActualDuration === (existing.planned || 30)) {
+      newActualDuration = Math.round((existing.planned || 30) / 2);
+    }
+  }
+
+  const updatedSlotObject = {
+    ...existing,
+    status: newStatus,
+    actual: newActualDuration
+  };
+
+  recordUndoAction({
+    type: 'slot_edit',
+    weekKey,
+    slotKey,
+    previousData,
+    newData: JSON.parse(JSON.stringify(updatedSlotObject)),
+    label: `${updatedSlotObject.plannedTask || updatedSlotObject.actualTask || 'Task'} -> ${newStatus}`
+  });
+
+  weekData.slots[slotKey] = updatedSlotObject;
+  saveStateToStorage();
+  renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+  renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  selectSlotCell(slotKey);
+
+  const statusIcons = {
+    'Done': '✅',
+    'Partially Done': '🟡',
+    'Not Done': '❌',
+    'Pending': '⚪'
+  };
+  const icon = statusIcons[newStatus] || '✨';
+  showToast(`${icon} Status: ${newStatus}`, 'success');
+
+  // If partially done, activate inline duration edit so user can immediately tweak minutes
+  if (newStatus === 'Partially Done') {
+    setTimeout(() => {
+      startInlineDurationEdit(slotKey);
+    }, 60);
+  }
+
+  try {
+    await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
+  } catch (err) {
+    console.error('Failed to sync slot status to backend:', err);
+  }
+}
+
+export async function toggleSlotDone(slotKey) {
+  if (!slotKey) return;
+  const weekKey = getSlotWeekKey(slotKey);
+  const slotData = STATE.scheduleData[weekKey]?.slots?.[slotKey];
+  if (!slotData) return;
+
+  const currentStatus = slotData.status || 'Pending';
+  const targetStatus = currentStatus === 'Done' ? 'Pending' : 'Done';
+  await changeSlotStatus(slotKey, targetStatus);
+}
+
+export async function cycleNextSlotStatus(slotKey) {
+  if (!slotKey) return;
+  const weekKey = getSlotWeekKey(slotKey);
+  const slotData = STATE.scheduleData[weekKey]?.slots?.[slotKey];
+  if (!slotData) return;
+
+  const currentStatus = slotData.status || 'Pending';
+  const cycleOrder = ['Pending', 'Done', 'Partially Done', 'Not Done'];
+  const currentIndex = cycleOrder.indexOf(currentStatus);
+  const nextStatus = cycleOrder[(currentIndex + 1) % cycleOrder.length];
+  await changeSlotStatus(slotKey, nextStatus);
+}
+
+// Dedicated Quick Status Popover Menu Controller
+let statusMenuEl = null;
+
+function initStatusQuickMenu() {
+  if (!statusMenuEl) {
+    statusMenuEl = document.createElement('div');
+    statusMenuEl.id = 'statusQuickMenu';
+    statusMenuEl.className = 'status-quick-menu';
+    statusMenuEl.style.display = 'none';
+    document.body.appendChild(statusMenuEl);
+  }
+
+  // Delegated click on .status-quick-btn
+  document.addEventListener('click', async (e) => {
+    const statusBtn = e.target.closest('.status-quick-btn');
+    if (statusBtn && STATE.activeView === 'grid') {
+      e.preventDefault();
+      e.stopPropagation();
+      hideContextMenu();
+      hideStatusQuickMenu();
+      const slotKey = statusBtn.dataset.slotKey;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+        await cycleNextSlotStatus(slotKey);
+      } else {
+        await toggleSlotDone(slotKey);
+      }
+      return;
+    }
+
+    if (statusMenuEl && !e.target.closest('#statusQuickMenu')) {
+      hideStatusQuickMenu();
+    }
+  });
+
+  // Right-click on .status-quick-btn opens dedicated micro-popover menu
+  document.addEventListener('contextmenu', (e) => {
+    const statusBtn = e.target.closest('.status-quick-btn');
+    if (statusBtn && STATE.activeView === 'grid') {
+      e.preventDefault();
+      e.stopPropagation();
+      const slotKey = statusBtn.dataset.slotKey;
+      selectSlotCell(slotKey);
+      showStatusQuickMenu(e.clientX, e.clientY, slotKey, statusBtn);
+      return;
+    }
+  }, true);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      hideStatusQuickMenu();
+    }
+  });
+}
+
+function hideStatusQuickMenu() {
+  if (statusMenuEl) {
+    statusMenuEl.style.display = 'none';
+  }
+}
+
+function showStatusQuickMenu(x, y, slotKey, anchorEl) {
+  if (!statusMenuEl) return;
+  hideContextMenu();
+
+  const weekKey = getSlotWeekKey(slotKey);
+  const weekData = STATE.scheduleData[weekKey];
+  const slotData = weekData?.slots?.[slotKey];
+  if (!slotData) return;
+
+  const currentStatus = slotData.status || 'Pending';
+
+  statusMenuEl.innerHTML = `
+    <div class="status-menu-header">Change Task Status</div>
+    <button type="button" class="status-menu-item ${currentStatus === 'Done' ? 'active' : ''}" data-status="Done">
+      <span class="status-menu-icon">✅</span>
+      <span class="status-menu-label">Done (Completed)</span>
+      <span class="status-menu-check">✓</span>
+    </button>
+    <button type="button" class="status-menu-item ${currentStatus === 'Partially Done' ? 'active' : ''}" data-status="Partially Done">
+      <span class="status-menu-icon">🟡</span>
+      <span class="status-menu-label">Partially Done</span>
+      <span class="status-menu-check">✓</span>
+    </button>
+    <button type="button" class="status-menu-item ${currentStatus === 'Not Done' ? 'active' : ''}" data-status="Not Done">
+      <span class="status-menu-icon">❌</span>
+      <span class="status-menu-label">Not Done (Missed)</span>
+      <span class="status-menu-check">✓</span>
+    </button>
+    <button type="button" class="status-menu-item ${currentStatus === 'Pending' ? 'active' : ''}" data-status="Pending">
+      <span class="status-menu-icon">⚪</span>
+      <span class="status-menu-label">Pending (Planned)</span>
+      <span class="status-menu-check">✓</span>
+    </button>
+  `;
+
+  statusMenuEl.style.display = 'flex';
+  statusMenuEl.style.visibility = 'hidden';
+
+  const rect = anchorEl ? anchorEl.getBoundingClientRect() : null;
+  const menuW = 185;
+  const menuH = statusMenuEl.offsetHeight || 160;
+  const vpW = window.innerWidth;
+  const vpH = window.innerHeight;
+
+  let left = rect ? rect.left : x;
+  let top = rect ? rect.bottom + 6 : y;
+
+  if (left + menuW > vpW - 12) {
+    left = vpW - menuW - 12;
+  }
+  if (top + menuH > vpH - 12) {
+    if (rect) {
+      top = Math.max(10, rect.top - menuH - 6);
+    } else {
+      top = Math.max(10, vpH - menuH - 12);
+    }
+  }
+
+  statusMenuEl.style.left = `${Math.max(10, left)}px`;
+  statusMenuEl.style.top = `${Math.max(10, top)}px`;
+  statusMenuEl.style.visibility = 'visible';
+
+  statusMenuEl.querySelectorAll('.status-menu-item').forEach(item => {
+    item.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const targetStatus = item.dataset.status;
+      hideStatusQuickMenu();
+      if (targetStatus) {
+        await changeSlotStatus(slotKey, targetStatus);
+      }
+    });
+  });
+}
+
+/* ==========================================================================
+   INLINE GRID TASK TITLE & DURATION EDITORS
+   ========================================================================== */
+
+export function startInlineTitleEdit(slotKey, titleEl = null) {
+  if (!slotKey) return;
+  if (!titleEl) {
+    titleEl = document.querySelector(`.slot-cell[data-slot-key="${slotKey}"] .slot-title.inline-editable`);
+  }
+  if (!titleEl) return;
+  if (titleEl.querySelector('input') || titleEl.tagName === 'INPUT') return;
+
+  const currentTitle = titleEl.textContent.trim();
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'inline-title-input';
+  input.value = currentTitle;
+  input.dataset.slotKey = slotKey;
+
+  titleEl.textContent = '';
+  titleEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let committed = false;
+
+  const commit = async () => {
+    if (committed) return;
+    committed = true;
+    const newTitle = input.value.trim();
+    if (newTitle && newTitle !== currentTitle) {
+      await saveInlineTaskTitle(slotKey, newTitle);
+    } else {
+      titleEl.textContent = currentTitle;
+    }
+  };
+
+  const cancel = () => {
+    if (committed) return;
+    committed = true;
+    titleEl.textContent = currentTitle;
+  };
+
+  input.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      await commit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      cancel();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      await commit();
+      setTimeout(() => startInlineDurationEdit(slotKey), 30);
+    }
+  });
+
+  input.addEventListener('blur', async () => {
+    await commit();
+  });
+
+  input.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+}
+
+export async function saveInlineTaskTitle(slotKey, newTitle) {
+  if (!slotKey || !newTitle) return;
+  const weekKey = getSlotWeekKey(slotKey);
+  if (!STATE.scheduleData[weekKey]) {
+    STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+  }
+  const weekData = STATE.scheduleData[weekKey];
+  const existing = weekData.slots[slotKey] || {};
+
+  const previousData = JSON.parse(JSON.stringify(existing));
+  const updatedSlotObject = {
+    ...existing,
+    actualTask: newTitle,
+    title: newTitle,
+    plannedTask: existing.plannedTask || newTitle
+  };
+
+  recordUndoAction({
+    type: 'slot_edit',
+    weekKey,
+    slotKey,
+    previousData,
+    newData: JSON.parse(JSON.stringify(updatedSlotObject)),
+    label: `Edit title: "${newTitle}"`
+  });
+
+  weekData.slots[slotKey] = updatedSlotObject;
+  saveStateToStorage();
+  renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+  renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  selectSlotCell(slotKey);
+  showToast(`📝 Updated task: "${newTitle}"`, 'success');
+
+  try {
+    await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
+  } catch (err) {
+    console.error('Failed to sync slot title to backend:', err);
+  }
+}
+
+export function startInlineDurationEdit(slotKey, badgeEl = null) {
+  if (!slotKey) return;
+  if (!badgeEl) {
+    badgeEl = document.querySelector(`.slot-cell[data-slot-key="${slotKey}"] .actual-time-badge.inline-editable`);
+  }
+  if (!badgeEl) return;
+  if (badgeEl.querySelector('input') || badgeEl.tagName === 'INPUT') return;
+
+  const weekKey = getSlotWeekKey(slotKey);
+  const slotData = STATE.scheduleData[weekKey]?.slots?.[slotKey];
+  const currentActual = slotData?.actual !== undefined ? slotData.actual : 0;
+
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.className = 'inline-duration-input';
+  input.min = '0';
+  input.max = '720';
+  input.step = '5';
+  input.value = currentActual;
+  input.dataset.slotKey = slotKey;
+
+  const originalHtml = badgeEl.innerHTML;
+  badgeEl.innerHTML = '';
+  badgeEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let committed = false;
+
+  const commit = async () => {
+    if (committed) return;
+    committed = true;
+    const parsed = parseInt(input.value, 10);
+    const newMinutes = isNaN(parsed) ? 0 : Math.max(0, parsed);
+    if (newMinutes !== currentActual) {
+      await saveInlineDuration(slotKey, newMinutes);
+    } else {
+      badgeEl.innerHTML = originalHtml;
+    }
+  };
+
+  const cancel = () => {
+    if (committed) return;
+    committed = true;
+    badgeEl.innerHTML = originalHtml;
+  };
+
+  input.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      await commit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      cancel();
+    }
+  });
+
+  input.addEventListener('blur', async () => {
+    await commit();
+  });
+
+  input.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+}
+
+export async function saveInlineDuration(slotKey, newMinutes) {
+  if (!slotKey) return;
+  const weekKey = getSlotWeekKey(slotKey);
+  if (!STATE.scheduleData[weekKey]) {
+    STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+  }
+  const weekData = STATE.scheduleData[weekKey];
+  const existing = weekData.slots[slotKey] || {};
+
+  const previousData = JSON.parse(JSON.stringify(existing));
+  const updatedSlotObject = {
+    ...existing,
+    actual: newMinutes
+  };
+
+  recordUndoAction({
+    type: 'slot_edit',
+    weekKey,
+    slotKey,
+    previousData,
+    newData: JSON.parse(JSON.stringify(updatedSlotObject)),
+    label: `Edit actual duration: ${newMinutes}m`
+  });
+
+  weekData.slots[slotKey] = updatedSlotObject;
+  saveStateToStorage();
+  renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+  renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  selectSlotCell(slotKey);
+  showToast(`⏱️ Actual duration: ${newMinutes}m`, 'success');
+
+  try {
+    await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
+  } catch (err) {
+    console.error('Failed to sync slot duration to backend:', err);
+  }
+}
+
+function initInlineEditing() {
+  document.addEventListener('click', (e) => {
+    if (STATE.activeView !== 'grid') return;
+
+    // 1. Click on .slot-title.inline-editable
+    const titleEl = e.target.closest('.slot-title.inline-editable');
+    if (titleEl) {
+      e.preventDefault();
+      e.stopPropagation();
+      const td = titleEl.closest('.slot-cell');
+      const slotKey = titleEl.dataset.slotKey || td?.dataset?.slotKey;
+      if (slotKey) {
+        selectSlotCell(slotKey, td);
+        startInlineTitleEdit(slotKey, titleEl);
+      }
+      return;
+    }
+
+    // 2. Click on .actual-time-badge.inline-editable
+    const badgeEl = e.target.closest('.actual-time-badge.inline-editable');
+    if (badgeEl) {
+      e.preventDefault();
+      e.stopPropagation();
+      const td = badgeEl.closest('.slot-cell');
+      const slotKey = badgeEl.dataset.slotKey || td?.dataset?.slotKey;
+      if (slotKey) {
+        selectSlotCell(slotKey, td);
+        startInlineDurationEdit(slotKey, badgeEl);
+      }
+      return;
+    }
+  });
+}
+
 
 async function navigateDate(direction) {
   await flushCurrentNoteEditor();
