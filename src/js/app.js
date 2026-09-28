@@ -1841,7 +1841,15 @@ export function initHeaderLayoutManager() {
   updateHeader();
   window.addEventListener('resize', updateHeader);
   if (typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver(() => updateHeader());
+    let rafId = null;
+    const scheduleUpdate = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        updateHeader();
+        rafId = null;
+      });
+    };
+    const ro = new ResizeObserver(scheduleUpdate);
     ro.observe(header);
     const headerActions = header.querySelector('.header-actions');
     if (headerActions) ro.observe(headerActions);
