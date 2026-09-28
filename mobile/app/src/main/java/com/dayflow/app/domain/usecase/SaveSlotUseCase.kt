@@ -25,7 +25,7 @@ class SaveSlotUseCase @Inject constructor(
 
         // 2. Enforce DayFlow Golden Time-Lock Rule
         val existingEntity = slotDao.getSlotByKey(slot.slotKey)
-        if (isTimePassed && existingEntity != null) {
+        if (isTimePassed && existingEntity != null && existingEntity.plannedTask.isNotBlank()) {
             if (existingEntity.plannedTask != slot.plannedTask) {
                 return Result.failure(
                     IllegalStateException("Baseline plan locked: plannedTask cannot be modified for past slots.")
@@ -33,17 +33,21 @@ class SaveSlotUseCase @Inject constructor(
             }
         }
 
-        // 3. For future slots, auto-fill actualTask if blank
+        // 3. For future slots, auto-fill actualTask if blank; for past unassigned slots, fallback cleanly
+        val resolvedPlannedTask = slot.plannedTask.trim().ifBlank { slot.actualTask.trim() }
         val resolvedActualTask = if (!isTimePassed && slot.actualTask.isBlank()) {
-            slot.plannedTask
+            resolvedPlannedTask
         } else {
-            slot.actualTask
+            slot.actualTask.trim().ifBlank { resolvedPlannedTask }
         }
+
+        val (slotDate, _) = DateTimeUtils.parseSlotKey(slot.slotKey)
+        val correctWeekStart = DateTimeUtils.getWeekKey(slotDate)
 
         val entity = ScheduleSlotEntity(
             slotKey = slot.slotKey,
-            weekStart = slot.weekStart,
-            plannedTask = slot.plannedTask,
+            weekStart = correctWeekStart,
+            plannedTask = resolvedPlannedTask,
             actualTask = resolvedActualTask,
             category = slot.category.displayName,
             plannedDuration = slot.plannedDuration,

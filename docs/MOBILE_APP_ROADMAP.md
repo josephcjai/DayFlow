@@ -66,16 +66,16 @@
 - [ ] **Test Gate 3:** User testing of login, registration, biometric unlock, and Demo Mode flow. (READY FOR TEST)
 
 ### Phase 4: Core 30-Minute Schedule Grid & Task Modal
-- [ ] Day View: Vertical scrollable timeline of 48 slots (`00:00` to `23:30`).
-- [ ] Slot card rendering: Category color bar, planned task, actual task, duration badge, status indicator (`Done`, `Partial`, `Missed`, `Pending`).
-- [ ] Current time line indicator.
-- [ ] Week navigation bar (Monday through Sunday) with day completion progress.
-- [ ] **Task Editor Modal / BottomSheet:**
+- [x] Day View: Vertical scrollable timeline of 48 slots (`00:00` to `23:30`).
+- [x] Slot card rendering: Category color bar, planned task, actual task, duration badge, status indicator (`Done`, `Partial`, `Missed`, `Pending`).
+- [x] Current time line indicator.
+- [x] Week navigation bar (Monday through Sunday) with month header and today shortcut.
+- [x] **Task Editor Modal / BottomSheet:**
   - Automatic time-lock detection: If slot time has passed, disable `plannedTask` input and show *"Baseline plan locked"* badge.
   - Category dropdown with color chips.
   - Duration picker/stepper.
   - Status toggle buttons.
-- [ ] **Test Gate 4:** User testing of grid interactions, editing future slots vs. editing past slots.
+- [ ] **Test Gate 4:** User testing of grid interactions, editing future slots vs. editing past slots. (READY FOR TEST)
 
 ### Phase 5: Habits Ledger & Weekly Todos
 - [ ] 1-Tap Habit Logging cards with tactile haptic feedback.
