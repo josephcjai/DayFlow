@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.11';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.13';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -266,6 +266,21 @@ export function loadStateFromStorage() {
     const stored = localStorage.getItem(key);
     if (stored) {
       STATE.scheduleData = JSON.parse(stored);
+      // Ensure all slots in 30-min grid strictly have planned <= 30
+      let hasOverDuration = false;
+      Object.values(STATE.scheduleData).forEach(w => {
+        if (w && w.slots) {
+          Object.values(w.slots).forEach(slot => {
+            if (slot && slot.planned > 30) {
+              slot.planned = 30;
+              hasOverDuration = true;
+            }
+          });
+        }
+      });
+      if (hasOverDuration) {
+        saveStateToStorage();
+      }
     } else {
       STATE.scheduleData = {};
     }

@@ -20,22 +20,22 @@ import {
   recordUndoAction,
   getUserStorageKey,
   setScheduleViewMode
-} from './state.js?v=2.9.11';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.11';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker } from './grid.js?v=2.9.11';
-import { initModal, openTaskModal } from './modal.js?v=2.9.11';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.11';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.11';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.11';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.11';
-import { showToast } from './utils.js?v=2.9.11';
+} from './state.js?v=2.9.13';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.13';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS } from './grid.js?v=2.9.13';
+import { initModal, openTaskModal } from './modal.js?v=2.9.13';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.13';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.13';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.13';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI } from './settings.js?v=2.9.13';
+import { showToast } from './utils.js?v=2.9.13';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.11';
+} from './notifications.js?v=2.9.13';
 
 const DOM = {};
 
@@ -566,6 +566,10 @@ async function switchView(view, syncBackend = true) {
   const controlsBar = document.querySelector('.controls-bar');
   if (controlsBar) {
     controlsBar.style.display = (view === 'settings') ? 'none' : 'flex';
+  }
+
+  if (view === 'settings') {
+    renderSettingsDayTemplatesUI();
   }
 
   renderAll();
@@ -1192,6 +1196,9 @@ function initGridShortcuts() {
       return;
     }
   });
+
+  // Reusable Day Templates Controller
+  initDayTemplateControllers();
 }
 
 async function handleUndo() {
@@ -1201,6 +1208,32 @@ async function handleUndo() {
   }
 
   const action = STATE.undoStack.pop();
+
+  if (action.type === 'day_template_apply') {
+    const { weekKey, appliedSlots, previousSlotsSnapshot, label } = action;
+    if (!STATE.scheduleData[weekKey]) {
+      STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+    }
+    const weekData = STATE.scheduleData[weekKey];
+
+    for (const sKey of (appliedSlots || [])) {
+      if (previousSlotsSnapshot && previousSlotsSnapshot[sKey]) {
+        weekData.slots[sKey] = JSON.parse(JSON.stringify(previousSlotsSnapshot[sKey]));
+        try { await ApiClient.saveSlot(weekKey, sKey, weekData.slots[sKey]); } catch (e) {}
+      } else {
+        delete weekData.slots[sKey];
+        try { await ApiClient.deleteSlot(weekKey, sKey); } catch (e) {}
+      }
+    }
+
+    saveStateToStorage();
+    renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+    renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+    showToast(`↩️ Undone: Template "${label || 'Day Template'}"`, 'info');
+    STATE.redoStack.push(action);
+    return;
+  }
+
   const { weekKey, slotKey, previousData, label } = action;
 
   if (!STATE.scheduleData[weekKey]) {
@@ -1241,6 +1274,27 @@ async function handleRedo() {
   }
 
   const action = STATE.redoStack.pop();
+
+  if (action.type === 'day_template_apply') {
+    const { weekKey, newSlotsSnapshot, label } = action;
+    if (!STATE.scheduleData[weekKey]) {
+      STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+    }
+    const weekData = STATE.scheduleData[weekKey];
+
+    for (const [sKey, slotData] of Object.entries(newSlotsSnapshot || {})) {
+      weekData.slots[sKey] = JSON.parse(JSON.stringify(slotData));
+      try { await ApiClient.saveSlot(weekKey, sKey, slotData); } catch (e) {}
+    }
+
+    saveStateToStorage();
+    renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+    renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+    showToast(`↪️ Redone: Template "${label || 'Day Template'}"`, 'info');
+    STATE.undoStack.push(action);
+    return;
+  }
+
   const { weekKey, slotKey, newData, label } = action;
 
   if (!STATE.scheduleData[weekKey]) {
@@ -2475,4 +2529,383 @@ export function initHeaderLayoutManager() {
     if (nav) ro.observe(nav);
   }
 }
+
+/* ==========================================================================
+   REUSABLE DAY TEMPLATES CONTROLLERS
+   ========================================================================== */
+
+function initDayTemplateControllers() {
+  // 1. Delegated clicks for Day Template triggers
+  document.addEventListener('click', (e) => {
+    // Week View day header template button
+    const tmplBtn = e.target.closest('.day-template-action-btn');
+    if (tmplBtn && tmplBtn.dataset.date) {
+      e.stopPropagation();
+      openApplyDayTemplateModal(tmplBtn.dataset.date);
+      return;
+    }
+
+    // Day View header Apply button
+    const dayApplyBtn = e.target.closest('.day-view-apply-template-btn');
+    if (dayApplyBtn && dayApplyBtn.dataset.date) {
+      e.stopPropagation();
+      openApplyDayTemplateModal(dayApplyBtn.dataset.date);
+      return;
+    }
+
+    // Day View header Save as Template button
+    const daySaveBtn = e.target.closest('.day-view-save-template-btn');
+    if (daySaveBtn && daySaveBtn.dataset.date) {
+      e.stopPropagation();
+      openSaveDayAsTemplateModal(daySaveBtn.dataset.date);
+      return;
+    }
+  });
+
+  // 2. Apply Day Template Modal controls
+  const applyModal = document.getElementById('applyDayTemplateModal');
+  const closeApplyBtn = document.getElementById('closeApplyDayTemplateModalBtn');
+  const cancelApplyBtn = document.getElementById('cancelApplyDayTemplateBtn');
+  const confirmApplyBtn = document.getElementById('confirmApplyDayTemplateBtn');
+  const templateSelect = document.getElementById('applyDayTemplateSelect');
+
+  if (closeApplyBtn) closeApplyBtn.addEventListener('click', closeApplyDayTemplateModal);
+  if (cancelApplyBtn) cancelApplyBtn.addEventListener('click', closeApplyDayTemplateModal);
+  if (applyModal) {
+    applyModal.addEventListener('click', (e) => {
+      if (e.target === applyModal) closeApplyDayTemplateModal();
+    });
+  }
+  if (templateSelect) {
+    templateSelect.addEventListener('change', updateApplyDayTemplatePreview);
+  }
+  if (confirmApplyBtn) {
+    confirmApplyBtn.addEventListener('click', () => {
+      const dateStr = document.getElementById('applyDayTemplateTargetDate')?.value;
+      const templateId = templateSelect?.value;
+      if (dateStr && templateId) {
+        applyDayTemplate(dateStr, templateId);
+      }
+    });
+  }
+
+  // 3. Save Current Day as Template Modal controls
+  const saveModal = document.getElementById('saveDayAsTemplateModal');
+  const closeSaveBtn = document.getElementById('closeSaveDayAsTemplateModalBtn');
+  const cancelSaveBtn = document.getElementById('cancelSaveDayAsTemplateBtn');
+  const confirmSaveBtn = document.getElementById('confirmSaveDayAsTemplateBtn');
+
+  if (closeSaveBtn) closeSaveBtn.addEventListener('click', closeSaveDayAsTemplateModal);
+  if (cancelSaveBtn) cancelSaveBtn.addEventListener('click', closeSaveDayAsTemplateModal);
+  if (saveModal) {
+    saveModal.addEventListener('click', (e) => {
+      if (e.target === saveModal) closeSaveDayAsTemplateModal();
+    });
+  }
+  if (confirmSaveBtn) {
+    confirmSaveBtn.addEventListener('click', saveDayAsTemplateFromModal);
+  }
+}
+
+export function openApplyDayTemplateModal(dateStr) {
+  if (!dateStr) return;
+  const modal = document.getElementById('applyDayTemplateModal');
+  if (!modal) return;
+
+  const targetDateInput = document.getElementById('applyDayTemplateTargetDate');
+  const targetDateText = document.getElementById('applyDayTemplateTargetDateText');
+  const select = document.getElementById('applyDayTemplateSelect');
+
+  if (targetDateInput) targetDateInput.value = dateStr;
+  if (targetDateText) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    targetDateText.textContent = `Applying to ${dayName}, ${formatDateDisplay(dateStr)}`;
+  }
+
+  const templates = getDayTemplates();
+  if (select) {
+    if (templates.length === 0) {
+      select.innerHTML = '<option value="">(No templates created yet)</option>';
+    } else {
+      select.innerHTML = templates.map(t => {
+        const slotCount = Object.keys(t.slots || {}).length;
+        return `<option value="${t.id}">${escapeAppHtml(t.name)} (${slotCount} slots)</option>`;
+      }).join('');
+    }
+  }
+
+  updateApplyDayTemplatePreview();
+  modal.classList.add('active');
+}
+
+export function closeApplyDayTemplateModal() {
+  const modal = document.getElementById('applyDayTemplateModal');
+  if (modal) modal.classList.remove('active');
+}
+
+export function updateApplyDayTemplatePreview() {
+  const dateStr = document.getElementById('applyDayTemplateTargetDate')?.value;
+  const select = document.getElementById('applyDayTemplateSelect');
+  const statsEl = document.getElementById('applyDayTemplatePreviewStats');
+  const listEl = document.getElementById('applyDayTemplatePreviewList');
+  const applyBtn = document.getElementById('confirmApplyDayTemplateBtn');
+
+  if (!dateStr || !select || !listEl) return;
+
+  const templateId = select.value;
+  const template = getDayTemplateById(templateId);
+
+  if (!template || !template.slots || Object.keys(template.slots).length === 0) {
+    listEl.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 1rem;">No slots configured in this template.</div>';
+    if (statsEl) statsEl.textContent = '0 slots';
+    if (applyBtn) applyBtn.disabled = true;
+    return;
+  }
+
+  const weekKey = getSlotWeekKey(`${dateStr}_00:00`);
+  const weekData = STATE.scheduleData[weekKey] || { slots: {} };
+  const slots = template.slots;
+  const sortedTimes = Object.keys(slots).sort();
+
+  let willAddCount = 0;
+  let willSkipCount = 0;
+
+  const rowsHtml = sortedTimes.map(timeKey => {
+    const tmplSlot = slots[timeKey];
+    const targetSlotKey = `${dateStr}_${timeKey}`;
+    const existing = weekData.slots[targetSlotKey];
+    const isOccupied = !!(existing && (existing.plannedTask || existing.actualTask || existing.title));
+
+    if (isOccupied) {
+      willSkipCount++;
+      const existingTitle = existing.actualTask || existing.plannedTask || existing.title || 'Task';
+      return `
+        <div class="apply-preview-slot-row will-skip">
+          <div>
+            <strong>${timeKey}</strong>: ${escapeAppHtml(tmplSlot.title || 'Task')}
+            <div style="font-size: 0.72rem; color: #f59e0b; margin-top: 2px;">Kept existing: "${escapeAppHtml(existingTitle)}"</div>
+          </div>
+          <span class="apply-tag-skip">Kept (Occupied)</span>
+        </div>
+      `;
+    } else {
+      willAddCount++;
+      return `
+        <div class="apply-preview-slot-row will-apply">
+          <div>
+            <strong>${timeKey}</strong>: ${escapeAppHtml(tmplSlot.title || 'Task')}
+            <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: 4px;">(${tmplSlot.category || 'General'}, 30m)</span>
+          </div>
+          <span class="apply-tag-apply">+ Will Apply</span>
+        </div>
+      `;
+    }
+  }).join('');
+
+  listEl.innerHTML = rowsHtml;
+  if (statsEl) {
+    statsEl.innerHTML = `<span style="color: #10b981;">+${willAddCount} to add</span> • <span style="color: #f59e0b;">${willSkipCount} kept</span>`;
+  }
+  if (applyBtn) {
+    applyBtn.disabled = (willAddCount === 0);
+  }
+}
+
+export async function applyDayTemplate(dateStr, templateId) {
+  if (!dateStr || !templateId) return;
+  const template = getDayTemplateById(templateId);
+  if (!template || !template.slots) return;
+
+  const weekKey = getSlotWeekKey(`${dateStr}_00:00`);
+  if (!STATE.scheduleData[weekKey]) {
+    STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+  }
+  const weekData = STATE.scheduleData[weekKey];
+
+  const appliedSlots = [];
+  const previousSlotsSnapshot = {};
+  const newSlotsSnapshot = {};
+
+  const sortedTimes = Object.keys(template.slots).sort();
+
+  for (const timeKey of sortedTimes) {
+    const tmplSlot = template.slots[timeKey];
+    const targetSlotKey = `${dateStr}_${timeKey}`;
+    const existing = weekData.slots[targetSlotKey];
+
+    // LEAST PRIORITY RULE:
+    // If the slot on this day already has an entry, KEEP IT!
+    if (existing && (existing.plannedTask || existing.actualTask || existing.title)) {
+      continue;
+    }
+
+    const titleText = tmplSlot.title || tmplSlot.plannedTask || 'Task';
+    const newSlotObject = {
+      plannedTask: titleText,
+      actualTask: titleText,
+      title: titleText,
+      category: tmplSlot.category || 'General',
+      status: 'Pending',
+      planned: 30,
+      actual: 0,
+      notes: tmplSlot.notes || ''
+    };
+
+    weekData.slots[targetSlotKey] = newSlotObject;
+    appliedSlots.push(targetSlotKey);
+    previousSlotsSnapshot[targetSlotKey] = existing ? JSON.parse(JSON.stringify(existing)) : null;
+    newSlotsSnapshot[targetSlotKey] = JSON.parse(JSON.stringify(newSlotObject));
+
+    try {
+      await ApiClient.saveSlot(weekKey, targetSlotKey, newSlotObject);
+    } catch (e) {
+      console.warn('Failed to sync template slot to backend:', e);
+    }
+  }
+
+  if (appliedSlots.length > 0) {
+    recordUndoAction({
+      type: 'day_template_apply',
+      weekKey,
+      dateStr,
+      appliedSlots,
+      previousSlotsSnapshot,
+      newSlotsSnapshot,
+      label: template.name
+    });
+
+    saveStateToStorage();
+    renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+    renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+    showToast(`📋 Applied "${template.name}" (+${appliedSlots.length} slots added)`, 'success');
+  } else {
+    showToast('No empty slots to fill (all template slots already have existing tasks)', 'info');
+  }
+
+  closeApplyDayTemplateModal();
+}
+
+export function openSaveDayAsTemplateModal(dateStr) {
+  if (!dateStr) return;
+  const modal = document.getElementById('saveDayAsTemplateModal');
+  if (!modal) return;
+
+  const dateInput = document.getElementById('saveDayAsTemplateSourceDate');
+  const dateText = document.getElementById('saveDayAsTemplateDateText');
+  const nameInput = document.getElementById('saveDayAsTemplateNameInput');
+  const descInput = document.getElementById('saveDayAsTemplateDescInput');
+  const preview = document.getElementById('saveDayAsTemplateTasksPreview');
+  const saveBtn = document.getElementById('confirmSaveDayAsTemplateBtn');
+
+  if (dateInput) dateInput.value = dateStr;
+
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dateObj = new Date(y, m - 1, d);
+  const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+  if (dateText) dateText.textContent = `Capturing tasks from ${dayName}, ${formatDateDisplay(dateStr)}`;
+  if (nameInput) nameInput.value = `${dayName} Routine`;
+  if (descInput) descInput.value = `Template captured from ${formatDateDisplay(dateStr)}`;
+
+  const weekKey = getSlotWeekKey(`${dateStr}_00:00`);
+  const weekData = STATE.scheduleData[weekKey] || { slots: {} };
+
+  // Collect tasks on this day
+  const tasks = [];
+  TIME_SLOTS.forEach(slotInfo => {
+    const slotKey = `${dateStr}_${slotInfo.key}`;
+    const s = weekData.slots[slotKey];
+    if (s && (s.plannedTask || s.actualTask || s.title)) {
+      tasks.push({
+        time: slotInfo.key,
+        title: s.actualTask || s.plannedTask || s.title,
+        category: s.category || 'General',
+        planned: s.planned || 30
+      });
+    }
+  });
+
+  if (preview) {
+    if (tasks.length === 0) {
+      preview.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 1rem;">No tasks found on this day to save into a template.</div>';
+      if (saveBtn) saveBtn.disabled = true;
+    } else {
+      preview.innerHTML = tasks.map(t => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.5rem; background: var(--bg-primary); border-radius: 6px; border: 1px solid var(--border-color);">
+          <span><strong>${t.time}</strong> • ${escapeAppHtml(t.title)}</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">${escapeAppHtml(t.category)} (30m)</span>
+        </div>
+      `).join('');
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+
+  modal.classList.add('active');
+  if (nameInput) nameInput.focus();
+}
+
+export function closeSaveDayAsTemplateModal() {
+  const modal = document.getElementById('saveDayAsTemplateModal');
+  if (modal) modal.classList.remove('active');
+}
+
+export function saveDayAsTemplateFromModal() {
+  const dateStr = document.getElementById('saveDayAsTemplateSourceDate')?.value;
+  const nameInput = document.getElementById('saveDayAsTemplateNameInput');
+  const descInput = document.getElementById('saveDayAsTemplateDescInput');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) {
+    alert('Please enter a template name.');
+    if (nameInput) nameInput.focus();
+    return;
+  }
+
+  const weekKey = getSlotWeekKey(`${dateStr}_00:00`);
+  const weekData = STATE.scheduleData[weekKey] || { slots: {} };
+
+  const slots = {};
+  TIME_SLOTS.forEach(slotInfo => {
+    const slotKey = `${dateStr}_${slotInfo.key}`;
+    const s = weekData.slots[slotKey];
+    if (s && (s.plannedTask || s.actualTask || s.title)) {
+      const taskTitle = s.actualTask || s.plannedTask || s.title;
+      slots[slotInfo.key] = {
+        title: taskTitle,
+        plannedTask: taskTitle,
+        category: s.category || 'General',
+        planned: 30
+      };
+    }
+  });
+
+  const slotCount = Object.keys(slots).length;
+  if (slotCount === 0) {
+    alert('No tasks found on this day to save into a template.');
+    return;
+  }
+
+  saveDayTemplate({
+    id: `tmpl_${Date.now()}`,
+    name,
+    description: descInput ? descInput.value.trim() : '',
+    slots
+  });
+
+  closeSaveDayAsTemplateModal();
+  showToast(`💾 Saved template "${name}" with ${slotCount} slots`, 'success');
+}
+
+function escapeAppHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>'"]/g, tag => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[tag] || tag));
+}
+
 

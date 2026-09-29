@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/styles.css?v=2.9.11">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.9.13">
   <!-- Google Identity Services (Sign in with Google) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -892,6 +892,26 @@
               </div>
             </form>
           </div>
+
+          <!-- CARD 7: Reusable Day Templates -->
+          <div class="settings-card settings-card-wide" id="settingsDayTemplatesCard">
+            <div class="settings-card-header" style="justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span class="settings-card-icon">📋</span>
+                <div>
+                  <h3>Reusable Day Templates</h3>
+                  <p class="settings-card-desc">Create routine templates (e.g. Workday, Focus, Study) and apply them to any day with 1 click. Existing tasks are always kept (least priority).</p>
+                </div>
+              </div>
+              <button type="button" id="createDayTemplateBtn" class="btn btn-primary btn-sm" style="white-space: nowrap;">+ New Template</button>
+            </div>
+
+            <div class="settings-card-body" style="padding-top: 0.5rem;">
+              <div id="settingsDayTemplatesList" class="day-templates-list">
+                <!-- Dynamically rendered -->
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -976,12 +996,12 @@
           <div class="form-row-2">
             <div class="form-group">
               <label for="plannedDurationInput">Planned Duration (mins)</label>
-              <input type="number" id="plannedDurationInput" value="30" min="5" max="180" step="5" class="number-input">
+              <input type="number" id="plannedDurationInput" value="30" min="5" max="30" step="5" class="number-input">
             </div>
 
             <div class="form-group">
               <label for="actualDurationInput">Actual Time Spent (mins)</label>
-              <input type="number" id="actualDurationInput" value="30" min="0" max="180" step="5" class="number-input">
+              <input type="number" id="actualDurationInput" value="30" min="0" max="30" step="5" class="number-input">
             </div>
           </div>
 
@@ -1491,6 +1511,119 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.9.11"></script>
+  <!-- DAY TEMPLATE EDIT / CREATE MODAL -->
+  <div id="dayTemplateEditModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 650px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 1rem 1.5rem;">
+        <h3 id="dayTemplateEditModalTitle" style="margin: 0; font-size: 1.15rem; font-weight: 700;">Create Day Template</h3>
+        <button type="button" id="closeDayTemplateEditModalBtn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1;">
+        <input type="hidden" id="dayTemplateEditId">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="dayTemplateEditName" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Template Name *</label>
+          <input type="text" id="dayTemplateEditName" class="text-input" placeholder="e.g. Standard Workday, Weekend Leisure, Deep Focus" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="dayTemplateEditDesc" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Description (Optional)</label>
+          <input type="text" id="dayTemplateEditDesc" class="text-input" placeholder="Short description of this routine">
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <span style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary);">Time Slots Schedule</span>
+          <button type="button" id="templateAddSlotRowBtn" class="btn btn-secondary btn-sm" style="font-size: 0.8rem;">+ Add Time Slot</button>
+        </div>
+
+        <div id="templateSlotsRowsContainer" class="template-slots-rows" style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <!-- Dynamically populated rows -->
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 0.85rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" id="cancelDayTemplateEditBtn" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="saveDayTemplateConfirmBtn" class="btn btn-primary">Save Template</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLY DAY TEMPLATE MODAL -->
+  <div id="applyDayTemplateModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 580px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 1rem 1.5rem;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Apply Day Template</h3>
+          <p id="applyDayTemplateTargetDateText" style="margin: 0.25rem 0 0; font-size: 0.82rem; color: var(--text-muted);"></p>
+        </div>
+        <button type="button" id="closeApplyDayTemplateModalBtn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1;">
+        <input type="hidden" id="applyDayTemplateTargetDate">
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="applyDayTemplateSelect" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Choose Template</label>
+          <select id="applyDayTemplateSelect" class="select-input" style="width: 100%;">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+
+        <div class="template-priority-banner" style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: 8px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); font-size: 0.82rem; line-height: 1.45; color: var(--text-primary);">
+          <strong style="color: #3b82f6;">ℹ️ Least Priority Rule:</strong>
+          Any time slot on this day that already has an existing task will remain untouched. Only empty time slots will be filled with the template tasks.
+        </div>
+
+        <div id="applyDayTemplatePreviewSection">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-secondary);">Template Slots Preview</span>
+            <span id="applyDayTemplatePreviewStats" style="font-size: 0.78rem; font-weight: 600;"></span>
+          </div>
+          <div id="applyDayTemplatePreviewList" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
+            <!-- List of preview chips showing will apply vs will skip -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 0.85rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" id="cancelApplyDayTemplateBtn" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="confirmApplyDayTemplateBtn" class="btn btn-primary">Apply to Day</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVE CURRENT DAY AS TEMPLATE MODAL -->
+  <div id="saveDayAsTemplateModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 520px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 1rem 1.5rem;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Save Day as Template</h3>
+          <p id="saveDayAsTemplateDateText" style="margin: 0.25rem 0 0; font-size: 0.82rem; color: var(--text-muted);"></p>
+        </div>
+        <button type="button" id="closeSaveDayAsTemplateModalBtn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1;">
+        <input type="hidden" id="saveDayAsTemplateSourceDate">
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="saveDayAsTemplateNameInput" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Template Name *</label>
+          <input type="text" id="saveDayAsTemplateNameInput" class="text-input" placeholder="e.g. My Thursday Flow, Gym & Deep Work" required>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="saveDayAsTemplateDescInput" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Description (Optional)</label>
+          <input type="text" id="saveDayAsTemplateDescInput" class="text-input" placeholder="e.g. Optimized schedule for remote coding days">
+        </div>
+
+        <div>
+          <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem; color: var(--text-secondary);">Tasks Included in Template</div>
+          <div id="saveDayAsTemplateTasksPreview" style="max-height: 180px; overflow-y: auto; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.82rem; display: flex; flex-direction: column; gap: 0.35rem;">
+            <!-- Included tasks preview -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 0.85rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" id="cancelSaveDayAsTemplateBtn" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="confirmSaveDayAsTemplateBtn" class="btn btn-primary">Save Template</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/js/app.js?v=2.9.13"></script>
 </body>
 </html>

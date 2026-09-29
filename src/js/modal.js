@@ -2,9 +2,9 @@
  * DayFlow Task Editor Modal Controller
  * Implements Planned vs Actual Task distinction, clear slot button, & time-lock rules
  */
-import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction } from './state.js?v=2.9.11';
-import { ApiClient } from './apiClient.js?v=2.9.11';
-import { clearSlotSelection } from './grid.js?v=2.9.11';
+import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction } from './state.js?v=2.9.13';
+import { ApiClient } from './apiClient.js?v=2.9.13';
+import { clearSlotSelection } from './grid.js?v=2.9.13';
 
 let modalElements = {};
 let renderCallback = null;
@@ -100,8 +100,8 @@ export function openTaskModal(slotKey, dayName, timeLabel, existingData) {
     modalElements.actualTaskInput.value = existingData.actualTask || existingData.title || existingData.plannedTask || '';
     modalElements.taskCategorySelect.value = existingData.category || 'General';
     modalElements.taskStatusSelect.value = existingData.status || 'Pending';
-    modalElements.plannedDurationInput.value = existingData.planned || 30;
-    modalElements.actualDurationInput.value = existingData.actual !== undefined ? existingData.actual : 30;
+    modalElements.plannedDurationInput.value = Math.min(30, Math.max(5, parseInt(existingData.planned, 10) || 30));
+    modalElements.actualDurationInput.value = existingData.actual !== undefined ? Math.min(30, Math.max(0, parseInt(existingData.actual, 10))) : 30;
     modalElements.taskNotesInput.value = existingData.notes || '';
   } else {
     modalElements.modalTitle.textContent = 'Schedule 30-Min Time Slot';
@@ -168,8 +168,8 @@ async function saveSlotTask() {
     actualTask: finalActualTask,
     category: modalElements.taskCategorySelect.value || 'General',
     status: modalElements.taskStatusSelect.value || 'Pending',
-    planned: parseInt(modalElements.plannedDurationInput.value, 10) || 30,
-    actual: modalElements.actualDurationInput.value !== '' ? (parseInt(modalElements.actualDurationInput.value, 10) || 0) : 30,
+    planned: Math.min(30, Math.max(5, parseInt(modalElements.plannedDurationInput.value, 10) || 30)),
+    actual: modalElements.actualDurationInput.value !== '' ? Math.min(30, Math.max(0, parseInt(modalElements.actualDurationInput.value, 10) || 0)) : 30,
     notes: modalElements.taskNotesInput.value.trim()
   };
 

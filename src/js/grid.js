@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.11';
-import { openTaskModal } from './modal.js?v=2.9.11';
-import { escapeHtml } from './utils.js?v=2.9.11';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.13';
+import { openTaskModal } from './modal.js?v=2.9.13';
+import { escapeHtml } from './utils.js?v=2.9.13';
 
 export const TIME_SLOTS = [];
 
@@ -273,23 +273,30 @@ function renderWeekGridHeader(headerEl, onSwitchToDayView) {
   if (!headerEl) return;
   const dates = getWeekDates(STATE.currentWeekStart);
   renderGridScrollNav(dates);
+  const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
   headerEl.innerHTML = `
     <tr>
       <th class="time-col">Time (30m)</th>
-      <th class="day-col" data-day="1" data-date="${dates[0]}" style="cursor: pointer;" title="Click to view full day schedule">MON <span class="day-date">${formatHeaderDate(dates[0])}</span></th>
-      <th class="day-col" data-day="2" data-date="${dates[1]}" style="cursor: pointer;" title="Click to view full day schedule">TUE <span class="day-date">${formatHeaderDate(dates[1])}</span></th>
-      <th class="day-col" data-day="3" data-date="${dates[2]}" style="cursor: pointer;" title="Click to view full day schedule">WED <span class="day-date">${formatHeaderDate(dates[2])}</span></th>
-      <th class="day-col" data-day="4" data-date="${dates[3]}" style="cursor: pointer;" title="Click to view full day schedule">THU <span class="day-date">${formatHeaderDate(dates[3])}</span></th>
-      <th class="day-col" data-day="5" data-date="${dates[4]}" style="cursor: pointer;" title="Click to view full day schedule">FRI <span class="day-date">${formatHeaderDate(dates[4])}</span></th>
-      <th class="day-col" data-day="6" data-date="${dates[5]}" style="cursor: pointer;" title="Click to view full day schedule">SAT <span class="day-date">${formatHeaderDate(dates[5])}</span></th>
-      <th class="day-col" data-day="7" data-date="${dates[6]}" style="cursor: pointer;" title="Click to view full day schedule">SUN <span class="day-date">${formatHeaderDate(dates[6])}</span></th>
+      ${dates.map((dStr, idx) => `
+        <th class="day-col" data-day="${idx + 1}" data-date="${dStr}">
+          <div class="day-col-header-wrap">
+            <span class="day-col-title" style="cursor: pointer;" title="Click to view full day schedule">
+              ${dayNames[idx]} <span class="day-date">${formatHeaderDate(dStr)}</span>
+            </span>
+            <button type="button" class="day-template-action-btn" data-date="${dStr}" title="Apply template to ${dayNames[idx]} (or save as template)" aria-label="Template for ${dayNames[idx]}">📋</button>
+          </div>
+        </th>
+      `).join('')}
     </tr>
   `;
 
   if (onSwitchToDayView) {
-    headerEl.querySelectorAll('.day-col[data-date]').forEach(th => {
-      th.addEventListener('click', () => {
-        onSwitchToDayView(th.dataset.date);
+    headerEl.querySelectorAll('.day-col[data-date] .day-col-title').forEach(titleSpan => {
+      titleSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const th = titleSpan.closest('.day-col');
+        if (th && th.dataset.date) onSwitchToDayView(th.dataset.date);
       });
     });
   }
@@ -309,7 +316,17 @@ function renderDayGridHeader(headerEl) {
   headerEl.innerHTML = `
     <tr>
       <th class="time-col">Time (30m)</th>
-      <th class="day-col day-view-single-col">${dayName} <span class="day-date">${formatDateDisplay(dateStr)}</span></th>
+      <th class="day-col day-view-single-col">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            ${dayName} <span class="day-date">${formatDateDisplay(dateStr)}</span>
+          </div>
+          <div class="day-view-template-actions">
+            <button type="button" class="btn btn-secondary btn-sm day-view-apply-template-btn" data-date="${dateStr}" title="Apply a day template to this day">📋 Apply Template</button>
+            <button type="button" class="btn btn-secondary btn-sm day-view-save-template-btn" data-date="${dateStr}" title="Save today's schedule as a new reusable template">💾 Save as Template</button>
+          </div>
+        </div>
+      </th>
     </tr>
   `;
 }

@@ -8,10 +8,51 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.11';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.11';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.11';
-import { ApiClient } from './apiClient.js?v=2.9.11';
+import { generateTimeSlots } from './grid.js?v=2.9.13';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.13';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.13';
+import { ApiClient } from './apiClient.js?v=2.9.13';
+
+export const DEFAULT_DAY_TEMPLATES = [
+  {
+    id: 'tmpl_workday',
+    name: 'Productive Workday',
+    description: 'Standard deep focus schedule with morning standup, deep work, and afternoon development',
+    slots: {
+      '09:00': { title: 'Morning Standup & Priorities', plannedTask: 'Morning Standup & Priorities', category: 'Work', planned: 30 },
+      '09:30': { title: 'Deep Work: Core Priorities', plannedTask: 'Deep Work: Core Priorities', category: 'Work', planned: 30 },
+      '10:00': { title: 'Deep Work: Core Priorities', plannedTask: 'Deep Work: Core Priorities', category: 'Work', planned: 30 },
+      '10:30': { title: 'Deep Work: Core Priorities', plannedTask: 'Deep Work: Core Priorities', category: 'Work', planned: 30 },
+      '11:00': { title: 'Deep Work: Core Priorities', plannedTask: 'Deep Work: Core Priorities', category: 'Work', planned: 30 },
+      '11:30': { title: 'Team Sync & Code Reviews', plannedTask: 'Team Sync & Code Reviews', category: 'Work', planned: 30 },
+      '12:00': { title: 'Lunch & Recharge Walk', plannedTask: 'Lunch & Recharge Walk', category: 'Health', planned: 30 },
+      '12:30': { title: 'Lunch & Recharge Walk', plannedTask: 'Lunch & Recharge Walk', category: 'Health', planned: 30 },
+      '13:00': { title: 'Email & Admin Catch-up', plannedTask: 'Email & Admin Catch-up', category: 'Work', planned: 30 },
+      '13:30': { title: 'Task Breakdown & Planning', plannedTask: 'Task Breakdown & Planning', category: 'Work', planned: 30 },
+      '14:00': { title: 'Architecture & Feature Development', plannedTask: 'Architecture & Feature Development', category: 'Work', planned: 30 },
+      '14:30': { title: 'Architecture & Feature Development', plannedTask: 'Architecture & Feature Development', category: 'Work', planned: 30 },
+      '15:00': { title: 'Architecture & Feature Development', plannedTask: 'Architecture & Feature Development', category: 'Work', planned: 30 },
+      '15:30': { title: 'Architecture & Feature Development', plannedTask: 'Architecture & Feature Development', category: 'Work', planned: 30 },
+      '16:00': { title: 'Architecture & System Review', plannedTask: 'Architecture & System Review', category: 'Work', planned: 30 },
+      '16:30': { title: 'Daily Wrap-up & Tomorrow Prep', plannedTask: 'Daily Wrap-up & Tomorrow Prep', category: 'Work', planned: 30 }
+    }
+  },
+  {
+    id: 'tmpl_weekend',
+    name: 'Weekend Reset & Leisure',
+    description: 'Relaxed weekend schedule balancing health, personal learning, and family time',
+    slots: {
+      '09:00': { title: 'Morning Workout', plannedTask: 'Morning Workout', category: 'Health', planned: 30 },
+      '09:30': { title: 'Healthy Breakfast', plannedTask: 'Healthy Breakfast', category: 'Health', planned: 30 },
+      '10:30': { title: 'Personal Learning & Tech Reading', plannedTask: 'Personal Learning & Tech Reading', category: 'Learning', planned: 30 },
+      '11:00': { title: 'Personal Learning & Tech Reading', plannedTask: 'Personal Learning & Tech Reading', category: 'Learning', planned: 30 },
+      '13:00': { title: 'Household Organization', plannedTask: 'Household Organization', category: 'Household', planned: 30 },
+      '13:30': { title: 'Household Errands', plannedTask: 'Household Errands', category: 'Household', planned: 30 },
+      '16:00': { title: 'Family Time & Recreation', plannedTask: 'Family Time & Recreation', category: 'Family', planned: 30 },
+      '16:30': { title: 'Family Time & Recreation', plannedTask: 'Family Time & Recreation', category: 'Family', planned: 30 }
+    }
+  }
+];
 
 export const DEFAULT_SETTINGS = {
   timelineStartHour: 0,
@@ -29,7 +70,8 @@ export const DEFAULT_SETTINGS = {
   notificationVolume: 70,
   notificationTone: 'chime', // 'chime', 'bell', 'ping', 'marimba'
   notifyLeadMinutes: 2, // 0, 1, 2, 5
-  notifySlotEnd: true
+  notifySlotEnd: true,
+  dayTemplates: DEFAULT_DAY_TEMPLATES
 };
 
 export let USER_SETTINGS = { ...DEFAULT_SETTINGS };
@@ -49,13 +91,18 @@ export function loadUserSettings() {
     const key = getSettingsStorageKey();
     const stored = localStorage.getItem(key);
     if (stored) {
-      USER_SETTINGS = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+      const parsed = JSON.parse(stored);
+      USER_SETTINGS = {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        dayTemplates: Array.isArray(parsed.dayTemplates) ? parsed.dayTemplates : JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES))
+      };
     } else {
-      USER_SETTINGS = { ...DEFAULT_SETTINGS };
+      USER_SETTINGS = { ...DEFAULT_SETTINGS, dayTemplates: JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES)) };
     }
   } catch (e) {
     console.error('Failed to load user settings:', e);
-    USER_SETTINGS = { ...DEFAULT_SETTINGS };
+    USER_SETTINGS = { ...DEFAULT_SETTINGS, dayTemplates: JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES)) };
   }
   setActiveDateFormat(USER_SETTINGS.dateFormat || 'DD/MM/YYYY');
   return USER_SETTINGS;
@@ -412,6 +459,9 @@ export function initSettingsUI(domElements, renderAllCallback) {
 
   // Initialize Account & Security Card
   initAccountSecurityUI();
+
+  // Initialize Day Templates Modals and List
+  initDayTemplateModals();
 }
 
 export function initAccountSecurityUI() {
@@ -502,3 +552,338 @@ export function initAccountSecurityUI() {
     }
   }
 }
+
+/* ==========================================================================
+   DAY TEMPLATES CRUD & SETTINGS UI CONTROLLERS
+   ========================================================================== */
+
+export function getDayTemplates() {
+  if (!Array.isArray(USER_SETTINGS.dayTemplates) || USER_SETTINGS.dayTemplates.length === 0) {
+    USER_SETTINGS.dayTemplates = JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES));
+  }
+
+  // Ensure every slot across all templates strictly has planned: 30 (30-min schedule cell)
+  let modified = false;
+  USER_SETTINGS.dayTemplates.forEach(t => {
+    // If it is an old default template that had 90m slots, upgrade to the proper 30m slots
+    if (t.id === 'tmpl_workday' && t.slots && t.slots['09:30'] && t.slots['09:30'].planned > 30) {
+      const def = DEFAULT_DAY_TEMPLATES.find(d => d.id === 'tmpl_workday');
+      if (def) {
+        t.slots = JSON.parse(JSON.stringify(def.slots));
+        t.description = def.description;
+        modified = true;
+      }
+    } else if (t.id === 'tmpl_weekend' && t.slots && t.slots['09:00'] && t.slots['09:00'].planned > 30) {
+      const def = DEFAULT_DAY_TEMPLATES.find(d => d.id === 'tmpl_weekend');
+      if (def) {
+        t.slots = JSON.parse(JSON.stringify(def.slots));
+        t.description = def.description;
+        modified = true;
+      }
+    } else if (t.slots) {
+      Object.keys(t.slots).forEach(k => {
+        if (t.slots[k].planned !== 30) {
+          t.slots[k].planned = 30;
+          modified = true;
+        }
+      });
+    }
+  });
+
+  if (modified) {
+    saveUserSettings({ dayTemplates: USER_SETTINGS.dayTemplates });
+  }
+
+  return USER_SETTINGS.dayTemplates;
+}
+
+export function getDayTemplateById(id) {
+  const templates = getDayTemplates();
+  return templates.find(t => t.id === id) || null;
+}
+
+export function saveDayTemplate(templateData) {
+  const templates = getDayTemplates();
+  const existingIdx = templates.findIndex(t => t.id === templateData.id);
+
+  if (existingIdx >= 0) {
+    templates[existingIdx] = {
+      ...templates[existingIdx],
+      ...templateData,
+      updatedAt: new Date().toISOString()
+    };
+  } else {
+    templates.push({
+      ...templateData,
+      id: templateData.id || `tmpl_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  saveUserSettings({ dayTemplates: templates });
+  renderSettingsDayTemplatesUI();
+  return templateData;
+}
+
+export function deleteDayTemplate(id) {
+  let templates = getDayTemplates();
+  templates = templates.filter(t => t.id !== id);
+  saveUserSettings({ dayTemplates: templates });
+  renderSettingsDayTemplatesUI();
+}
+
+export function renderSettingsDayTemplatesUI() {
+  const listContainer = document.getElementById('settingsDayTemplatesList');
+  if (!listContainer) return;
+
+  const templates = getDayTemplates();
+
+  if (templates.length === 0) {
+    listContainer.innerHTML = `
+      <div class="day-templates-empty">
+        <span style="font-size: 2rem;">📋</span>
+        <p style="margin: 0.5rem 0 0.25rem; font-weight: 600; color: var(--text-primary);">No day templates created yet</p>
+        <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Click "+ New Template" above or save a day from the grid view to start.</p>
+      </div>
+    `;
+    return;
+  }
+
+  listContainer.innerHTML = templates.map(tmpl => {
+    const slots = tmpl.slots || {};
+    const slotKeys = Object.keys(slots).sort();
+    const count = slotKeys.length;
+
+    const previewChips = slotKeys.slice(0, 5).map(timeKey => {
+      const s = slots[timeKey];
+      return `<span class="template-chip" title="${timeKey} • ${escapeSettingsHtml(s.title || s.plannedTask || 'Task')} (${s.category || 'General'})">
+        <strong style="color: var(--accent-secondary);">${timeKey}</strong> ${escapeSettingsHtml(s.title || s.plannedTask || 'Task')}
+      </span>`;
+    }).join('');
+
+    const moreText = count > 5 ? `<span class="template-chip-more">+${count - 5} more</span>` : '';
+
+    return `
+      <div class="day-template-card" data-template-id="${tmpl.id}">
+        <div class="day-template-card-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <h4 class="day-template-card-name">${escapeSettingsHtml(tmpl.name)}</h4>
+              <span class="day-template-count-badge">${count} slots</span>
+            </div>
+            ${tmpl.description ? `<p class="day-template-card-desc">${escapeSettingsHtml(tmpl.description)}</p>` : ''}
+          </div>
+          <div class="day-template-card-actions">
+            <button type="button" class="btn btn-secondary btn-sm edit-day-template-btn" data-template-id="${tmpl.id}" title="Edit Template">✏️ Edit</button>
+            <button type="button" class="btn btn-danger btn-sm delete-day-template-btn" data-template-id="${tmpl.id}" title="Delete Template">🗑️</button>
+          </div>
+        </div>
+        <div class="day-template-card-slots">
+          ${previewChips}
+          ${moreText}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Wire up Edit & Delete buttons
+  listContainer.querySelectorAll('.edit-day-template-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.templateId;
+      openDayTemplateEditModal(id);
+    });
+  });
+
+  listContainer.querySelectorAll('.delete-day-template-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.templateId;
+      const tmpl = getDayTemplateById(id);
+      if (confirm(`Are you sure you want to delete the template "${tmpl?.name || 'this template'}"?`)) {
+        deleteDayTemplate(id);
+      }
+    });
+  });
+}
+
+function escapeSettingsHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>'"]/g, tag => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[tag] || tag));
+}
+
+// Modal Controller for Template Builder Modal
+export function initDayTemplateModals() {
+  const createBtn = document.getElementById('createDayTemplateBtn');
+  if (createBtn) {
+    createBtn.addEventListener('click', () => {
+      openDayTemplateEditModal(null);
+    });
+  }
+
+  const editModal = document.getElementById('dayTemplateEditModal');
+  const closeEditBtn = document.getElementById('closeDayTemplateEditModalBtn');
+  const cancelEditBtn = document.getElementById('cancelDayTemplateEditBtn');
+  const saveConfirmBtn = document.getElementById('saveDayTemplateConfirmBtn');
+  const addSlotRowBtn = document.getElementById('templateAddSlotRowBtn');
+
+  if (closeEditBtn) closeEditBtn.addEventListener('click', closeDayTemplateEditModal);
+  if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeDayTemplateEditModal);
+  if (editModal) {
+    editModal.addEventListener('click', (e) => {
+      if (e.target === editModal) closeDayTemplateEditModal();
+    });
+  }
+
+  if (addSlotRowBtn) {
+    addSlotRowBtn.addEventListener('click', () => {
+      addTemplateSlotRow();
+    });
+  }
+
+  if (saveConfirmBtn) {
+    saveConfirmBtn.addEventListener('click', () => {
+      handleSaveDayTemplateFromModal();
+    });
+  }
+
+  // Initial render of templates list in Settings
+  renderSettingsDayTemplatesUI();
+}
+
+export function openDayTemplateEditModal(templateId = null) {
+  const modal = document.getElementById('dayTemplateEditModal');
+  if (!modal) return;
+
+  const titleEl = document.getElementById('dayTemplateEditModalTitle');
+  const idInput = document.getElementById('dayTemplateEditId');
+  const nameInput = document.getElementById('dayTemplateEditName');
+  const descInput = document.getElementById('dayTemplateEditDesc');
+  const rowsContainer = document.getElementById('templateSlotsRowsContainer');
+
+  rowsContainer.innerHTML = '';
+
+  if (templateId) {
+    const tmpl = getDayTemplateById(templateId);
+    if (!tmpl) return;
+    if (titleEl) titleEl.textContent = 'Edit Day Template';
+    if (idInput) idInput.value = tmpl.id;
+    if (nameInput) nameInput.value = tmpl.name || '';
+    if (descInput) descInput.value = tmpl.description || '';
+
+    const slots = tmpl.slots || {};
+    const sortedKeys = Object.keys(slots).sort();
+    if (sortedKeys.length === 0) {
+      addTemplateSlotRow('09:00', '', 'Work', 30);
+    } else {
+      sortedKeys.forEach(timeKey => {
+        const s = slots[timeKey];
+        addTemplateSlotRow(timeKey, s.title || s.plannedTask || '', s.category || 'General', s.planned || 30);
+      });
+    }
+  } else {
+    if (titleEl) titleEl.textContent = 'Create Day Template';
+    if (idInput) idInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
+    addTemplateSlotRow('09:00', '', 'Work', 30);
+    addTemplateSlotRow('10:00', '', 'Work', 60);
+    addTemplateSlotRow('14:00', '', 'Work', 60);
+  }
+
+  modal.classList.add('active');
+  if (nameInput) nameInput.focus();
+}
+
+export function closeDayTemplateEditModal() {
+  const modal = document.getElementById('dayTemplateEditModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function addTemplateSlotRow(time = '09:00', title = '', category = 'Work', planned = 30) {
+  const container = document.getElementById('templateSlotsRowsContainer');
+  if (!container) return;
+
+  const row = document.createElement('div');
+  row.className = 'template-slot-edit-row';
+
+  // Generate 30-min time options
+  const timeOptions = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m of [0, 30]) {
+      const hh = String(h).padStart(2, '0');
+      const mm = String(m).padStart(2, '0');
+      const key = `${hh}:${mm}`;
+      const isSel = key === time ? 'selected' : '';
+      timeOptions.push(`<option value="${key}" ${isSel}>${key}</option>`);
+    }
+  }
+
+  const categories = ['Work', 'Learning', 'Health', 'Household', 'Family', 'Travel', 'General'];
+  const catOptions = categories.map(c => `<option value="${c}" ${c === category ? 'selected' : ''}>${c}</option>`).join('');
+
+  row.innerHTML = `
+    <select class="select-input template-row-time" style="width: 100px;">
+      ${timeOptions.join('')}
+    </select>
+    <input type="text" class="text-input template-row-title" placeholder="Task name / activity..." value="${escapeSettingsHtml(title)}" style="flex: 1;" required>
+    <select class="select-input template-row-category" style="width: 110px;">
+      ${catOptions}
+    </select>
+    <span class="template-row-duration-badge" style="font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.55rem; border-radius: 6px; background: rgba(99, 102, 241, 0.12); color: var(--accent-primary); border: 1px solid rgba(99, 102, 241, 0.25);" title="Slot duration is fixed at 30 minutes">30m</span>
+    <button type="button" class="btn btn-secondary btn-sm template-row-delete-btn" title="Remove slot" style="padding: 0.3rem 0.6rem; color: #f87171;">✕</button>
+  `;
+
+  row.querySelector('.template-row-delete-btn').addEventListener('click', () => {
+    row.remove();
+  });
+
+  container.appendChild(row);
+}
+
+function handleSaveDayTemplateFromModal() {
+  const idInput = document.getElementById('dayTemplateEditId');
+  const nameInput = document.getElementById('dayTemplateEditName');
+  const descInput = document.getElementById('dayTemplateEditDesc');
+  const container = document.getElementById('templateSlotsRowsContainer');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) {
+    alert('Please enter a template name.');
+    if (nameInput) nameInput.focus();
+    return;
+  }
+
+  const slots = {};
+  const rows = container.querySelectorAll('.template-slot-edit-row');
+  rows.forEach(row => {
+    const time = row.querySelector('.template-row-time')?.value;
+    const title = row.querySelector('.template-row-title')?.value.trim();
+    const category = row.querySelector('.template-row-category')?.value || 'General';
+
+    if (time && title) {
+      slots[time] = {
+        title,
+        plannedTask: title,
+        category,
+        planned: 30
+      };
+    }
+  });
+
+  const templateId = idInput && idInput.value ? idInput.value : `tmpl_${Date.now()}`;
+  saveDayTemplate({
+    id: templateId,
+    name,
+    description: descInput ? descInput.value.trim() : '',
+    slots
+  });
+
+  closeDayTemplateEditModal();
+}
+
