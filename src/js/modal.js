@@ -2,9 +2,9 @@
  * DayFlow Task Editor Modal Controller
  * Implements Planned vs Actual Task distinction, clear slot button, & time-lock rules
  */
-import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction } from './state.js?v=2.9.13';
-import { ApiClient } from './apiClient.js?v=2.9.13';
-import { clearSlotSelection } from './grid.js?v=2.9.13';
+import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction, markSlotPendingSave, clearSlotPendingSave } from './state.js?v=2.9.14';
+import { ApiClient } from './apiClient.js?v=2.9.14';
+import { clearSlotSelection } from './grid.js?v=2.9.14';
 
 let modalElements = {};
 let renderCallback = null;
@@ -72,6 +72,7 @@ async function deleteActiveSlot() {
       });
     }
     delete STATE.scheduleData[weekKey].slots[slotKey];
+    clearSlotPendingSave(slotKey);
     saveStateToStorage();
     
     closeModal();
@@ -186,11 +187,19 @@ async function saveSlotTask() {
   });
 
   weekData.slots[slotKey] = slotObject;
+  markSlotPendingSave(weekKey, slotKey, slotObject);
   saveStateToStorage();
 
   closeModal();
   if (renderCallback) renderCallback();
 
   // Sync save directly with PostgreSQL DB via Express REST API
-  await ApiClient.saveSlot(weekKey, slotKey, slotObject);
+  try {
+    const ok = await ApiClient.saveSlot(weekKey, slotKey, slotObject);
+    if (ok) {
+      clearSlotPendingSave(slotKey);
+    }
+  } catch (e) {
+    console.warn('Failed to sync slot to backend, kept in pending saves:', e);
+  }
 }

@@ -8,10 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.13';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.13';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.13';
-import { ApiClient } from './apiClient.js?v=2.9.13';
+import { generateTimeSlots } from './grid.js?v=2.9.14';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.14';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.14';
+import { ApiClient } from './apiClient.js?v=2.9.14';
+import { showToast } from './utils.js?v=2.9.14';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -628,9 +629,11 @@ export function saveDayTemplate(templateData) {
 
 export function deleteDayTemplate(id) {
   let templates = getDayTemplates();
+  const deletedTmpl = templates.find(t => t.id === id);
   templates = templates.filter(t => t.id !== id);
   saveUserSettings({ dayTemplates: templates });
   renderSettingsDayTemplatesUI();
+  showToast(`🗑️ Deleted template "${deletedTmpl?.name || 'Template'}"`, 'info');
 }
 
 export function renderSettingsDayTemplatesUI() {
@@ -698,9 +701,8 @@ export function renderSettingsDayTemplatesUI() {
   listContainer.querySelectorAll('.delete-day-template-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.templateId;
-      const tmpl = getDayTemplateById(id);
-      if (confirm(`Are you sure you want to delete the template "${tmpl?.name || 'this template'}"?`)) {
-        deleteDayTemplate(id);
+      if (id) {
+        openDeleteDayTemplateModal(id);
       }
     });
   });
@@ -715,6 +717,28 @@ function escapeSettingsHtml(str) {
     "'": '&#39;',
     '"': '&quot;'
   }[tag] || tag));
+}
+
+// Themed Confirmation Modal for Deleting Day Templates (Finding 42)
+let pendingDeleteTemplateId = null;
+
+export function openDeleteDayTemplateModal(templateId) {
+  pendingDeleteTemplateId = templateId;
+  const modal = document.getElementById('deleteDayTemplateConfirmModal');
+  const targetName = document.getElementById('deleteDayTemplateTargetName');
+  if (!modal) return;
+
+  const tmpl = getDayTemplateById(templateId);
+  if (targetName) {
+    targetName.textContent = tmpl ? `"${tmpl.name}"` : 'this template';
+  }
+  modal.classList.add('active');
+}
+
+export function closeDeleteDayTemplateModal() {
+  const modal = document.getElementById('deleteDayTemplateConfirmModal');
+  if (modal) modal.classList.remove('active');
+  pendingDeleteTemplateId = null;
 }
 
 // Modal Controller for Template Builder Modal
@@ -737,6 +761,27 @@ export function initDayTemplateModals() {
   if (editModal) {
     editModal.addEventListener('click', (e) => {
       if (e.target === editModal) closeDayTemplateEditModal();
+    });
+  }
+
+  // Themed Delete Modal handlers
+  const deleteModal = document.getElementById('deleteDayTemplateConfirmModal');
+  const cancelDeleteBtn = document.getElementById('cancelDeleteDayTemplateBtn');
+  const confirmDeleteBtn = document.getElementById('confirmDeleteDayTemplateBtn');
+
+  if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', closeDeleteDayTemplateModal);
+  if (deleteModal) {
+    deleteModal.addEventListener('click', (e) => {
+      if (e.target === deleteModal) closeDeleteDayTemplateModal();
+    });
+  }
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener('click', () => {
+      if (pendingDeleteTemplateId) {
+        const idToDelete = pendingDeleteTemplateId;
+        closeDeleteDayTemplateModal();
+        deleteDayTemplate(idToDelete);
+      }
     });
   }
 
@@ -854,7 +899,7 @@ function handleSaveDayTemplateFromModal() {
 
   const name = nameInput ? nameInput.value.trim() : '';
   if (!name) {
-    alert('Please enter a template name.');
+    showToast('Please enter a template name.', 'error');
     if (nameInput) nameInput.focus();
     return;
   }

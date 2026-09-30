@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/styles.css?v=2.9.13">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.9.14">
   <!-- Google Identity Services (Sign in with Google) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -1511,6 +1511,24 @@
     </div>
   </div>
 
+  <!-- DELETE DAY TEMPLATE CONFIRMATION MODAL (Finding 42) -->
+  <div id="deleteDayTemplateConfirmModal" class="modal-overlay">
+    <div class="modal-card modal-card-confirm" style="max-width: 480px;">
+      <div class="confirm-modal-body">
+        <div class="confirm-icon-badge">
+          <span class="confirm-icon">🗑️</span>
+        </div>
+        <h3 class="confirm-title">Delete Day Template?</h3>
+        <p class="confirm-desc">Are you sure you want to delete <strong id="deleteDayTemplateTargetName">this template</strong>?</p>
+        <p class="confirm-subdesc">This will permanently delete this template from your settings. Existing schedule slots will not be affected.</p>
+        <div class="confirm-actions">
+          <button type="button" id="cancelDeleteDayTemplateBtn" class="btn btn-secondary">Keep Template</button>
+          <button type="button" id="confirmDeleteDayTemplateBtn" class="btn btn-danger">Yes, Delete Template</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- DAY TEMPLATE EDIT / CREATE MODAL -->
   <div id="dayTemplateEditModal" class="modal-overlay">
     <div class="modal-card" style="max-width: 650px; max-height: 90vh; display: flex; flex-direction: column;">
@@ -1624,6 +1642,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.9.13"></script>
+  <script type="module" src="src/js/app.js?v=2.9.14"></script>
 </body>
 </html>

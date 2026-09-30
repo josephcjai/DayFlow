@@ -19,23 +19,26 @@ import {
   getSlotWeekKey,
   recordUndoAction,
   getUserStorageKey,
-  setScheduleViewMode
-} from './state.js?v=2.9.13';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.13';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS } from './grid.js?v=2.9.13';
-import { initModal, openTaskModal } from './modal.js?v=2.9.13';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.13';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.13';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.13';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI } from './settings.js?v=2.9.13';
-import { showToast } from './utils.js?v=2.9.13';
+  setScheduleViewMode,
+  markSlotPendingSave,
+  clearSlotPendingSave,
+  isSlotPendingSave
+} from './state.js?v=2.9.14';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.14';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS } from './grid.js?v=2.9.14';
+import { initModal, openTaskModal } from './modal.js?v=2.9.14';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.14';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.14';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.14';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI } from './settings.js?v=2.9.14';
+import { showToast } from './utils.js?v=2.9.14';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.13';
+} from './notifications.js?v=2.9.14';
 
 const DOM = {};
 
@@ -1658,19 +1661,11 @@ export async function changeSlotStatus(slotKey, newStatus) {
   });
 
   weekData.slots[slotKey] = updatedSlotObject;
+  markSlotPendingSave(weekKey, slotKey, updatedSlotObject);
   saveStateToStorage();
   renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
   renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
   selectSlotCell(slotKey);
-
-  const statusIcons = {
-    'Done': '✅',
-    'Partially Done': '🟡',
-    'Not Done': '❌',
-    'Pending': '⚪'
-  };
-  const icon = statusIcons[newStatus] || '✨';
-  showToast(`${icon} Status: ${newStatus}`, 'success');
 
   // If partially done, activate inline duration edit so user can immediately tweak minutes
   if (newStatus === 'Partially Done') {
@@ -1679,10 +1674,26 @@ export async function changeSlotStatus(slotKey, newStatus) {
     }, 60);
   }
 
+  let saveOk = false;
   try {
-    await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
+    saveOk = await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
   } catch (err) {
     console.error('Failed to sync slot status to backend:', err);
+    saveOk = false;
+  }
+
+  if (saveOk) {
+    clearSlotPendingSave(slotKey);
+    const statusIcons = {
+      'Done': '✅',
+      'Partially Done': '🟡',
+      'Not Done': '❌',
+      'Pending': '⚪'
+    };
+    const icon = statusIcons[newStatus] || '✨';
+    showToast(`${icon} Status: ${newStatus}`, 'success');
+  } else {
+    showToast('⚠️ Server save failed. Status updated locally.', 'warning');
   }
 }
 
@@ -1940,16 +1951,25 @@ export async function saveInlineTaskTitle(slotKey, newTitle) {
   });
 
   weekData.slots[slotKey] = updatedSlotObject;
+  markSlotPendingSave(weekKey, slotKey, updatedSlotObject);
   saveStateToStorage();
   renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
   renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
   selectSlotCell(slotKey);
-  showToast(`📝 Updated task: "${newTitle}"`, 'success');
 
+  let saveOk = false;
   try {
-    await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
+    saveOk = await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
   } catch (err) {
     console.error('Failed to sync slot title to backend:', err);
+    saveOk = false;
+  }
+
+  if (saveOk) {
+    clearSlotPendingSave(slotKey);
+    showToast(`📝 Updated task: "${newTitle}"`, 'success');
+  } else {
+    showToast('⚠️ Server save failed. Title updated locally.', 'warning');
   }
 }
 
@@ -2046,16 +2066,25 @@ export async function saveInlineDuration(slotKey, newMinutes) {
   });
 
   weekData.slots[slotKey] = updatedSlotObject;
+  markSlotPendingSave(weekKey, slotKey, updatedSlotObject);
   saveStateToStorage();
   renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
   renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
   selectSlotCell(slotKey);
-  showToast(`⏱️ Actual duration: ${newMinutes}m`, 'success');
 
+  let saveOk = false;
   try {
-    await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
+    saveOk = await ApiClient.saveSlot(weekKey, slotKey, updatedSlotObject);
   } catch (err) {
     console.error('Failed to sync slot duration to backend:', err);
+    saveOk = false;
+  }
+
+  if (saveOk) {
+    clearSlotPendingSave(slotKey);
+    showToast(`⏱️ Actual duration: ${newMinutes}m`, 'success');
+  } else {
+    showToast('⚠️ Server save failed. Duration updated locally.', 'warning');
   }
 }
 
@@ -2464,16 +2493,30 @@ export function initHeaderLayoutManager() {
         header.classList.add('brand-compact');
       }
     } else {
-      const currentEdge = getRightmostActionEdge();
+      // Calculate true available space (slack) inside header
+      // .app-header uses flexbox with justify-content: space-between, which pushes .header-actions
+      // flush to the right edge. Hence measuring getRightmostActionEdge() alone gives ~windowWidth,
+      // which would make (edge + delta <= windowWidth) impossible to satisfy (Finding 40).
+      // Instead, we measure the total width occupied by the three children (brand, nav, headerActions)
+      // and compare it to the available content width inside the header container.
+      const headerStyle = window.getComputedStyle(header);
+      const paddingLeft = parseFloat(headerStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(headerStyle.paddingRight) || 0;
+      const availableWidth = header.clientWidth - (paddingLeft + paddingRight);
+      const brandWidth = brand.getBoundingClientRect().width;
+      const navWidth = nav.getBoundingClientRect().width;
+      const actionsWidth = headerActions.getBoundingClientRect().width;
+      let slack = availableWidth - (brandWidth + navWidth + actionsWidth);
 
       // Release Step 3: Brand compact (re-enable brand badge)
-      // Only release if the uncompacted badge (~75px) fits with at least 28px headroom
       if (header.classList.contains('brand-compact')) {
         const brandDelta = 75;
-        if (currentEdge + brandDelta <= windowWidth - 28) {
+        if (slack >= brandDelta + 28) {
           header.classList.remove('brand-compact');
           if (getRightmostActionEdge() > windowWidth - 4) {
             header.classList.add('brand-compact');
+          } else {
+            slack -= brandDelta;
           }
         }
       }
@@ -2483,10 +2526,12 @@ export function initHeaderLayoutManager() {
       // and brand-compact is not active
       if (header.classList.contains('nav-compact') && !header.classList.contains('brand-compact')) {
         const navDelta = 420;
-        if (currentEdge + navDelta <= windowWidth - 28) {
+        if (slack >= navDelta + 28) {
           header.classList.remove('nav-compact');
           if (getRightmostActionEdge() > windowWidth - 4) {
             header.classList.add('nav-compact');
+          } else {
+            slack -= navDelta;
           }
         }
       }
@@ -2499,10 +2544,12 @@ export function initHeaderLayoutManager() {
         if (windowWidth >= 1520) {
           const nameOverflow = userDisplayName ? Math.max(0, userDisplayName.scrollWidth - userDisplayName.clientWidth) : 0;
           const actionsDelta = 150 + nameOverflow;
-          if (currentEdge + actionsDelta <= windowWidth - 28) {
+          if (slack >= actionsDelta + 28) {
             header.classList.remove('actions-compact');
             if (getRightmostActionEdge() > windowWidth - 4) {
               header.classList.add('actions-compact');
+            } else {
+              slack -= actionsDelta;
             }
           }
         }
@@ -2755,14 +2802,9 @@ export async function applyDayTemplate(dateStr, templateId) {
 
     weekData.slots[targetSlotKey] = newSlotObject;
     appliedSlots.push(targetSlotKey);
+    markSlotPendingSave(weekKey, targetSlotKey, newSlotObject);
     previousSlotsSnapshot[targetSlotKey] = existing ? JSON.parse(JSON.stringify(existing)) : null;
     newSlotsSnapshot[targetSlotKey] = JSON.parse(JSON.stringify(newSlotObject));
-
-    try {
-      await ApiClient.saveSlot(weekKey, targetSlotKey, newSlotObject);
-    } catch (e) {
-      console.warn('Failed to sync template slot to backend:', e);
-    }
   }
 
   if (appliedSlots.length > 0) {
@@ -2779,7 +2821,27 @@ export async function applyDayTemplate(dateStr, templateId) {
     saveStateToStorage();
     renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
     renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
-    showToast(`📋 Applied "${template.name}" (+${appliedSlots.length} slots added)`, 'success');
+
+    let allSaved = true;
+    for (const targetSlotKey of appliedSlots) {
+      try {
+        const ok = await ApiClient.saveSlot(weekKey, targetSlotKey, weekData.slots[targetSlotKey]);
+        if (ok) {
+          clearSlotPendingSave(targetSlotKey);
+        } else {
+          allSaved = false;
+        }
+      } catch (e) {
+        allSaved = false;
+        console.warn('Failed to sync template slot to backend:', e);
+      }
+    }
+
+    if (allSaved) {
+      showToast(`📋 Applied "${template.name}" (+${appliedSlots.length} slots added)`, 'success');
+    } else {
+      showToast(`📋 Applied "${template.name}" locally (+${appliedSlots.length} slots; server sync pending)`, 'warning');
+    }
   } else {
     showToast('No empty slots to fill (all template slots already have existing tasks)', 'info');
   }

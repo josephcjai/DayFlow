@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.13';
-import { openTaskModal } from './modal.js?v=2.9.13';
-import { escapeHtml } from './utils.js?v=2.9.13';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.14';
+import { openTaskModal } from './modal.js?v=2.9.14';
+import { escapeHtml } from './utils.js?v=2.9.14';
 
 export const TIME_SLOTS = [];
 
