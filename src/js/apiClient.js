@@ -368,5 +368,79 @@ export const ApiClient = {
         notesSaveChains.delete(key);
       }
     }
+  },
+
+  async fetchDayTemplates() {
+    if (isDemoMode()) return null;
+    try {
+      const res = await fetch(`${API_BASE}/templates`, {
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(4000)
+      });
+      if (checkUnauthorized(res)) return null;
+      if (!res.ok) return null;
+      const data = await res.json();
+      return Array.isArray(data.templates) ? data.templates : null;
+    } catch (e) {
+      console.warn('Fetched day templates offline:', e);
+      return null;
+    }
+  },
+
+  async saveDayTemplate(template) {
+    if (isDemoMode()) return template;
+    try {
+      const res = await fetch(`${API_BASE}/templates`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(template)
+      });
+      if (checkUnauthorized(res)) return null;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to save template');
+      }
+      const data = await res.json();
+      return data.template || template;
+    } catch (e) {
+      console.warn('Saved day template offline:', e);
+      return null;
+    }
+  },
+
+  async updateDayTemplate(id, updates) {
+    if (isDemoMode()) return updates;
+    try {
+      const res = await fetch(`${API_BASE}/templates/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updates)
+      });
+      if (checkUnauthorized(res)) return null;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update template');
+      }
+      const data = await res.json();
+      return data.template || updates;
+    } catch (e) {
+      console.warn('Updated day template offline:', e);
+      return null;
+    }
+  },
+
+  async deleteDayTemplate(id) {
+    if (isDemoMode()) return true;
+    try {
+      const res = await fetch(`${API_BASE}/templates/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (checkUnauthorized(res)) return false;
+      return res.ok;
+    } catch (e) {
+      console.warn('Deleted day template offline:', e);
+      return false;
+    }
   }
 };

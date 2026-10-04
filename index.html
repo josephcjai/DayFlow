@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/styles.css?v=2.9.14">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.9.20">
   <!-- Google Identity Services (Sign in with Google) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -1642,6 +1642,119 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.9.14"></script>
+  <!-- FLOATING BULK SLOT ACTION BAR -->
+  <div id="bulkActionBar" class="bulk-action-bar" style="display: none;" role="toolbar" aria-label="Bulk slot actions">
+    <div class="bulk-action-inner">
+      <div class="bulk-info">
+        <span class="bulk-count-badge" id="bulkSelectedCountBadge">
+          <span id="bulkSelectedCount">0</span> slots
+        </span>
+        <span class="bulk-duration" id="bulkSelectedDuration">(0m)</span>
+      </div>
+
+      <div class="bulk-divider"></div>
+
+      <div class="bulk-actions-group">
+        <!-- Status Actions -->
+        <button type="button" class="bulk-btn bulk-btn-done" id="bulkMarkDoneBtn" title="Mark selected slots as Done">
+          <span>✅</span> Done
+        </button>
+        <button type="button" class="bulk-btn bulk-btn-progress" id="bulkMarkInProgressBtn" title="Mark selected slots as In Progress">
+          <span>⏳</span> In Progress
+        </button>
+        <button type="button" class="bulk-btn bulk-btn-pending" id="bulkMarkPendingBtn" title="Reset selected slots to Pending">
+          <span>⚪</span> Pending
+        </button>
+
+        <!-- Category Dropdown -->
+        <div class="bulk-category-dropdown-wrapper">
+          <button type="button" class="bulk-btn bulk-btn-category" id="bulkCategoryBtn" title="Change category for selected slots">
+            <span>🏷️</span> Category <span class="arrow">▾</span>
+          </button>
+          <div class="bulk-category-menu" id="bulkCategoryMenu" style="display: none;">
+            <button type="button" class="bulk-cat-item" data-category="Work">💼 Work</button>
+            <button type="button" class="bulk-cat-item" data-category="Learning">📚 Learning</button>
+            <button type="button" class="bulk-cat-item" data-category="Health">🏃 Health</button>
+            <button type="button" class="bulk-cat-item" data-category="Household">🧹 Household</button>
+            <button type="button" class="bulk-cat-item" data-category="Family">👨‍👩‍👧 Family</button>
+            <button type="button" class="bulk-cat-item" data-category="Travel">✈️ Travel</button>
+            <button type="button" class="bulk-cat-item" data-category="General">📌 General</button>
+          </div>
+        </div>
+
+        <!-- Assign Task Button (Quick Timeblock) -->
+        <button type="button" class="bulk-btn bulk-btn-assign" id="bulkAssignTaskBtn" title="Set task name across all selected slots">
+          <span>✏️</span> Set Task
+        </button>
+
+        <!-- Clear Slots -->
+        <button type="button" class="bulk-btn bulk-btn-clear" id="bulkClearTasksBtn" title="Clear tasks from selected slots">
+          <span>🗑️</span> Clear
+        </button>
+      </div>
+
+      <div class="bulk-divider"></div>
+
+      <!-- Close / Deselect Button -->
+      <button type="button" class="bulk-close-btn" id="bulkDeselectBtn" title="Deselect all (Esc)" aria-label="Clear selection">
+        ✕
+      </button>
+    </div>
+  </div>
+
+  <!-- BULK ASSIGN TASK MODAL -->
+  <div id="bulkAssignTaskModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 1rem 1.5rem;">
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Assign Task to Selected Slots</h3>
+        <button type="button" id="closeBulkAssignModalBtn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+        <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
+          Set the same task and category across all <strong id="bulkAssignSlotCountText">0</strong> selected slots.
+        </p>
+        <div>
+          <label for="bulkAssignTaskInput" style="display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem; color: var(--text-primary);">Task / Activity Name *</label>
+          <input type="text" id="bulkAssignTaskInput" class="text-input" placeholder="e.g. Deep Work: System Architecture" style="width: 100%; box-sizing: border-box;" required>
+        </div>
+        <div>
+          <label for="bulkAssignCategorySelect" style="display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem; color: var(--text-primary);">Category</label>
+          <select id="bulkAssignCategorySelect" class="select-input" style="width: 100%; box-sizing: border-box;">
+            <option value="Work">💼 Work</option>
+            <option value="Learning">📚 Learning</option>
+            <option value="Health">🏃 Health</option>
+            <option value="Household">🧹 Household</option>
+            <option value="Family">👨‍👩‍👧 Family</option>
+            <option value="Travel">✈️ Travel</option>
+            <option value="General" selected>📌 General</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 0.85rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" id="cancelBulkAssignBtn" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="confirmBulkAssignBtn" class="btn btn-primary">Assign Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BULK CLEAR CONFIRMATION MODAL -->
+  <div id="bulkClearConfirmModal" class="modal-overlay">
+    <div class="modal-card modal-card-confirm" style="max-width: 480px;">
+      <div class="confirm-modal-body">
+        <div class="confirm-icon-badge">
+          <span class="confirm-icon">🗑️</span>
+        </div>
+        <h3 class="confirm-title">Clear Selected Slots?</h3>
+        <p class="confirm-desc">Are you sure you want to clear tasks from <strong id="bulkClearSlotCountText">0 slots</strong>?</p>
+        <p class="confirm-subdesc">The tasks in these slots will be emptied. You can press Ctrl+Z to undo this action.</p>
+        <div class="confirm-actions">
+          <button type="button" id="cancelBulkClearBtn" class="btn btn-secondary">Keep Tasks</button>
+          <button type="button" id="confirmBulkClearBtn" class="btn btn-danger">Yes, Clear Slots</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/js/app.js?v=2.9.20"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.14';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.20';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -23,8 +23,40 @@ export const STATE = {
   notesSaveFailed: false,
   failedNotesWeekKeys: new Set(),
   notesInFlightWeekKey: null,
-  pendingSlotSaves: {}
+  pendingSlotSaves: {},
+  selectedSlotKeys: new Set()
 };
+
+export function getSelectedSlotKeys() {
+  if (!STATE.selectedSlotKeys) STATE.selectedSlotKeys = new Set();
+  return Array.from(STATE.selectedSlotKeys);
+}
+
+export function clearSelectedSlotKeys() {
+  if (STATE.selectedSlotKeys) STATE.selectedSlotKeys.clear();
+}
+
+export function addSelectedSlotKey(slotKey) {
+  if (!STATE.selectedSlotKeys) STATE.selectedSlotKeys = new Set();
+  STATE.selectedSlotKeys.add(slotKey);
+}
+
+export function removeSelectedSlotKey(slotKey) {
+  if (STATE.selectedSlotKeys) STATE.selectedSlotKeys.delete(slotKey);
+}
+
+export function toggleSelectedSlotKey(slotKey) {
+  if (!STATE.selectedSlotKeys) STATE.selectedSlotKeys = new Set();
+  if (STATE.selectedSlotKeys.has(slotKey)) {
+    STATE.selectedSlotKeys.delete(slotKey);
+  } else {
+    STATE.selectedSlotKeys.add(slotKey);
+  }
+}
+
+export function isSlotMultiSelected(slotKey) {
+  return !!(STATE.selectedSlotKeys && STATE.selectedSlotKeys.has(slotKey));
+}
 
 export function savePendingSlotsToStorage() {
   try {

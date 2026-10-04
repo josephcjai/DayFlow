@@ -12,6 +12,7 @@ import authRoutes from './routes/authRoutes.js';
 import scheduleRoutes from './routes/scheduleRoutes.js';
 import habitRoutes from './routes/habitRoutes.js';
 import todoRoutes from './routes/todoRoutes.js';
+import templateRoutes from './routes/templateRoutes.js';
 import { authRateLimiter } from './middleware/rateLimiter.js';
 import { openApiDocument } from './swagger.js';
 import { pool } from './db/db.js';
@@ -87,6 +88,7 @@ app.get(['/', '/api'], (req, res) => {
       schedule: '/api/schedule (GET /week/:weekStart, POST /slot, DELETE /slot)',
       habits: '/api/habits (GET /week/:weekStart, POST /log, DELETE /:id)',
       todos: '/api/todos (GET /week/:weekStart, POST /todo, PATCH /:id, DELETE /:id, POST /notes)',
+      templates: '/api/templates (GET /, POST /, PUT /:id, DELETE /:id)',
       health: '/api/health'
     }
   });
@@ -97,6 +99,7 @@ app.use('/api/auth', authRateLimiter, authRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/habits', habitRoutes);
 app.use('/api/todos', todoRoutes);
+app.use('/api/templates', templateRoutes);
 
 // Health & Database Readiness Check Endpoint (Finding 37)
 app.get('/api/health', async (_req, res) => {

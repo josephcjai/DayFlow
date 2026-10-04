@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.14';
-import { openTaskModal } from './modal.js?v=2.9.14';
-import { escapeHtml } from './utils.js?v=2.9.14';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected } from './state.js?v=2.9.20';
+import { openTaskModal } from './modal.js?v=2.9.20';
+import { escapeHtml } from './utils.js?v=2.9.20';
 
 export const TIME_SLOTS = [];
 
@@ -33,6 +33,12 @@ export function getCurrentSlotKey() {
   const hour = String(now.getHours()).padStart(2, '0');
   const slotMin = now.getMinutes() < 30 ? '00' : '30';
   return `${dateStr}_${hour}:${slotMin}`;
+}
+
+let hasAutoScrolledToNow = false;
+
+export function resetGridAutoScroll() {
+  hasAutoScrolledToNow = false;
 }
 
 let currentSlotTicker = null;
@@ -333,6 +339,10 @@ function renderDayGridHeader(headerEl) {
 
 function renderWeekGridBody(scheduleTableBody) {
   if (!scheduleTableBody) return;
+  const container = document.querySelector('.timeline-table-container');
+  const prevScrollTop = container ? container.scrollTop : 0;
+  const prevScrollLeft = container ? container.scrollLeft : 0;
+
   const weekData = getCurrentWeekData();
   const dates = getWeekDates(STATE.currentWeekStart);
   const currentSlotKey = getCurrentSlotKey();
@@ -367,6 +377,9 @@ function renderWeekGridBody(scheduleTableBody) {
       }
       if (STATE.selectedSlotKey === slotKey) {
         td.classList.add('selected-slot');
+      }
+      if (STATE.selectedSlotKeys && STATE.selectedSlotKeys.has(slotKey)) {
+        td.classList.add('multi-selected-slot');
       }
       if (STATE.copiedSlotKey === slotKey) {
         td.classList.add('copied-source');
@@ -426,10 +439,18 @@ function renderWeekGridBody(scheduleTableBody) {
         if (e.target.closest('.status-quick-btn') || e.target.closest('.inline-editable') || e.target.closest('input')) {
           return;
         }
+        if (e.ctrlKey || e.metaKey || e.shiftKey) {
+          selectSlotCell(slotKey, td, e);
+          return;
+        }
+        if (STATE.selectedSlotKeys && STATE.selectedSlotKeys.size > 1 && STATE.selectedSlotKeys.has(slotKey)) {
+          selectSlotCell(slotKey, td, e);
+          return;
+        }
         if (STATE.selectedSlotKey === slotKey) {
           openTaskModal(slotKey, td.dataset.dayName, slotInfo.label, slotData);
         } else {
-          selectSlotCell(slotKey, td);
+          selectSlotCell(slotKey, td, e);
         }
       });
 
@@ -443,20 +464,28 @@ function renderWeekGridBody(scheduleTableBody) {
     scheduleTableBody.appendChild(tr);
   });
 
-  if (currentActiveTd) {
+  if (!hasAutoScrolledToNow && currentActiveTd) {
     setTimeout(() => {
-      const container = document.querySelector('.timeline-table-container');
-      if (container) {
+      const c = document.querySelector('.timeline-table-container');
+      if (c) {
         const tdTop = currentActiveTd.offsetTop;
-        const containerHeight = container.clientHeight;
-        container.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
+        const containerHeight = c.clientHeight;
+        c.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
+        hasAutoScrolledToNow = true;
       }
     }, 150);
+  } else if (container) {
+    container.scrollTop = prevScrollTop;
+    container.scrollLeft = prevScrollLeft;
   }
 }
 
 function renderDayGridBody(scheduleTableBody) {
   if (!scheduleTableBody) return;
+  const container = document.querySelector('.timeline-table-container');
+  const prevScrollTop = container ? container.scrollTop : 0;
+  const prevScrollLeft = container ? container.scrollLeft : 0;
+
   const weekData = getCurrentWeekData();
   const d = STATE.selectedDate || new Date();
   const dateStr = formatDateISO(d);
@@ -491,6 +520,9 @@ function renderDayGridBody(scheduleTableBody) {
     }
     if (STATE.selectedSlotKey === slotKey) {
       td.classList.add('selected-slot');
+    }
+    if (STATE.selectedSlotKeys && STATE.selectedSlotKeys.has(slotKey)) {
+      td.classList.add('multi-selected-slot');
     }
     if (STATE.copiedSlotKey === slotKey) {
       td.classList.add('copied-source');
@@ -550,10 +582,18 @@ function renderDayGridBody(scheduleTableBody) {
       if (e.target.closest('.status-quick-btn') || e.target.closest('.inline-editable') || e.target.closest('input')) {
         return;
       }
+      if (e.ctrlKey || e.metaKey || e.shiftKey) {
+        selectSlotCell(slotKey, td, e);
+        return;
+      }
+      if (STATE.selectedSlotKeys && STATE.selectedSlotKeys.size > 1 && STATE.selectedSlotKeys.has(slotKey)) {
+        selectSlotCell(slotKey, td, e);
+        return;
+      }
       if (STATE.selectedSlotKey === slotKey) {
         openTaskModal(slotKey, dayName, slotInfo.label, slotData);
       } else {
-        selectSlotCell(slotKey, td);
+        selectSlotCell(slotKey, td, e);
       }
     });
 
@@ -565,15 +605,19 @@ function renderDayGridBody(scheduleTableBody) {
     scheduleTableBody.appendChild(tr);
   });
 
-  if (currentActiveTd) {
+  if (!hasAutoScrolledToNow && currentActiveTd) {
     setTimeout(() => {
-      const container = document.querySelector('.timeline-table-container');
-      if (container) {
+      const c = document.querySelector('.timeline-table-container');
+      if (c) {
         const tdTop = currentActiveTd.offsetTop;
-        const containerHeight = container.clientHeight;
-        container.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
+        const containerHeight = c.clientHeight;
+        c.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
+        hasAutoScrolledToNow = true;
       }
     }, 150);
+  } else if (container) {
+    container.scrollTop = prevScrollTop;
+    container.scrollLeft = prevScrollLeft;
   }
 }
 
@@ -702,21 +746,156 @@ function getStatusIcon(status) {
   }
 }
 
-export function selectSlotCell(slotKey, cellElement = null) {
+export function syncMultiSelectedClasses() {
+  document.querySelectorAll('.slot-cell').forEach(el => {
+    const k = el.dataset.slotKey;
+    if (k && STATE.selectedSlotKeys && STATE.selectedSlotKeys.has(k)) {
+      el.classList.add('multi-selected-slot');
+    } else {
+      el.classList.remove('multi-selected-slot');
+    }
+  });
+}
+
+export function updateBulkActionBar() {
+  const bar = document.getElementById('bulkActionBar');
+  if (!bar) return;
+
+  const count = STATE.selectedSlotKeys ? STATE.selectedSlotKeys.size : 0;
+  if (count >= 2) {
+    bar.style.display = 'flex';
+    const countEl = document.getElementById('bulkSelectedCount');
+    if (countEl) countEl.textContent = count;
+
+    const durEl = document.getElementById('bulkSelectedDuration');
+    if (durEl) {
+      const totalMinutes = count * 30;
+      if (totalMinutes >= 60) {
+        const hrs = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        durEl.textContent = mins > 0 ? `(${hrs}h ${mins}m)` : `(${hrs}h)`;
+      } else {
+        durEl.textContent = `(${totalMinutes}m)`;
+      }
+    }
+  } else {
+    bar.style.display = 'none';
+    const catMenu = document.getElementById('bulkCategoryMenu');
+    if (catMenu) catMenu.style.display = 'none';
+  }
+}
+
+export function getRangeSlotKeys(startKey, endKey) {
+  if (!startKey || !endKey) return startKey ? [startKey] : (endKey ? [endKey] : []);
+  if (startKey === endKey) return [startKey];
+
+  const [startDateStr, startTimeKey] = startKey.split('_');
+  const [endDateStr, endTimeKey] = endKey.split('_');
+
+  const startTimeIdx = TIME_SLOTS.findIndex(s => s.key === startTimeKey);
+  const endTimeIdx = TIME_SLOTS.findIndex(s => s.key === endTimeKey);
+
+  if (startTimeIdx === -1 || endTimeIdx === -1) {
+    return [startKey, endKey];
+  }
+
+  const minTimeIdx = Math.min(startTimeIdx, endTimeIdx);
+  const maxTimeIdx = Math.max(startTimeIdx, endTimeIdx);
+
+  const mode = STATE.scheduleViewMode || 'week';
+  const rangeKeys = [];
+
+  if (mode === 'day' || startDateStr === endDateStr) {
+    for (let t = minTimeIdx; t <= maxTimeIdx; t++) {
+      rangeKeys.push(`${startDateStr}_${TIME_SLOTS[t].key}`);
+    }
+  } else {
+    const weekDates = getWeekDates(STATE.currentWeekStart);
+    const startDayIdx = weekDates.indexOf(startDateStr);
+    const endDayIdx = weekDates.indexOf(endDateStr);
+
+    if (startDayIdx !== -1 && endDayIdx !== -1) {
+      const minDayIdx = Math.min(startDayIdx, endDayIdx);
+      const maxDayIdx = Math.max(startDayIdx, endDayIdx);
+
+      for (let d = minDayIdx; d <= maxDayIdx; d++) {
+        for (let t = minTimeIdx; t <= maxTimeIdx; t++) {
+          rangeKeys.push(`${weekDates[d]}_${TIME_SLOTS[t].key}`);
+        }
+      }
+    } else {
+      rangeKeys.push(startKey, endKey);
+    }
+  }
+
+  return rangeKeys;
+}
+
+export function selectSlotCell(slotKey, cellElement = null, event = null) {
+  if (!STATE.selectedSlotKeys) {
+    STATE.selectedSlotKeys = new Set();
+  }
+
+  const isCtrl = event && (event.ctrlKey || event.metaKey);
+  const isShift = event && event.shiftKey;
+
+  if (isCtrl) {
+    if (STATE.selectedSlotKeys.size === 0 && STATE.selectedSlotKey && STATE.selectedSlotKey !== slotKey) {
+      STATE.selectedSlotKeys.add(STATE.selectedSlotKey);
+    }
+
+    if (STATE.selectedSlotKeys.has(slotKey)) {
+      STATE.selectedSlotKeys.delete(slotKey);
+      if (STATE.selectedSlotKey === slotKey) {
+        STATE.selectedSlotKey = Array.from(STATE.selectedSlotKeys).pop() || null;
+      }
+    } else {
+      STATE.selectedSlotKeys.add(slotKey);
+      STATE.selectedSlotKey = slotKey;
+    }
+
+    syncMultiSelectedClasses();
+    updateBulkActionBar();
+    return;
+  }
+
+  if (isShift) {
+    const anchorKey = STATE.selectedSlotKey || slotKey;
+    const rangeKeys = getRangeSlotKeys(anchorKey, slotKey);
+
+    rangeKeys.forEach(k => STATE.selectedSlotKeys.add(k));
+    STATE.selectedSlotKey = slotKey;
+
+    syncMultiSelectedClasses();
+    updateBulkActionBar();
+    return;
+  }
+
+  STATE.selectedSlotKeys.clear();
   STATE.selectedSlotKey = slotKey;
+
   document.querySelectorAll('.slot-cell.selected-slot').forEach(el => el.classList.remove('selected-slot'));
+  document.querySelectorAll('.slot-cell.multi-selected-slot').forEach(el => el.classList.remove('multi-selected-slot'));
+
   const target = cellElement || document.querySelector(`.slot-cell[data-slot-key="${slotKey}"]`);
   if (target) {
     target.classList.add('selected-slot');
     target.focus({ preventScroll: true });
   }
+
+  updateBulkActionBar();
 }
 
 export function clearSlotSelection() {
   STATE.selectedSlotKey = null;
   STATE.copiedSlotKey = null;
+  if (STATE.selectedSlotKeys) {
+    STATE.selectedSlotKeys.clear();
+  }
   document.querySelectorAll('.slot-cell.selected-slot').forEach(el => el.classList.remove('selected-slot'));
+  document.querySelectorAll('.slot-cell.multi-selected-slot').forEach(el => el.classList.remove('multi-selected-slot'));
   document.querySelectorAll('.slot-cell.copied-source').forEach(el => el.classList.remove('copied-source'));
+  updateBulkActionBar();
 }
 
 export function clearCopiedSource() {

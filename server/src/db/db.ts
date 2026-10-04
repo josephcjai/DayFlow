@@ -62,12 +62,14 @@ const MEMORY_DB: {
   habitLogs: Record<string, any[]>;
   todos: Record<string, any[]>;
   passwordResetTokens: any[];
+  dayTemplates: Record<string, any[]>;
 } = {
   users: [],
   scheduleWeeks: {},
   habitLogs: {},
   todos: {},
-  passwordResetTokens: []
+  passwordResetTokens: [],
+  dayTemplates: {}
 };
 
 export async function executeQuery(text: string, params: any[] = []) {

@@ -22,23 +22,29 @@ import {
   setScheduleViewMode,
   markSlotPendingSave,
   clearSlotPendingSave,
-  isSlotPendingSave
-} from './state.js?v=2.9.14';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.14';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS } from './grid.js?v=2.9.14';
-import { initModal, openTaskModal } from './modal.js?v=2.9.14';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.14';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.14';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.14';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI } from './settings.js?v=2.9.14';
-import { showToast } from './utils.js?v=2.9.14';
+  isSlotPendingSave,
+  getSelectedSlotKeys,
+  clearSelectedSlotKeys,
+  toggleSelectedSlotKey,
+  addSelectedSlotKey,
+  removeSelectedSlotKey,
+  isSlotMultiSelected
+} from './state.js?v=2.9.20';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.20';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.9.20';
+import { initModal, openTaskModal } from './modal.js?v=2.9.20';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.20';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.20';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.20';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi } from './settings.js?v=2.9.20';
+import { showToast } from './utils.js?v=2.9.20';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.14';
+} from './notifications.js?v=2.9.20';
 
 const DOM = {};
 
@@ -49,6 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSettingsUI(DOM, renderAll);
   initPointsBreakdownModal();
   bindEvents();
+  initBulkActionsUI();
   initAuthUI();
   
   // Check active user session gate
@@ -608,6 +615,7 @@ async function onAuthSuccess(user) {
   startCurrentSlotTicker();
   if (!isDemoMode()) {
     await syncWeekDataWithApi(renderAll);
+    syncDayTemplatesFromApi();
   }
   if (STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0) {
     flushCurrentNoteEditor();
@@ -950,7 +958,18 @@ function bindEvents() {
 
   // Clear cell selection when clicking outside grid cells or modal
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.slot-cell') && !e.target.closest('#taskModal') && !e.target.closest('#gridContextMenu') && !e.target.closest('#statusQuickMenu') && !e.target.closest('.inline-title-input') && !e.target.closest('.inline-duration-input')) {
+    if (
+      !e.target.closest('.slot-cell') &&
+      !e.target.closest('#taskModal') &&
+      !e.target.closest('#bulkActionBar') &&
+      !e.target.closest('#bulkAssignTaskModal') &&
+      !e.target.closest('#bulkClearConfirmModal') &&
+      !e.target.closest('.modal-overlay') &&
+      !e.target.closest('#gridContextMenu') &&
+      !e.target.closest('#statusQuickMenu') &&
+      !e.target.closest('.inline-title-input') &&
+      !e.target.closest('.inline-duration-input')
+    ) {
       clearSlotSelection();
     }
   });
@@ -968,6 +987,7 @@ function initGridShortcuts() {
     // 1. Guard: do not intercept inside inputs, text areas, or open modal
     if (isInputTarget(e)) return;
     if (DOM.modalElements?.taskModal?.classList.contains('active')) return;
+    if (document.querySelector('.modal-overlay.active')) return;
     if (STATE.activeView !== 'grid') return;
 
     const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -1212,6 +1232,30 @@ async function handleUndo() {
 
   const action = STATE.undoStack.pop();
 
+  if (action.type === 'bulk_edit') {
+    const { affectedSlots, previousSlotsSnapshot, label } = action;
+    for (const { weekKey, slotKey } of (affectedSlots || [])) {
+      if (!STATE.scheduleData[weekKey]) {
+        STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+      }
+      const weekData = STATE.scheduleData[weekKey];
+      if (previousSlotsSnapshot && previousSlotsSnapshot[slotKey]) {
+        weekData.slots[slotKey] = JSON.parse(JSON.stringify(previousSlotsSnapshot[slotKey]));
+        try { await ApiClient.saveSlot(weekKey, slotKey, weekData.slots[slotKey]); } catch (e) {}
+      } else {
+        delete weekData.slots[slotKey];
+        try { await ApiClient.deleteSlot(weekKey, slotKey); } catch (e) {}
+      }
+    }
+
+    saveStateToStorage();
+    renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+    renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+    showToast(`↩️ Undone: Bulk ${label || 'Edit'} (${affectedSlots.length} slots)`, 'info');
+    STATE.redoStack.push(action);
+    return;
+  }
+
   if (action.type === 'day_template_apply') {
     const { weekKey, appliedSlots, previousSlotsSnapshot, label } = action;
     if (!STATE.scheduleData[weekKey]) {
@@ -1277,6 +1321,30 @@ async function handleRedo() {
   }
 
   const action = STATE.redoStack.pop();
+
+  if (action.type === 'bulk_edit') {
+    const { affectedSlots, newSlotsSnapshot, label } = action;
+    for (const { weekKey, slotKey } of (affectedSlots || [])) {
+      if (!STATE.scheduleData[weekKey]) {
+        STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+      }
+      const weekData = STATE.scheduleData[weekKey];
+      if (newSlotsSnapshot && newSlotsSnapshot[slotKey]) {
+        weekData.slots[slotKey] = JSON.parse(JSON.stringify(newSlotsSnapshot[slotKey]));
+        try { await ApiClient.saveSlot(weekKey, slotKey, weekData.slots[slotKey]); } catch (e) {}
+      } else {
+        delete weekData.slots[slotKey];
+        try { await ApiClient.deleteSlot(weekKey, slotKey); } catch (e) {}
+      }
+    }
+
+    saveStateToStorage();
+    renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+    renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+    showToast(`↪️ Redone: Bulk ${label || 'Edit'} (${affectedSlots.length} slots)`, 'info');
+    STATE.undoStack.push(action);
+    return;
+  }
 
   if (action.type === 'day_template_apply') {
     const { weekKey, newSlotsSnapshot, label } = action;
@@ -1636,13 +1704,11 @@ export async function changeSlotStatus(slotKey, newStatus) {
   if (newStatus === 'Not Done') {
     newActualDuration = 0;
   } else if (newStatus === 'Done') {
-    if (!newActualDuration || newActualDuration === 0) {
-      newActualDuration = existing.planned || 30;
-    }
+    newActualDuration = existing.planned || 30;
   } else if (newStatus === 'Partially Done') {
-    if (!newActualDuration || newActualDuration === 0 || newActualDuration === (existing.planned || 30)) {
-      newActualDuration = Math.round((existing.planned || 30) / 2);
-    }
+    newActualDuration = Math.round((existing.planned || 30) / 2);
+  } else if (newStatus === 'Pending') {
+    newActualDuration = 0;
   }
 
   const updatedSlotObject = {
@@ -2129,6 +2195,7 @@ async function navigateDate(direction) {
     const now = new Date();
     STATE.selectedDate = now;
     STATE.currentWeekStart = getMonday(now);
+    resetGridAutoScroll();
   } else {
     const step = direction === 'next' ? 1 : -1;
     if (STATE.scheduleViewMode === 'day') {
@@ -2912,7 +2979,7 @@ export function closeSaveDayAsTemplateModal() {
   if (modal) modal.classList.remove('active');
 }
 
-export function saveDayAsTemplateFromModal() {
+export async function saveDayAsTemplateFromModal() {
   const dateStr = document.getElementById('saveDayAsTemplateSourceDate')?.value;
   const nameInput = document.getElementById('saveDayAsTemplateNameInput');
   const descInput = document.getElementById('saveDayAsTemplateDescInput');
@@ -2944,11 +3011,11 @@ export function saveDayAsTemplateFromModal() {
 
   const slotCount = Object.keys(slots).length;
   if (slotCount === 0) {
-    alert('No tasks found on this day to save into a template.');
+    showToast('No tasks found on this day to save into a template.', 'warning');
     return;
   }
 
-  saveDayTemplate({
+  await saveDayTemplate({
     id: `tmpl_${Date.now()}`,
     name,
     description: descInput ? descInput.value.trim() : '',
@@ -2968,6 +3035,479 @@ function escapeAppHtml(str) {
     "'": '&#39;',
     '"': '&quot;'
   }[tag] || tag));
+}
+
+/* ==========================================================================
+   MULTI-SLOT SELECTION & BULK ACTIONS CONTROLLER
+   ========================================================================== */
+
+let activeBulkSlotKeys = [];
+
+function initBulkActionsUI() {
+  const bulkMarkDoneBtn = document.getElementById('bulkMarkDoneBtn');
+  const bulkMarkInProgressBtn = document.getElementById('bulkMarkInProgressBtn');
+  const bulkMarkPendingBtn = document.getElementById('bulkMarkPendingBtn');
+  const bulkCategoryBtn = document.getElementById('bulkCategoryBtn');
+  const bulkCategoryMenu = document.getElementById('bulkCategoryMenu');
+  const bulkAssignTaskBtn = document.getElementById('bulkAssignTaskBtn');
+  const bulkClearTasksBtn = document.getElementById('bulkClearTasksBtn');
+  const bulkDeselectBtn = document.getElementById('bulkDeselectBtn');
+  const bulkActionBar = document.getElementById('bulkActionBar');
+
+  // Modals elements
+  const bulkAssignTaskModal = document.getElementById('bulkAssignTaskModal');
+  const closeBulkAssignModalBtn = document.getElementById('closeBulkAssignModalBtn');
+  const cancelBulkAssignBtn = document.getElementById('cancelBulkAssignBtn');
+  const confirmBulkAssignBtn = document.getElementById('confirmBulkAssignBtn');
+  const bulkAssignTaskInput = document.getElementById('bulkAssignTaskInput');
+  const bulkAssignCategorySelect = document.getElementById('bulkAssignCategorySelect');
+  const bulkAssignSlotCountText = document.getElementById('bulkAssignSlotCountText');
+
+  const bulkClearConfirmModal = document.getElementById('bulkClearConfirmModal');
+  const cancelBulkClearBtn = document.getElementById('cancelBulkClearBtn');
+  const confirmBulkClearBtn = document.getElementById('confirmBulkClearBtn');
+  const bulkClearSlotCountText = document.getElementById('bulkClearSlotCountText');
+
+  if (bulkActionBar) {
+    bulkActionBar.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  // Status updates
+  if (bulkMarkDoneBtn) {
+    bulkMarkDoneBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await handleBulkStatusChange('Done');
+    });
+  }
+  if (bulkMarkInProgressBtn) {
+    bulkMarkInProgressBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await handleBulkStatusChange('Partially Done');
+    });
+  }
+  if (bulkMarkPendingBtn) {
+    bulkMarkPendingBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await handleBulkStatusChange('Pending');
+    });
+  }
+
+  // Category dropdown toggle
+  if (bulkCategoryBtn && bulkCategoryMenu) {
+    bulkCategoryBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = bulkCategoryMenu.style.display === 'flex';
+      bulkCategoryMenu.style.display = isVisible ? 'none' : 'flex';
+    });
+
+    bulkCategoryMenu.querySelectorAll('.bulk-cat-item').forEach(item => {
+      item.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const cat = item.dataset.category;
+        bulkCategoryMenu.style.display = 'none';
+        if (cat) {
+          await handleBulkCategoryChange(cat);
+        }
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.bulk-category-dropdown-wrapper')) {
+        bulkCategoryMenu.style.display = 'none';
+      }
+    });
+  }
+
+  // Assign task modal
+  if (bulkAssignTaskBtn && bulkAssignTaskModal) {
+    bulkAssignTaskBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      let keys = getSelectedSlotKeys();
+      if (keys.length === 0 && STATE.selectedSlotKey) {
+        keys = [STATE.selectedSlotKey];
+      }
+      if (keys.length === 0) return;
+      activeBulkSlotKeys = [...keys];
+      if (bulkAssignSlotCountText) bulkAssignSlotCountText.textContent = keys.length;
+      if (bulkAssignTaskInput) {
+        bulkAssignTaskInput.value = '';
+        setTimeout(() => bulkAssignTaskInput.focus(), 80);
+      }
+      bulkAssignTaskModal.classList.add('active');
+    });
+
+    const closeAssignModal = (e) => {
+      if (e) e.stopPropagation();
+      bulkAssignTaskModal.classList.remove('active');
+      activeBulkSlotKeys = [];
+    };
+    if (closeBulkAssignModalBtn) closeBulkAssignModalBtn.addEventListener('click', closeAssignModal);
+    if (cancelBulkAssignBtn) cancelBulkAssignBtn.addEventListener('click', closeAssignModal);
+    bulkAssignTaskModal.addEventListener('click', (e) => {
+      if (e.target === bulkAssignTaskModal) closeAssignModal(e);
+    });
+
+    if (confirmBulkAssignBtn) {
+      confirmBulkAssignBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const taskName = bulkAssignTaskInput?.value?.trim();
+        if (!taskName) {
+          showToast('Please enter a task name', 'warning');
+          bulkAssignTaskInput?.focus();
+          return;
+        }
+        const category = bulkAssignCategorySelect?.value || 'General';
+        const keysToAssign = [...activeBulkSlotKeys];
+        closeAssignModal();
+        await handleConfirmBulkAssign(taskName, category, keysToAssign);
+      });
+    }
+
+    if (bulkAssignTaskInput) {
+      bulkAssignTaskInput.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          const taskName = bulkAssignTaskInput.value.trim();
+          if (!taskName) {
+            showToast('Please enter a task name', 'warning');
+            return;
+          }
+          const category = bulkAssignCategorySelect?.value || 'General';
+          const keysToAssign = [...activeBulkSlotKeys];
+          closeAssignModal();
+          await handleConfirmBulkAssign(taskName, category, keysToAssign);
+        }
+      });
+    }
+  }
+
+  // Clear slots modal
+  if (bulkClearTasksBtn && bulkClearConfirmModal) {
+    bulkClearTasksBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      let keys = getSelectedSlotKeys();
+      if (keys.length === 0 && STATE.selectedSlotKey) {
+        keys = [STATE.selectedSlotKey];
+      }
+      if (keys.length === 0) return;
+      activeBulkSlotKeys = [...keys];
+      if (bulkClearSlotCountText) bulkClearSlotCountText.textContent = `${keys.length} slots`;
+      bulkClearConfirmModal.classList.add('active');
+    });
+
+    const closeClearModal = (e) => {
+      if (e) e.stopPropagation();
+      bulkClearConfirmModal.classList.remove('active');
+      activeBulkSlotKeys = [];
+    };
+    if (cancelBulkClearBtn) cancelBulkClearBtn.addEventListener('click', closeClearModal);
+    bulkClearConfirmModal.addEventListener('click', (e) => {
+      if (e.target === bulkClearConfirmModal) closeClearModal(e);
+    });
+
+    if (confirmBulkClearBtn) {
+      confirmBulkClearBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const keysToClear = [...activeBulkSlotKeys];
+        closeClearModal();
+        await handleConfirmBulkClear(keysToClear);
+      });
+    }
+  }
+
+  // Deselect button
+  if (bulkDeselectBtn) {
+    bulkDeselectBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearSlotSelection();
+    });
+  }
+
+  // Global Escape key for bulk modals
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (bulkAssignTaskModal?.classList.contains('active')) {
+        bulkAssignTaskModal.classList.remove('active');
+        activeBulkSlotKeys = [];
+        e.stopPropagation();
+      } else if (bulkClearConfirmModal?.classList.contains('active')) {
+        bulkClearConfirmModal.classList.remove('active');
+        activeBulkSlotKeys = [];
+        e.stopPropagation();
+      }
+    }
+  });
+}
+
+async function handleBulkStatusChange(newStatus) {
+  const selectedKeys = getSelectedSlotKeys();
+  if (!selectedKeys || selectedKeys.length === 0) return;
+
+  const affectedSlots = [];
+  const previousSlotsSnapshot = {};
+  const newSlotsSnapshot = {};
+  let updatedCount = 0;
+
+  for (const slotKey of selectedKeys) {
+    const weekKey = getSlotWeekKey(slotKey);
+    if (!STATE.scheduleData[weekKey]) {
+      STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+    }
+    const weekData = STATE.scheduleData[weekKey];
+    const existing = weekData.slots[slotKey];
+
+    const base = existing ? JSON.parse(JSON.stringify(existing)) : {
+      plannedTask: 'Task',
+      actualTask: 'Task',
+      category: 'General',
+      status: 'Pending',
+      planned: 30,
+      actual: 30,
+      notes: ''
+    };
+
+    let newActual = base.actual !== undefined ? base.actual : 30;
+    if (newStatus === 'Not Done') {
+      newActual = 0;
+    } else if (newStatus === 'Done') {
+      newActual = base.planned || 30;
+    } else if (newStatus === 'Partially Done') {
+      newActual = Math.round((base.planned || 30) / 2);
+    } else if (newStatus === 'Pending') {
+      newActual = 0;
+    }
+
+    const updated = {
+      ...base,
+      status: newStatus,
+      actual: newActual
+    };
+
+    affectedSlots.push({ weekKey, slotKey });
+    previousSlotsSnapshot[slotKey] = existing ? JSON.parse(JSON.stringify(existing)) : null;
+    newSlotsSnapshot[slotKey] = JSON.parse(JSON.stringify(updated));
+
+    weekData.slots[slotKey] = updated;
+    markSlotPendingSave(weekKey, slotKey, updated);
+    updatedCount++;
+  }
+
+  recordUndoAction({
+    type: 'bulk_edit',
+    affectedSlots,
+    previousSlotsSnapshot,
+    newSlotsSnapshot,
+    label: `Status -> ${newStatus}`
+  });
+
+  saveStateToStorage();
+  renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+  renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  updateBulkActionBar();
+
+  // Background API sync
+  Promise.allSettled(
+    affectedSlots.map(async ({ weekKey, slotKey }) => {
+      try {
+        const ok = await ApiClient.saveSlot(weekKey, slotKey, newSlotsSnapshot[slotKey]);
+        if (ok) clearSlotPendingSave(slotKey);
+      } catch (e) {}
+    })
+  );
+
+  const statusIcons = { 'Done': '✅', 'Partially Done': '⏳', 'Pending': '⚪' };
+  showToast(`${statusIcons[newStatus] || '✨'} Updated ${updatedCount} slots to ${newStatus}`, 'success');
+}
+
+async function handleBulkCategoryChange(newCategory) {
+  const selectedKeys = getSelectedSlotKeys();
+  if (!selectedKeys || selectedKeys.length === 0) return;
+
+  const affectedSlots = [];
+  const previousSlotsSnapshot = {};
+  const newSlotsSnapshot = {};
+  let updatedCount = 0;
+
+  for (const slotKey of selectedKeys) {
+    const weekKey = getSlotWeekKey(slotKey);
+    if (!STATE.scheduleData[weekKey]) {
+      STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+    }
+    const weekData = STATE.scheduleData[weekKey];
+    const existing = weekData.slots[slotKey];
+
+    const base = existing ? JSON.parse(JSON.stringify(existing)) : {
+      plannedTask: 'Task',
+      actualTask: 'Task',
+      category: newCategory,
+      status: 'Pending',
+      planned: 30,
+      actual: 30,
+      notes: ''
+    };
+
+    const updated = {
+      ...base,
+      category: newCategory
+    };
+
+    affectedSlots.push({ weekKey, slotKey });
+    previousSlotsSnapshot[slotKey] = existing ? JSON.parse(JSON.stringify(existing)) : null;
+    newSlotsSnapshot[slotKey] = JSON.parse(JSON.stringify(updated));
+
+    weekData.slots[slotKey] = updated;
+    markSlotPendingSave(weekKey, slotKey, updated);
+    updatedCount++;
+  }
+
+  recordUndoAction({
+    type: 'bulk_edit',
+    affectedSlots,
+    previousSlotsSnapshot,
+    newSlotsSnapshot,
+    label: `Category -> ${newCategory}`
+  });
+
+  saveStateToStorage();
+  renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+  renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  updateBulkActionBar();
+
+  // Background API sync
+  Promise.allSettled(
+    affectedSlots.map(async ({ weekKey, slotKey }) => {
+      try {
+        const ok = await ApiClient.saveSlot(weekKey, slotKey, newSlotsSnapshot[slotKey]);
+        if (ok) clearSlotPendingSave(slotKey);
+      } catch (e) {}
+    })
+  );
+
+  showToast(`🏷️ Set category to "${newCategory}" for ${updatedCount} slots`, 'success');
+}
+
+async function handleConfirmBulkAssign(taskName, category, targetKeys = null) {
+  const selectedKeys = (targetKeys && targetKeys.length > 0)
+    ? targetKeys
+    : ((activeBulkSlotKeys && activeBulkSlotKeys.length > 0) ? activeBulkSlotKeys : getSelectedSlotKeys());
+  if (!selectedKeys || selectedKeys.length === 0) return;
+
+  const affectedSlots = [];
+  const previousSlotsSnapshot = {};
+  const newSlotsSnapshot = {};
+
+  for (const slotKey of selectedKeys) {
+    const weekKey = getSlotWeekKey(slotKey);
+    if (!STATE.scheduleData[weekKey]) {
+      STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+    }
+    const weekData = STATE.scheduleData[weekKey];
+    const existing = weekData.slots[slotKey];
+
+    const updated = {
+      ...(existing || {}),
+      plannedTask: taskName,
+      actualTask: taskName,
+      category: category,
+      status: existing?.status || 'Pending',
+      planned: 30,
+      actual: existing?.actual !== undefined ? existing.actual : 30,
+      notes: existing?.notes || ''
+    };
+
+    affectedSlots.push({ weekKey, slotKey });
+    previousSlotsSnapshot[slotKey] = existing ? JSON.parse(JSON.stringify(existing)) : null;
+    newSlotsSnapshot[slotKey] = JSON.parse(JSON.stringify(updated));
+
+    weekData.slots[slotKey] = updated;
+    markSlotPendingSave(weekKey, slotKey, updated);
+  }
+
+  recordUndoAction({
+    type: 'bulk_edit',
+    affectedSlots,
+    previousSlotsSnapshot,
+    newSlotsSnapshot,
+    label: `Assign: ${taskName}`
+  });
+
+  saveStateToStorage();
+  renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+  renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  updateBulkActionBar();
+
+  // Background API sync
+  Promise.allSettled(
+    affectedSlots.map(async ({ weekKey, slotKey }) => {
+      try {
+        const ok = await ApiClient.saveSlot(weekKey, slotKey, newSlotsSnapshot[slotKey]);
+        if (ok) clearSlotPendingSave(slotKey);
+      } catch (e) {}
+    })
+  );
+
+  showToast(`✏️ Assigned "${taskName}" across ${selectedKeys.length} slots`, 'success');
+}
+
+async function handleConfirmBulkClear(targetKeys = null) {
+  const selectedKeys = (targetKeys && targetKeys.length > 0)
+    ? targetKeys
+    : ((activeBulkSlotKeys && activeBulkSlotKeys.length > 0) ? activeBulkSlotKeys : getSelectedSlotKeys());
+  if (!selectedKeys || selectedKeys.length === 0) return;
+
+  const affectedSlots = [];
+  const previousSlotsSnapshot = {};
+  const newSlotsSnapshot = {};
+
+  for (const slotKey of selectedKeys) {
+    const weekKey = getSlotWeekKey(slotKey);
+    if (!STATE.scheduleData[weekKey]) {
+      STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+    }
+    const weekData = STATE.scheduleData[weekKey];
+    const existing = weekData.slots[slotKey];
+
+    if (existing) {
+      affectedSlots.push({ weekKey, slotKey });
+      previousSlotsSnapshot[slotKey] = JSON.parse(JSON.stringify(existing));
+      newSlotsSnapshot[slotKey] = null;
+      delete weekData.slots[slotKey];
+      clearSlotPendingSave(slotKey);
+    }
+  }
+
+  if (affectedSlots.length === 0) {
+    showToast('Selected slots are already empty', 'info');
+    clearSlotSelection();
+    return;
+  }
+
+  recordUndoAction({
+    type: 'bulk_edit',
+    affectedSlots,
+    previousSlotsSnapshot,
+    newSlotsSnapshot,
+    label: 'Clear Slots'
+  });
+
+  saveStateToStorage();
+  renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+  renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  clearSlotSelection();
+
+  // Background API delete sync
+  Promise.allSettled(
+    affectedSlots.map(async ({ weekKey, slotKey }) => {
+      try {
+        await ApiClient.deleteSlot(weekKey, slotKey);
+      } catch (e) {}
+    })
+  );
+
+  showToast(`🗑️ Cleared ${affectedSlots.length} slots (Press Ctrl+Z to undo)`, 'info');
 }
 
 

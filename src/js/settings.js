@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.14';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.14';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.14';
-import { ApiClient } from './apiClient.js?v=2.9.14';
-import { showToast } from './utils.js?v=2.9.14';
+import { generateTimeSlots } from './grid.js?v=2.9.20';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.20';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.20';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.20';
+import { showToast } from './utils.js?v=2.9.20';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -463,6 +463,9 @@ export function initSettingsUI(domElements, renderAllCallback) {
 
   // Initialize Day Templates Modals and List
   initDayTemplateModals();
+
+  // Sync Day Templates with PostgreSQL Database
+  syncDayTemplatesFromApi();
 }
 
 export function initAccountSecurityUI() {
@@ -603,37 +606,129 @@ export function getDayTemplateById(id) {
   return templates.find(t => t.id === id) || null;
 }
 
-export function saveDayTemplate(templateData) {
+export async function saveDayTemplate(templateData) {
   const templates = getDayTemplates();
   const existingIdx = templates.findIndex(t => t.id === templateData.id);
+  const templateId = templateData.id || `tmpl_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  const prepared = {
+    ...templateData,
+    id: templateId,
+    updatedAt: new Date().toISOString()
+  };
 
   if (existingIdx >= 0) {
-    templates[existingIdx] = {
-      ...templates[existingIdx],
-      ...templateData,
-      updatedAt: new Date().toISOString()
-    };
+    templates[existingIdx] = prepared;
   } else {
-    templates.push({
-      ...templateData,
-      id: templateData.id || `tmpl_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+    prepared.createdAt = prepared.createdAt || new Date().toISOString();
+    templates.push(prepared);
   }
 
   saveUserSettings({ dayTemplates: templates });
   renderSettingsDayTemplatesUI();
-  return templateData;
+
+  // Background Cloud Sync to PostgreSQL
+  if (!isDemoMode() && localStorage.getItem('dayflow_token')) {
+    try {
+      const serverResult = await ApiClient.saveDayTemplate(prepared);
+      if (serverResult && serverResult.id) {
+        const idx = USER_SETTINGS.dayTemplates.findIndex(t => t.id === serverResult.id);
+        if (idx >= 0) {
+          USER_SETTINGS.dayTemplates[idx] = { ...USER_SETTINGS.dayTemplates[idx], ...serverResult };
+          saveUserSettings({ dayTemplates: USER_SETTINGS.dayTemplates });
+        }
+      }
+    } catch (e) {
+      console.warn('Could not sync template to server, kept locally:', e);
+    }
+  }
+
+  return prepared;
 }
 
-export function deleteDayTemplate(id) {
+export async function deleteDayTemplate(id) {
   let templates = getDayTemplates();
   const deletedTmpl = templates.find(t => t.id === id);
   templates = templates.filter(t => t.id !== id);
   saveUserSettings({ dayTemplates: templates });
   renderSettingsDayTemplatesUI();
   showToast(`🗑️ Deleted template "${deletedTmpl?.name || 'Template'}"`, 'info');
+
+  // Background Cloud Sync Delete from PostgreSQL
+  if (!isDemoMode() && localStorage.getItem('dayflow_token')) {
+    try {
+      await ApiClient.deleteDayTemplate(id);
+    } catch (e) {
+      console.warn('Could not delete template from server:', e);
+    }
+  }
+}
+
+export async function syncDayTemplatesFromApi() {
+  if (isDemoMode()) return;
+  const token = localStorage.getItem('dayflow_token');
+  if (!token) return;
+
+  try {
+    const apiTemplates = await ApiClient.fetchDayTemplates();
+    if (!Array.isArray(apiTemplates)) return;
+
+    // Case 1: First-time cloud sync for user (PostgreSQL database is empty for this user)
+    // Seamlessly migrate all existing local templates (including custom routines & edits) to PostgreSQL
+    if (apiTemplates.length === 0) {
+      const templatesToMigrate = (Array.isArray(USER_SETTINGS.dayTemplates) && USER_SETTINGS.dayTemplates.length > 0)
+        ? USER_SETTINGS.dayTemplates
+        : JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES));
+
+      const migrated = [];
+      for (const t of templatesToMigrate) {
+        try {
+          const saved = await ApiClient.saveDayTemplate(t);
+          if (saved) migrated.push(saved);
+        } catch (err) {
+          console.warn('Could not migrate template to database:', t.id, err);
+        }
+      }
+      if (migrated.length > 0) {
+        USER_SETTINGS.dayTemplates = migrated;
+        saveUserSettings({ dayTemplates: migrated });
+        renderSettingsDayTemplatesUI();
+      }
+      return;
+    }
+
+    // Case 2: Database already contains templates for this user -> merge any offline-created templates
+    const localTemplates = Array.isArray(USER_SETTINGS.dayTemplates) ? USER_SETTINGS.dayTemplates : [];
+    const serverIdSet = new Set(apiTemplates.map(t => t.id));
+
+    for (const localT of localTemplates) {
+      if (localT && localT.id && !serverIdSet.has(localT.id)) {
+        try {
+          const uploaded = await ApiClient.saveDayTemplate(localT);
+          if (uploaded) {
+            apiTemplates.push(uploaded);
+            serverIdSet.add(uploaded.id);
+          }
+        } catch (e) {
+          console.warn('Could not sync local template to server:', localT.id, e);
+        }
+      }
+    }
+
+    // Ensure every slot strictly has planned: 30
+    apiTemplates.forEach(t => {
+      if (t.slots && typeof t.slots === 'object') {
+        Object.keys(t.slots).forEach(k => {
+          if (t.slots[k]) t.slots[k].planned = 30;
+        });
+      }
+    });
+
+    USER_SETTINGS.dayTemplates = apiTemplates;
+    saveUserSettings({ dayTemplates: apiTemplates });
+    renderSettingsDayTemplatesUI();
+  } catch (err) {
+    console.warn('Failed to sync day templates from API:', err);
+  }
 }
 
 export function renderSettingsDayTemplatesUI() {

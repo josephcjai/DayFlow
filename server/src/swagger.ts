@@ -5,7 +5,7 @@ export const openApiDocument = {
   openapi: '3.0.0',
   info: {
     title: 'DayFlow REST API Specification',
-    version: '2.5.0',
+    version: '2.6.0',
     description: 'Interactive API documentation for DayFlow multi-view schedule planner, habit ledger, and focus tracker. Test endpoints directly with "Try it out".'
   },
   servers: [
@@ -148,6 +148,27 @@ export const openApiDocument = {
                 icon: { type: 'string', example: '📓' },
                 content: { type: 'string', example: '# My Journal Notes' },
                 isDefault: { type: 'boolean', example: true }
+              }
+            }
+          }
+        }
+      },
+      SaveDayTemplateRequest: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          id: { type: 'string', example: 'tmpl_deepwork' },
+          name: { type: 'string', example: 'Deep Work Sprint' },
+          description: { type: 'string', example: 'Morning deep focus and system architecture' },
+          isDefault: { type: 'boolean', example: false },
+          slots: {
+            type: 'object',
+            additionalProperties: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', example: 'Deep Work: Core Priorities' },
+                category: { type: 'string', example: 'Work' },
+                planned: { type: 'integer', example: 30 }
               }
             }
           }
@@ -488,6 +509,77 @@ export const openApiDocument = {
         },
         responses: {
           200: { description: 'Notes updated successfully' }
+        }
+      }
+    },
+    '/templates': {
+      get: {
+        summary: 'Get All User Day Templates',
+        tags: ['Day Templates'],
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: { description: 'List of day templates belonging to authenticated user' }
+        }
+      },
+      post: {
+        summary: 'Create or Upsert Day Template',
+        tags: ['Day Templates'],
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SaveDayTemplateRequest' }
+            }
+          }
+        },
+        responses: {
+          201: { description: 'Template created or updated successfully' },
+          400: { description: 'Invalid template data' }
+        }
+      }
+    },
+    '/templates/{id}': {
+      put: {
+        summary: 'Update Day Template',
+        tags: ['Day Templates'],
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', example: 'tmpl_workday' }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SaveDayTemplateRequest' }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Template updated successfully' },
+          404: { description: 'Template not found' }
+        }
+      },
+      delete: {
+        summary: 'Delete Day Template',
+        tags: ['Day Templates'],
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', example: 'tmpl_workday' }
+          }
+        ],
+        responses: {
+          200: { description: 'Template deleted successfully' },
+          404: { description: 'Template not found' }
         }
       }
     }
