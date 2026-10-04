@@ -56,7 +56,8 @@ function sanitizeSlots(rawSlots: any): Record<string, any> {
   if (!rawSlots || typeof rawSlots !== 'object') return {};
   const cleaned: Record<string, any> = {};
   for (const [key, slot] of Object.entries(rawSlots)) {
-    if (!/^\d{2}:\d{2}$/.test(key)) continue;
+    // Validate that slot key is a strictly aligned 30-min grid slot (00:00 to 23:30) (Finding 43)
+    if (!/^(?:[01]\d|2[0-3]):(?:00|30)$/.test(key)) continue;
     const s = slot as any;
     if (!s || typeof s !== 'object') continue;
     const title = String(s.title || s.plannedTask || 'Task').trim().slice(0, 255);

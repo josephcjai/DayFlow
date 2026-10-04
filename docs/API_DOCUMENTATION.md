@@ -1,6 +1,6 @@
 # DayFlow REST API Documentation
 
-**Version:** 2.4.1  
+**Version:** 2.6.0  
 **Base URL (Local):** `http://localhost:5000/api`  
 **Base URL (Production HTTPS):** `https://<your_domain>/api`  
 **Authentication Method:** JSON Web Token (`Authorization: Bearer <token>`)
@@ -594,3 +594,122 @@ All date parameters across the API (`weekStart`, `dueDate`, `slotKey` date prefi
     "timestamp": "2026-09-16T18:50:00.000Z"
   }
   ```
+
+---
+
+## 6. Day Templates Endpoints (`/api/templates`)
+
+Reusable routines for 30-minute timeblocking with cloud persistence in PostgreSQL (`user_day_templates`). All endpoints strictly enforce user isolation via JWT token.
+
+### 6.1 Fetch All User Day Templates
+
+- **URL:** `GET /api/templates`
+- **Auth Required:** Yes
+- **Success Response (200 OK):**
+  ```json
+  {
+    "templates": [
+      {
+        "id": "tmpl_workday",
+        "name": "Productive Workday",
+        "description": "Standard deep focus schedule",
+        "isDefault": true,
+        "slots": {
+          "09:00": { "title": "Morning Standup", "plannedTask": "Morning Standup", "category": "Work", "planned": 30 },
+          "09:30": { "title": "Deep Work", "plannedTask": "Deep Work", "category": "Work", "planned": 30 }
+        },
+        "createdAt": "2026-10-04T12:00:00.000Z",
+        "updatedAt": "2026-10-04T12:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+---
+
+### 6.2 Create or Upsert Day Template
+
+- **URL:** `POST /api/templates`
+- **Auth Required:** Yes
+- **Request Body:**
+  ```json
+  {
+    "id": "tmpl_custom_1",
+    "name": "Morning Routine",
+    "description": "Daily morning wellness and prep",
+    "isDefault": false,
+    "slots": {
+      "07:00": { "title": "Morning Workout", "plannedTask": "Morning Workout", "category": "Health", "planned": 30 },
+      "07:30": { "title": "Healthy Breakfast", "plannedTask": "Healthy Breakfast", "category": "Health", "planned": 30 }
+    }
+  }
+  ```
+  *(Note: `id` is optional; if omitted, an ID is automatically generated. Slot keys must be strictly 30-minute grid-aligned from `00:00` to `23:30`).*
+- **Success Response (201 Created):**
+  ```json
+  {
+    "message": "Template saved successfully",
+    "template": {
+      "id": "tmpl_custom_1",
+      "name": "Morning Routine",
+      "description": "Daily morning wellness and prep",
+      "isDefault": false,
+      "slots": {
+        "07:00": { "title": "Morning Workout", "plannedTask": "Morning Workout", "category": "Health", "planned": 30 },
+        "07:30": { "title": "Healthy Breakfast", "plannedTask": "Healthy Breakfast", "category": "Health", "planned": 30 }
+      },
+      "createdAt": "2026-10-04T12:00:00.000Z",
+      "updatedAt": "2026-10-04T12:00:00.000Z"
+    }
+  }
+  ```
+- **Error Responses:**
+  - `400 Bad Request`: `{ "error": "Template name is required (max 100 characters)" }`
+  - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
+
+---
+
+### 6.3 Update Day Template
+
+- **URL:** `PUT /api/templates/:id`
+- **Auth Required:** Yes
+- **URL Parameters:** `id` (Template ID)
+- **Request Body:**
+  ```json
+  {
+    "name": "Updated Routine Name",
+    "description": "Optional updated description",
+    "isDefault": false,
+    "slots": { ... }
+  }
+  ```
+- **Success Response (200 OK):**
+  ```json
+  {
+    "message": "Template updated successfully",
+    "template": { ... }
+  }
+  ```
+- **Error Responses:**
+  - `400 Bad Request`: `{ "error": "Template name cannot be empty" }`
+  - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
+  - `404 Not Found`: `{ "error": "Template not found" }`
+
+---
+
+### 6.4 Delete Day Template
+
+- **URL:** `DELETE /api/templates/:id`
+- **Auth Required:** Yes
+- **URL Parameters:** `id` (Template ID)
+- **Success Response (200 OK):**
+  ```json
+  {
+    "message": "Template deleted successfully",
+    "id": "tmpl_custom_1"
+  }
+  ```
+- **Error Responses:**
+  - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
+  - `404 Not Found`: `{ "error": "Template not found" }`
+

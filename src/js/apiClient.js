@@ -437,7 +437,7 @@ export const ApiClient = {
         headers: getAuthHeaders()
       });
       if (checkUnauthorized(res)) return false;
-      return res.ok;
+      return res.ok || res.status === 404;
     } catch (e) {
       console.warn('Deleted day template offline:', e);
       return false;
