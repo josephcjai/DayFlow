@@ -644,7 +644,7 @@ Reusable routines for 30-minute timeblocking with cloud persistence in PostgreSQ
     }
   }
   ```
-  *(Note: `id` is optional; if omitted, an ID is automatically generated. Slot keys must be strictly 30-minute grid-aligned from `00:00` to `23:30`).*
+  *(Note: `id` is optional; if omitted, an ID is automatically generated. Template `name` is required and will be trimmed and safely truncated to a maximum of 100 characters if over length. `description` is optional and truncated to 500 characters. Slot keys must be strictly 30-minute grid-aligned from `00:00` to `23:30`).*
 - **Success Response (201 Created):**
   ```json
   {
@@ -664,7 +664,7 @@ Reusable routines for 30-minute timeblocking with cloud persistence in PostgreSQ
   }
   ```
 - **Error Responses:**
-  - `400 Bad Request`: `{ "error": "Template name is required (max 100 characters)" }`
+  - `400 Bad Request`: `{ "error": "Template name is required (max 100 characters)" }` (returned when `name` is missing, not a string, or contains only whitespace)
   - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
 
 ---
@@ -683,6 +683,7 @@ Reusable routines for 30-minute timeblocking with cloud persistence in PostgreSQ
     "slots": { ... }
   }
   ```
+  *(Note: If `name` is provided, it is trimmed and truncated to a maximum of 100 characters. If `description` is provided, it is truncated to 500 characters).*
 - **Success Response (200 OK):**
   ```json
   {
@@ -691,7 +692,8 @@ Reusable routines for 30-minute timeblocking with cloud persistence in PostgreSQ
   }
   ```
 - **Error Responses:**
-  - `400 Bad Request`: `{ "error": "Template name cannot be empty" }`
+  - `400 Bad Request`: `{ "error": "Template name cannot be empty" }` (returned when `name` is explicitly passed as an empty string or whitespace)
+  - `400 Bad Request`: `{ "error": "Invalid template ID" }` (returned when `id` parameter exceeds 64 characters)
   - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
   - `404 Not Found`: `{ "error": "Template not found" }`
 
