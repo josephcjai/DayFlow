@@ -78,11 +78,11 @@
 - [ ] **Test Gate 4:** User testing of grid interactions, editing future slots vs. editing past slots. (READY FOR TEST)
 
 ### Phase 5: Habits Ledger & Weekly Todos
-- [ ] 1-Tap Habit Logging cards with tactile haptic feedback.
-- [ ] Streak calculation and daily goal indicator.
-- [ ] Weekly Todo checklist with strikethrough animation.
-- [ ] Weekly markdown notes editor.
-- [ ] **Test Gate 5:** User testing of habit logging, streak display, and todo toggles.
+- [x] 1-Tap Habit Logging cards with tactile haptic feedback.
+- [x] Productivity score calculation (+pts) and habit ledger.
+- [x] Weekly Todo checklist with strikethrough animation.
+- [x] Weekly markdown strategy notes editor.
+- [ ] **Test Gate 5:** User testing of habit logging, streak display, and todo toggles. (READY FOR TEST)
 
 ### Phase 6: Offline-First Synchronization & Background Workers
 - [ ] Optimistic UI updates with zero-latency local mutations.

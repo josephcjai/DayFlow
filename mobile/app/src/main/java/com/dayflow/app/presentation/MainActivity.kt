@@ -18,15 +18,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,6 +48,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.dayflow.app.presentation.auth.AuthScreen
 import com.dayflow.app.presentation.auth.AuthViewModel
+import com.dayflow.app.presentation.habits.HabitsScreen
+import com.dayflow.app.presentation.habits.HabitsViewModel
 import com.dayflow.app.presentation.navigation.Screen
 import com.dayflow.app.presentation.schedule.ScheduleTimelineScreen
 import com.dayflow.app.presentation.schedule.ScheduleViewModel
@@ -48,9 +58,12 @@ import com.dayflow.app.presentation.theme.DayFlowPrimary
 import com.dayflow.app.presentation.theme.DayFlowSecondary
 import com.dayflow.app.presentation.theme.DayFlowTheme
 import com.dayflow.app.presentation.theme.SurfaceDark
+import com.dayflow.app.presentation.theme.SurfaceElevated
 import com.dayflow.app.presentation.theme.TextMuted
 import com.dayflow.app.presentation.theme.TextPrimary
 import com.dayflow.app.presentation.theme.TextSecondary
+import com.dayflow.app.presentation.todos.TodosScreen
+import com.dayflow.app.presentation.todos.TodosViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -87,9 +100,14 @@ class MainActivity : FragmentActivity() {
 
                     composable(Screen.Dashboard.route) {
                         val scheduleViewModel: ScheduleViewModel = hiltViewModel()
+                        val habitsViewModel: HabitsViewModel = hiltViewModel()
+                        val todosViewModel: TodosViewModel = hiltViewModel()
+
                         DashboardScreen(
                             authViewModel = authViewModel,
                             scheduleViewModel = scheduleViewModel,
+                            habitsViewModel = habitsViewModel,
+                            todosViewModel = todosViewModel,
                             onLogout = {
                                 authViewModel.logout()
                                 navController.navigate(Screen.Auth.route) {
@@ -108,9 +126,12 @@ class MainActivity : FragmentActivity() {
 fun DashboardScreen(
     authViewModel: AuthViewModel,
     scheduleViewModel: ScheduleViewModel,
+    habitsViewModel: HabitsViewModel,
+    todosViewModel: TodosViewModel,
     onLogout: () -> Unit
 ) {
     val authState by authViewModel.uiState.collectAsState()
+    var selectedNavIndex by remember { mutableIntStateOf(0) } // 0 = Schedule, 1 = Habits, 2 = Todos
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -177,6 +198,60 @@ fun DashboardScreen(
                     }
                 }
             }
+        },
+        bottomBar = {
+            NavigationBar(
+                containerColor = SurfaceDark,
+                tonalElevation = 8.dp
+            ) {
+                NavigationBarItem(
+                    selected = selectedNavIndex == 0,
+                    onClick = { selectedNavIndex = 0 },
+                    icon = {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = "Schedule")
+                    },
+                    label = { Text("Schedule", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = DayFlowPrimary,
+                        selectedTextColor = DayFlowPrimary,
+                        unselectedIconColor = TextMuted,
+                        unselectedTextColor = TextMuted,
+                        indicatorColor = DayFlowPrimary.copy(alpha = 0.15f)
+                    )
+                )
+
+                NavigationBarItem(
+                    selected = selectedNavIndex == 1,
+                    onClick = { selectedNavIndex = 1 },
+                    icon = {
+                        Icon(Icons.Default.EmojiEvents, contentDescription = "Habits")
+                    },
+                    label = { Text("Habits", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = DayFlowSecondary,
+                        selectedTextColor = DayFlowSecondary,
+                        unselectedIconColor = TextMuted,
+                        unselectedTextColor = TextMuted,
+                        indicatorColor = DayFlowSecondary.copy(alpha = 0.15f)
+                    )
+                )
+
+                NavigationBarItem(
+                    selected = selectedNavIndex == 2,
+                    onClick = { selectedNavIndex = 2 },
+                    icon = {
+                        Icon(Icons.Default.Checklist, contentDescription = "Todos & Notes")
+                    },
+                    label = { Text("Todos", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = DayFlowPrimary,
+                        selectedTextColor = DayFlowPrimary,
+                        unselectedIconColor = TextMuted,
+                        unselectedTextColor = TextMuted,
+                        indicatorColor = DayFlowPrimary.copy(alpha = 0.15f)
+                    )
+                )
+            }
         }
     ) { innerPadding ->
         Box(
@@ -184,7 +259,11 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            ScheduleTimelineScreen(viewModel = scheduleViewModel)
+            when (selectedNavIndex) {
+                0 -> ScheduleTimelineScreen(viewModel = scheduleViewModel)
+                1 -> HabitsScreen(viewModel = habitsViewModel)
+                2 -> TodosScreen(viewModel = todosViewModel)
+            }
         }
     }
 }
