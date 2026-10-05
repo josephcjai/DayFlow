@@ -29,22 +29,22 @@ import {
   addSelectedSlotKey,
   removeSelectedSlotKey,
   isSlotMultiSelected
-} from './state.js?v=2.9.21';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.21';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.9.21';
-import { initModal, openTaskModal } from './modal.js?v=2.9.21';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.21';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.21';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.21';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi } from './settings.js?v=2.9.21';
-import { showToast } from './utils.js?v=2.9.21';
+} from './state.js?v=2.9.22';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.22';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.9.22';
+import { initModal, openTaskModal } from './modal.js?v=2.9.22';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.22';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.22';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.22';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi } from './settings.js?v=2.9.22';
+import { showToast } from './utils.js?v=2.9.22';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.21';
+} from './notifications.js?v=2.9.22';
 
 const DOM = {};
 

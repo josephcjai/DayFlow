@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.21';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.21';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.21';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.21';
-import { showToast } from './utils.js?v=2.9.21';
+import { generateTimeSlots } from './grid.js?v=2.9.22';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.22';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.22';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.22';
+import { showToast } from './utils.js?v=2.9.22';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -739,15 +739,40 @@ export async function deleteDayTemplate(id) {
   }
 }
 
+// In-flight synchronization mutex and re-run flag to prevent overlapping fetch/overwrite races (Finding 44 hardening)
+let dayTemplatesSyncInFlight = null;
+let dayTemplatesSyncPendingRerun = false;
+
 export async function syncDayTemplatesFromApi() {
   if (isDemoMode()) return;
   const token = localStorage.getItem('dayflow_token');
   if (!token) return;
 
+  if (dayTemplatesSyncInFlight) {
+    dayTemplatesSyncPendingRerun = true;
+    return dayTemplatesSyncInFlight;
+  }
+
+  dayTemplatesSyncInFlight = (async () => {
+    try {
+      do {
+        dayTemplatesSyncPendingRerun = false;
+        await _doSyncDayTemplates();
+      } while (dayTemplatesSyncPendingRerun);
+    } finally {
+      dayTemplatesSyncInFlight = null;
+    }
+  })();
+
+  return dayTemplatesSyncInFlight;
+}
+
+async function _doSyncDayTemplates() {
   try {
     let apiTemplates = await ApiClient.fetchDayTemplates();
     if (!Array.isArray(apiTemplates)) return;
 
+    // Load fresh pending queue right after receiving server templates
     const pending = loadPendingTemplates();
 
     // 1. Process pending deletes: purge any template marked for delete so it never resurrects (Finding 44)
@@ -756,7 +781,9 @@ export async function syncDayTemplatesFromApi() {
       for (const delId of Object.keys(pending.deletes)) {
         try {
           const ok = await ApiClient.deleteDayTemplate(delId);
-          if (ok) clearTemplatePendingDelete(delId);
+          if (ok) {
+            clearTemplatePendingDelete(delId);
+          }
         } catch (err) {
           console.warn('Retry delete template failed, will retry next sync:', delId, err);
         }
@@ -766,6 +793,9 @@ export async function syncDayTemplatesFromApi() {
     // 2. Process pending saves (edits & offline creations): ensure local edits override stale server state (Finding 44)
     if (pending.saves && Object.keys(pending.saves).length > 0) {
       for (const [saveId, pendingTmpl] of Object.entries(pending.saves)) {
+        // If template was marked for deletion in the meantime, skip saving
+        if (pending.deletes && pending.deletes[saveId]) continue;
+
         const sIdx = apiTemplates.findIndex(t => t.id === saveId);
         if (sIdx >= 0) {
           // Replace server version with local edited version
@@ -778,7 +808,9 @@ export async function syncDayTemplatesFromApi() {
         // Retry syncing to server
         try {
           const saved = await ApiClient.saveDayTemplate(pendingTmpl);
-          if (saved && saved.id) clearTemplatePendingSave(saveId);
+          if (saved && saved.id) {
+            clearTemplatePendingSave(saveId);
+          }
         } catch (err) {
           console.warn('Retry save template failed, will retry next sync:', saveId, err);
         }
@@ -788,8 +820,9 @@ export async function syncDayTemplatesFromApi() {
     // Case 1: First-time cloud sync for user (PostgreSQL database is empty for this user)
     // Seamlessly migrate all existing local templates (including custom routines & edits) to PostgreSQL
     if (apiTemplates.length === 0) {
+      const currentPending = loadPendingTemplates();
       const templatesToMigrate = (Array.isArray(USER_SETTINGS.dayTemplates) && USER_SETTINGS.dayTemplates.length > 0)
-        ? USER_SETTINGS.dayTemplates.filter(t => !pending.deletes || !pending.deletes[t.id])
+        ? USER_SETTINGS.dayTemplates.filter(t => !currentPending.deletes || !currentPending.deletes[t.id])
         : JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES));
 
       const migrated = [];
@@ -805,8 +838,10 @@ export async function syncDayTemplatesFromApi() {
         }
       }
       if (migrated.length > 0) {
-        USER_SETTINGS.dayTemplates = migrated;
-        saveUserSettings({ dayTemplates: migrated });
+        const postMigrationPending = loadPendingTemplates();
+        const safeMigrated = migrated.filter(t => !postMigrationPending.deletes || !postMigrationPending.deletes[t.id]);
+        USER_SETTINGS.dayTemplates = safeMigrated;
+        saveUserSettings({ dayTemplates: safeMigrated });
         renderSettingsDayTemplatesUI();
       }
       return;
@@ -815,9 +850,10 @@ export async function syncDayTemplatesFromApi() {
     // Case 2: Database already contains templates for this user -> merge any offline-created templates not yet known
     const localTemplates = Array.isArray(USER_SETTINGS.dayTemplates) ? USER_SETTINGS.dayTemplates : [];
     const serverIdSet = new Set(apiTemplates.map(t => t.id));
+    const currentPending = loadPendingTemplates();
 
     for (const localT of localTemplates) {
-      if (localT && localT.id && !serverIdSet.has(localT.id) && (!pending.deletes || !pending.deletes[localT.id])) {
+      if (localT && localT.id && !serverIdSet.has(localT.id) && (!currentPending.deletes || !currentPending.deletes[localT.id])) {
         try {
           const uploaded = await ApiClient.saveDayTemplate(localT);
           if (uploaded) {
@@ -827,6 +863,9 @@ export async function syncDayTemplatesFromApi() {
           }
         } catch (e) {
           console.warn('Could not sync local template to server:', localT.id, e);
+          // Preserve local un-synced template so it is not lost while offline
+          apiTemplates.push(localT);
+          serverIdSet.add(localT.id);
         }
       }
     }
@@ -839,6 +878,24 @@ export async function syncDayTemplatesFromApi() {
         });
       }
     });
+
+    // FINAL SAFETY GUARD before committing to local state:
+    // Re-check pending state fresh from storage to catch any deletes or saves that happened while network calls were in-flight
+    const finalPending = loadPendingTemplates();
+    if (finalPending.deletes && Object.keys(finalPending.deletes).length > 0) {
+      apiTemplates = apiTemplates.filter(t => !finalPending.deletes[t.id]);
+    }
+    if (finalPending.saves && Object.keys(finalPending.saves).length > 0) {
+      for (const [saveId, pendingTmpl] of Object.entries(finalPending.saves)) {
+        if (finalPending.deletes && finalPending.deletes[saveId]) continue;
+        const sIdx = apiTemplates.findIndex(t => t.id === saveId);
+        if (sIdx >= 0) {
+          apiTemplates[sIdx] = { ...apiTemplates[sIdx], ...pendingTmpl };
+        } else {
+          apiTemplates.push(pendingTmpl);
+        }
+      }
+    }
 
     USER_SETTINGS.dayTemplates = apiTemplates;
     saveUserSettings({ dayTemplates: apiTemplates });

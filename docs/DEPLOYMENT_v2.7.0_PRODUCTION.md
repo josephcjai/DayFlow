@@ -43,7 +43,7 @@
 6. **Smart Duration Auto-Rule Tightening:**
    - Transitioning an in-progress slot to Done automatically sets full 30-min duration; reverting to Pending resets duration to 0m.
 7. **Static Asset Cache Busting:**
-   - Asset query parameter bumped to `?v=2.9.21` across `index.html` and all 10 JavaScript modules (39 references aligned).
+   - Asset query parameter bumped to `?v=2.9.22` across `index.html` and all 10 JavaScript modules (39 references aligned).
 
 ### Database Impact & Risk Assessment:
 - **Database Schema Changes:** **YES (Additive only).** Step 5 migration creates `user_day_templates` and `idx_user_day_templates_user`.
@@ -59,12 +59,12 @@
 The certified release tag `v2.7.0` has been pushed to GitHub. Deployment engineers should verify the commit boundary before proceeding:
 
 ```bash
-# Verify tag remotely
-git ls-remote --tags origin v2.7.0
-# Expected commit: c28e3f9
+# Verify tag commit
+git rev-parse v2.7.0^{commit}
+# (Resolves to the certified release commit on branch main)
 
 # Inspect release commit summary
-git log -1 --stat c28e3f9
+git show v2.7.0 --stat
 ```
 
 ---
@@ -238,11 +238,11 @@ sudo systemctl reload nginx
 Run these checks from the server or your workstation:
 
 ```bash
-# 1. Verify index.html serves v=2.9.21 cache-busting version strings
+# 1. Verify index.html serves v=2.9.22 cache-busting version strings
 curl -s https://dayflowlive.com/index.html | grep -E "styles.css\?v=|app.js\?v="
 # Expected output:
-#   <link rel="stylesheet" href="src/css/styles.css?v=2.9.21">
-#   <script type="module" src="src/js/app.js?v=2.9.21"></script>
+#   <link rel="stylesheet" href="src/css/styles.css?v=2.9.22">
+#   <script type="module" src="src/js/app.js?v=2.9.22"></script>
 
 # 2. Verify API Root Endpoint reports version 2.7.0 and lists templates route
 curl -s https://dayflowlive.com/api/
@@ -274,7 +274,7 @@ Open `https://dayflowlive.com` in a browser (or incognito window):
 1. **Asset Version & Badge:**
    - Hard refresh (`Ctrl+F5` / `Cmd+Shift+R`).
    - Check the top header brand badge: confirms **`v2.7.0 Web`**.
-   - Network tab shows `app.js?v=2.9.21` returning HTTP 200.
+   - Network tab shows `app.js?v=2.9.22` returning HTTP 200.
 2. **Multi-Slot Selection:**
    - Hold **Ctrl** (or Cmd) and click 3 non-adjacent slots: confirm selection highlight appears on all 3.
    - Click a slot, hold **Shift**, and click another slot 2 columns over and 3 rows down: confirm 2D rectangular box selection fills.
@@ -318,7 +318,11 @@ sudo systemctl reload nginx
 # 6. Verify rollback
 curl -s https://dayflowlive.com/api/health | grep '"version":"2.6.0"'
 ```
-*(Note: There is no need to drop the `user_day_templates` table during a rollback; `v2.6.0` simply does not query it).*
+
+> [!NOTE]
+> **Database Rollback Caveat:**
+> Rolling back code to `v2.6.0` leaves the `user_day_templates` table in place and intact in PostgreSQL (there is no need to drop it; `v2.6.0` simply does not query it).
+> Any templates created or updated in the cloud while running `v2.7.0` will remain safely preserved in the database, but will not appear in the `v2.6.0` UI (which reads only from local storage) until the deployment is upgraded back to `v2.7.0`.
 
 ---
 
@@ -333,14 +337,14 @@ DAYFLOW PRODUCTION DEPLOYMENT SIGN-OFF: RELEASE v2.7.0
 Deployment Date:     YYYY-MM-DD
 Deployed By:         [Engineer Name]
 Target Environment:  AWS Lightsail (13.200.154.214) / dayflowlive.com
-Target Release Tag:  v2.7.0 (commit c28e3f9)
+Target Release Tag:  v2.7.0
 Pre-Deploy Status:   All services healthy (HelpFinder4U & DayFlow online)
 Git Checkout Tag:    v2.7.0 confirmed (git describe --tags -> v2.7.0)
 DB Migration:        npm run migrate passed (user_day_templates table verified)
 API Build Status:    tsc build successful (dayflow-server@2.7.0)
 PM2 Reload:          dayflow-api reloaded, 0 errors, online
 Nginx Reload:        sudo nginx -t passed, systemctl reload nginx completed
-Asset Verification:  styles.css?v=2.9.21 & app.js?v=2.9.21 confirmed live
+Asset Verification:  styles.css?v=2.9.22 & app.js?v=2.9.22 confirmed live
 API Health Check:    GET /api/health -> version: 2.7.0, database: connected
 Templates Route:     GET /api/templates -> 401 Unauthorized (JWT protected)
 Swagger Check:       /docs returns 404 in production mode
