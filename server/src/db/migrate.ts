@@ -106,6 +106,18 @@ export async function runMigrations() {
         used BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS user_day_templates (
+        id VARCHAR(64) NOT NULL,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        slots JSONB NOT NULL DEFAULT '{}'::jsonb,
+        is_default BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT pk_user_day_templates PRIMARY KEY (user_id, id)
+      );
     `);
 
     // 3. Incremental column upgrades
@@ -143,6 +155,7 @@ export async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
       CREATE INDEX IF NOT EXISTS idx_pwd_reset_token ON password_reset_tokens (token_hash);
       CREATE INDEX IF NOT EXISTS idx_pwd_reset_user ON password_reset_tokens (user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_day_templates_user ON user_day_templates (user_id);
     `);
 
     await client.query('COMMIT');

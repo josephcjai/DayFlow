@@ -2,7 +2,7 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.8';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.22';
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -22,8 +22,74 @@ export const STATE = {
   notesDirtyContext: null,
   notesSaveFailed: false,
   failedNotesWeekKeys: new Set(),
-  notesInFlightWeekKey: null
+  notesInFlightWeekKey: null,
+  pendingSlotSaves: {},
+  selectedSlotKeys: new Set()
 };
+
+export function getSelectedSlotKeys() {
+  if (!STATE.selectedSlotKeys) STATE.selectedSlotKeys = new Set();
+  return Array.from(STATE.selectedSlotKeys);
+}
+
+export function clearSelectedSlotKeys() {
+  if (STATE.selectedSlotKeys) STATE.selectedSlotKeys.clear();
+}
+
+export function addSelectedSlotKey(slotKey) {
+  if (!STATE.selectedSlotKeys) STATE.selectedSlotKeys = new Set();
+  STATE.selectedSlotKeys.add(slotKey);
+}
+
+export function removeSelectedSlotKey(slotKey) {
+  if (STATE.selectedSlotKeys) STATE.selectedSlotKeys.delete(slotKey);
+}
+
+export function toggleSelectedSlotKey(slotKey) {
+  if (!STATE.selectedSlotKeys) STATE.selectedSlotKeys = new Set();
+  if (STATE.selectedSlotKeys.has(slotKey)) {
+    STATE.selectedSlotKeys.delete(slotKey);
+  } else {
+    STATE.selectedSlotKeys.add(slotKey);
+  }
+}
+
+export function isSlotMultiSelected(slotKey) {
+  return !!(STATE.selectedSlotKeys && STATE.selectedSlotKeys.has(slotKey));
+}
+
+export function savePendingSlotsToStorage() {
+  try {
+    const key = getUserStorageKey('dayflow_pending_slots');
+    if (STATE.pendingSlotSaves && Object.keys(STATE.pendingSlotSaves).length > 0) {
+      localStorage.setItem(key, JSON.stringify(STATE.pendingSlotSaves));
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch (e) {}
+}
+
+export function markSlotPendingSave(weekKey, slotKey, slotData) {
+  if (!STATE.pendingSlotSaves) STATE.pendingSlotSaves = {};
+  STATE.pendingSlotSaves[slotKey] = {
+    weekKey,
+    slotKey,
+    slotData: JSON.parse(JSON.stringify(slotData)),
+    timestamp: Date.now()
+  };
+  savePendingSlotsToStorage();
+}
+
+export function clearSlotPendingSave(slotKey) {
+  if (STATE.pendingSlotSaves && STATE.pendingSlotSaves[slotKey]) {
+    delete STATE.pendingSlotSaves[slotKey];
+    savePendingSlotsToStorage();
+  }
+}
+
+export function isSlotPendingSave(slotKey) {
+  return !!(STATE.pendingSlotSaves && STATE.pendingSlotSaves[slotKey]);
+}
 
 export function saveFailedNotesWeeksToStorage() {
   try {
@@ -266,6 +332,21 @@ export function loadStateFromStorage() {
     const stored = localStorage.getItem(key);
     if (stored) {
       STATE.scheduleData = JSON.parse(stored);
+      // Ensure all slots in 30-min grid strictly have planned <= 30
+      let hasOverDuration = false;
+      Object.values(STATE.scheduleData).forEach(w => {
+        if (w && w.slots) {
+          Object.values(w.slots).forEach(slot => {
+            if (slot && slot.planned > 30) {
+              slot.planned = 30;
+              hasOverDuration = true;
+            }
+          });
+        }
+      });
+      if (hasOverDuration) {
+        saveStateToStorage();
+      }
     } else {
       STATE.scheduleData = {};
     }
@@ -274,6 +355,19 @@ export function loadStateFromStorage() {
     const savedMode = localStorage.getItem(modeKey);
     if (savedMode && ['day', 'week', 'month'].includes(savedMode)) {
       STATE.scheduleViewMode = savedMode;
+    }
+
+    const pendingKey = getUserStorageKey('dayflow_pending_slots');
+    const savedPending = localStorage.getItem(pendingKey);
+    if (savedPending) {
+      try {
+        const obj = JSON.parse(savedPending);
+        if (obj && typeof obj === 'object') {
+          STATE.pendingSlotSaves = obj;
+        }
+      } catch (e) {}
+    } else {
+      STATE.pendingSlotSaves = {};
     }
 
     const failedKey = getUserStorageKey('dayflow_failed_notes_weeks');
@@ -296,6 +390,7 @@ export function saveStateToStorage() {
   try {
     const key = getUserStorageKey();
     localStorage.setItem(key, JSON.stringify(STATE.scheduleData));
+    savePendingSlotsToStorage();
   } catch (e) {
     console.error('Failed to save DayFlow state:', e);
   }
@@ -331,7 +426,15 @@ export async function syncWeekDataWithApi(onRender) {
   ]);
 
   if (apiSlots !== null && typeof apiSlots === 'object') {
-    weekData.slots = apiSlots;
+    // Merge server slots, but preserve any local slots that have pending unsaved edits (Finding 41)
+    const pending = STATE.pendingSlotSaves || {};
+    const mergedSlots = { ...apiSlots };
+    for (const [pKey, pEntry] of Object.entries(pending)) {
+      if (getSlotWeekKey(pKey) === weekKey && weekData.slots && weekData.slots[pKey]) {
+        mergedSlots[pKey] = weekData.slots[pKey];
+      }
+    }
+    weekData.slots = mergedSlots;
   }
 
   if (apiHabits !== null && Array.isArray(apiHabits)) {
@@ -380,12 +483,32 @@ export async function syncWeekDataWithApi(onRender) {
         ApiClient.fetchHabits(mKey)
       ]);
       if (otherSlots !== null && typeof otherSlots === 'object') {
-        STATE.scheduleData[mKey].slots = otherSlots;
+        const pending = STATE.pendingSlotSaves || {};
+        const mergedOther = { ...otherSlots };
+        for (const [pKey, pEntry] of Object.entries(pending)) {
+          if (getSlotWeekKey(pKey) === mKey && STATE.scheduleData[mKey].slots && STATE.scheduleData[mKey].slots[pKey]) {
+            mergedOther[pKey] = STATE.scheduleData[mKey].slots[pKey];
+          }
+        }
+        STATE.scheduleData[mKey].slots = mergedOther;
       }
       if (otherHabits !== null && Array.isArray(otherHabits)) {
         STATE.scheduleData[mKey].habits = otherHabits;
       }
     }));
+  }
+
+  // Auto-retry syncing any pending slots that failed to save to server earlier (Finding 41)
+  if (STATE.pendingSlotSaves && Object.keys(STATE.pendingSlotSaves).length > 0) {
+    const entries = Object.entries(STATE.pendingSlotSaves);
+    for (const [pKey, pEntry] of entries) {
+      try {
+        const ok = await ApiClient.saveSlot(pEntry.weekKey, pKey, pEntry.slotData);
+        if (ok) {
+          clearSlotPendingSave(pKey);
+        }
+      } catch (err) {}
+    }
   }
 
   saveStateToStorage();

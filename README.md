@@ -11,6 +11,7 @@
 | 🗄️ [**Database Architecture & Relations**](docs/DATABASE_SCHEMA.md) | Full PostgreSQL ER diagram, table schemas, data dictionary, foreign keys, and cascade strategies. |
 | 📡 [**API Documentation**](docs/API_DOCUMENTATION.md) | REST API endpoints, JWT authentication contracts, and Swagger UI specifications. |
 | 📋 [**Notes & Todo Roadmap**](docs/NOTES_TODO_ROADMAP.md) | Detailed feature roadmap and completed milestones (Phases 1 through 6). |
+| 📅 [**Day Templates Roadmap**](docs/DAY_TEMPLATES_ROADMAP.md) | Future roadmap & cloud sync architecture for Day Templates (v2.7.0). |
 | ⚙️ [**Technical Specification**](docs/TECHNICAL_SPECIFICATION.md) | System architecture, planned vs. actual time-lock mechanics, and design tokens. |
 | 🚀 [**Production Deployment Guide**](docs/DEPLOYMENT_LIGHTSAIL.md) | AWS Lightsail / Docker deployment guide with Nginx reverse proxy. |
 

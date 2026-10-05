@@ -77,6 +77,19 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- User Day Templates (Routines for 30-Minute Timeblocking)
+CREATE TABLE IF NOT EXISTS user_day_templates (
+    id VARCHAR(64) NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    slots JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_user_day_templates PRIMARY KEY (user_id, id)
+);
+
 -- Production Indexes
 CREATE INDEX IF NOT EXISTS idx_pwd_reset_token ON password_reset_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_pwd_reset_user ON password_reset_tokens(user_id);
@@ -85,3 +98,5 @@ CREATE INDEX IF NOT EXISTS idx_habit_logs_user_week ON habit_logs (user_id, week
 CREATE INDEX IF NOT EXISTS idx_todo_items_week_id ON todo_items (week_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_slots_week ON schedule_slots (week_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_weeks_user ON schedule_weeks (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_day_templates_user ON user_day_templates (user_id);
+

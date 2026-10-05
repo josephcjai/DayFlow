@@ -2,9 +2,9 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.8';
-import { openTaskModal } from './modal.js?v=2.9.8';
-import { escapeHtml } from './utils.js?v=2.9.8';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected } from './state.js?v=2.9.22';
+import { openTaskModal } from './modal.js?v=2.9.22';
+import { escapeHtml } from './utils.js?v=2.9.22';
 
 export const TIME_SLOTS = [];
 
@@ -33,6 +33,12 @@ export function getCurrentSlotKey() {
   const hour = String(now.getHours()).padStart(2, '0');
   const slotMin = now.getMinutes() < 30 ? '00' : '30';
   return `${dateStr}_${hour}:${slotMin}`;
+}
+
+let hasAutoScrolledToNow = false;
+
+export function resetGridAutoScroll() {
+  hasAutoScrolledToNow = false;
 }
 
 let currentSlotTicker = null;
@@ -273,23 +279,30 @@ function renderWeekGridHeader(headerEl, onSwitchToDayView) {
   if (!headerEl) return;
   const dates = getWeekDates(STATE.currentWeekStart);
   renderGridScrollNav(dates);
+  const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
   headerEl.innerHTML = `
     <tr>
       <th class="time-col">Time (30m)</th>
-      <th class="day-col" data-day="1" data-date="${dates[0]}" style="cursor: pointer;" title="Click to view full day schedule">MON <span class="day-date">${formatHeaderDate(dates[0])}</span></th>
-      <th class="day-col" data-day="2" data-date="${dates[1]}" style="cursor: pointer;" title="Click to view full day schedule">TUE <span class="day-date">${formatHeaderDate(dates[1])}</span></th>
-      <th class="day-col" data-day="3" data-date="${dates[2]}" style="cursor: pointer;" title="Click to view full day schedule">WED <span class="day-date">${formatHeaderDate(dates[2])}</span></th>
-      <th class="day-col" data-day="4" data-date="${dates[3]}" style="cursor: pointer;" title="Click to view full day schedule">THU <span class="day-date">${formatHeaderDate(dates[3])}</span></th>
-      <th class="day-col" data-day="5" data-date="${dates[4]}" style="cursor: pointer;" title="Click to view full day schedule">FRI <span class="day-date">${formatHeaderDate(dates[4])}</span></th>
-      <th class="day-col" data-day="6" data-date="${dates[5]}" style="cursor: pointer;" title="Click to view full day schedule">SAT <span class="day-date">${formatHeaderDate(dates[5])}</span></th>
-      <th class="day-col" data-day="7" data-date="${dates[6]}" style="cursor: pointer;" title="Click to view full day schedule">SUN <span class="day-date">${formatHeaderDate(dates[6])}</span></th>
+      ${dates.map((dStr, idx) => `
+        <th class="day-col" data-day="${idx + 1}" data-date="${dStr}">
+          <div class="day-col-header-wrap">
+            <span class="day-col-title" style="cursor: pointer;" title="Click to view full day schedule">
+              ${dayNames[idx]} <span class="day-date">${formatHeaderDate(dStr)}</span>
+            </span>
+            <button type="button" class="day-template-action-btn" data-date="${dStr}" title="Apply template to ${dayNames[idx]} (or save as template)" aria-label="Template for ${dayNames[idx]}">📋</button>
+          </div>
+        </th>
+      `).join('')}
     </tr>
   `;
 
   if (onSwitchToDayView) {
-    headerEl.querySelectorAll('.day-col[data-date]').forEach(th => {
-      th.addEventListener('click', () => {
-        onSwitchToDayView(th.dataset.date);
+    headerEl.querySelectorAll('.day-col[data-date] .day-col-title').forEach(titleSpan => {
+      titleSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const th = titleSpan.closest('.day-col');
+        if (th && th.dataset.date) onSwitchToDayView(th.dataset.date);
       });
     });
   }
@@ -309,13 +322,27 @@ function renderDayGridHeader(headerEl) {
   headerEl.innerHTML = `
     <tr>
       <th class="time-col">Time (30m)</th>
-      <th class="day-col day-view-single-col">${dayName} <span class="day-date">${formatDateDisplay(dateStr)}</span></th>
+      <th class="day-col day-view-single-col">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            ${dayName} <span class="day-date">${formatDateDisplay(dateStr)}</span>
+          </div>
+          <div class="day-view-template-actions">
+            <button type="button" class="btn btn-secondary btn-sm day-view-apply-template-btn" data-date="${dateStr}" title="Apply a day template to this day">📋 Apply Template</button>
+            <button type="button" class="btn btn-secondary btn-sm day-view-save-template-btn" data-date="${dateStr}" title="Save today's schedule as a new reusable template">💾 Save as Template</button>
+          </div>
+        </div>
+      </th>
     </tr>
   `;
 }
 
 function renderWeekGridBody(scheduleTableBody) {
   if (!scheduleTableBody) return;
+  const container = document.querySelector('.timeline-table-container');
+  const prevScrollTop = container ? container.scrollTop : 0;
+  const prevScrollLeft = container ? container.scrollLeft : 0;
+
   const weekData = getCurrentWeekData();
   const dates = getWeekDates(STATE.currentWeekStart);
   const currentSlotKey = getCurrentSlotKey();
@@ -351,6 +378,9 @@ function renderWeekGridBody(scheduleTableBody) {
       if (STATE.selectedSlotKey === slotKey) {
         td.classList.add('selected-slot');
       }
+      if (STATE.selectedSlotKeys && STATE.selectedSlotKeys.has(slotKey)) {
+        td.classList.add('multi-selected-slot');
+      }
       if (STATE.copiedSlotKey === slotKey) {
         td.classList.add('copied-source');
       }
@@ -376,18 +406,20 @@ function renderWeekGridBody(scheduleTableBody) {
         td.innerHTML = `
           <div class="slot-content">
             <div class="slot-header-row">
-              <span class="slot-title" title="Actual: ${escapeHtml(actualText)} | Planned: ${escapeHtml(plannedText)}">
+              <span class="slot-title inline-editable" data-slot-key="${slotKey}" title="Click to edit task title | Double-click slot for full modal">
                 ${escapeHtml(actualText)}
               </span>
               <span class="status-indicator">
                 ${isCurrentSlot ? '<span class="now-pill">📍 NOW</span>' : ''}
-                ${statusIcon}
+                <button type="button" class="status-quick-btn status-btn-${escapeHtml((slotData.status || 'Pending').split(' ')[0])}" data-slot-key="${slotKey}" title="Status: ${escapeHtml(slotData.status || 'Pending')} (Click: Toggle Done | Right-Click: Status Menu | Alt+Click: Cycle)" aria-label="Status: ${escapeHtml(slotData.status || 'Pending')}">
+                  <span class="status-btn-icon">${statusIcon}</span>
+                </button>
               </span>
             </div>
             ${isDifferent ? `<div class="planned-subtext">Plan: ${escapeHtml(plannedText)}</div>` : ''}
             <div class="slot-footer-row">
               <span class="category-tag ${escapedCat}">${escapedCat}</span>
-              <span class="time-dur-badge">${slotData.planned || 30}m | <strong>${slotData.actual || 0}m</strong></span>
+              <span class="time-dur-badge">${slotData.planned || 30}m | <strong class="actual-time-badge inline-editable" data-slot-key="${slotKey}" title="Click to edit actual duration">${slotData.actual !== undefined ? slotData.actual : 0}m</strong></span>
             </div>
           </div>
         `;
@@ -404,10 +436,21 @@ function renderWeekGridBody(scheduleTableBody) {
       }
 
       td.addEventListener('click', (e) => {
+        if (e.target.closest('.status-quick-btn') || e.target.closest('.inline-editable') || e.target.closest('input')) {
+          return;
+        }
+        if (e.ctrlKey || e.metaKey || e.shiftKey) {
+          selectSlotCell(slotKey, td, e);
+          return;
+        }
+        if (STATE.selectedSlotKeys && STATE.selectedSlotKeys.size > 1 && STATE.selectedSlotKeys.has(slotKey)) {
+          selectSlotCell(slotKey, td, e);
+          return;
+        }
         if (STATE.selectedSlotKey === slotKey) {
           openTaskModal(slotKey, td.dataset.dayName, slotInfo.label, slotData);
         } else {
-          selectSlotCell(slotKey, td);
+          selectSlotCell(slotKey, td, e);
         }
       });
 
@@ -421,20 +464,28 @@ function renderWeekGridBody(scheduleTableBody) {
     scheduleTableBody.appendChild(tr);
   });
 
-  if (currentActiveTd) {
+  if (!hasAutoScrolledToNow && currentActiveTd) {
     setTimeout(() => {
-      const container = document.querySelector('.timeline-table-container');
-      if (container) {
+      const c = document.querySelector('.timeline-table-container');
+      if (c) {
         const tdTop = currentActiveTd.offsetTop;
-        const containerHeight = container.clientHeight;
-        container.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
+        const containerHeight = c.clientHeight;
+        c.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
+        hasAutoScrolledToNow = true;
       }
     }, 150);
+  } else if (container) {
+    container.scrollTop = prevScrollTop;
+    container.scrollLeft = prevScrollLeft;
   }
 }
 
 function renderDayGridBody(scheduleTableBody) {
   if (!scheduleTableBody) return;
+  const container = document.querySelector('.timeline-table-container');
+  const prevScrollTop = container ? container.scrollTop : 0;
+  const prevScrollLeft = container ? container.scrollLeft : 0;
+
   const weekData = getCurrentWeekData();
   const d = STATE.selectedDate || new Date();
   const dateStr = formatDateISO(d);
@@ -470,6 +521,9 @@ function renderDayGridBody(scheduleTableBody) {
     if (STATE.selectedSlotKey === slotKey) {
       td.classList.add('selected-slot');
     }
+    if (STATE.selectedSlotKeys && STATE.selectedSlotKeys.has(slotKey)) {
+      td.classList.add('multi-selected-slot');
+    }
     if (STATE.copiedSlotKey === slotKey) {
       td.classList.add('copied-source');
     }
@@ -493,19 +547,22 @@ function renderDayGridBody(scheduleTableBody) {
       td.innerHTML = `
         <div class="slot-content day-view-content">
           <div class="slot-header-row">
-            <span class="slot-title lg-title">
+            <span class="slot-title lg-title inline-editable" data-slot-key="${slotKey}" title="Click to edit task title | Double-click slot for full modal">
               ${escapeHtml(actualText)}
             </span>
             <span class="status-indicator">
               ${isCurrentSlot ? '<span class="now-pill">📍 NOW</span>' : ''}
-              ${statusIcon} <span class="status-name">${slotData.status || 'Pending'}</span>
+              <button type="button" class="status-quick-btn status-btn-${escapeHtml((slotData.status || 'Pending').split(' ')[0])}" data-slot-key="${slotKey}" title="Status: ${escapeHtml(slotData.status || 'Pending')} (Click: Toggle Done | Right-Click: Status Menu | Alt+Click: Cycle)" aria-label="Status: ${escapeHtml(slotData.status || 'Pending')}">
+                <span class="status-btn-icon">${statusIcon}</span>
+                <span class="status-name">${escapeHtml(slotData.status || 'Pending')}</span>
+              </button>
             </span>
           </div>
           ${plannedText && plannedText !== actualText ? `<div class="planned-subtext">Baseline Plan: ${escapeHtml(plannedText)}</div>` : ''}
           ${slotData.notes ? `<div class="slot-notes-preview">📝 ${escapeHtml(slotData.notes)}</div>` : ''}
           <div class="slot-footer-row">
             <span class="category-tag ${escapedCat}">${escapedCat}</span>
-            <span class="time-dur-badge">Planned: ${slotData.planned || 30}m | <strong>Actual: ${slotData.actual || 0}m</strong></span>
+            <span class="time-dur-badge">Planned: ${slotData.planned || 30}m | <strong class="actual-time-badge inline-editable" data-slot-key="${slotKey}" title="Click to edit actual duration">Actual: ${slotData.actual !== undefined ? slotData.actual : 0}m</strong></span>
           </div>
         </div>
       `;
@@ -522,10 +579,21 @@ function renderDayGridBody(scheduleTableBody) {
     }
 
     td.addEventListener('click', (e) => {
+      if (e.target.closest('.status-quick-btn') || e.target.closest('.inline-editable') || e.target.closest('input')) {
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.shiftKey) {
+        selectSlotCell(slotKey, td, e);
+        return;
+      }
+      if (STATE.selectedSlotKeys && STATE.selectedSlotKeys.size > 1 && STATE.selectedSlotKeys.has(slotKey)) {
+        selectSlotCell(slotKey, td, e);
+        return;
+      }
       if (STATE.selectedSlotKey === slotKey) {
         openTaskModal(slotKey, dayName, slotInfo.label, slotData);
       } else {
-        selectSlotCell(slotKey, td);
+        selectSlotCell(slotKey, td, e);
       }
     });
 
@@ -537,15 +605,19 @@ function renderDayGridBody(scheduleTableBody) {
     scheduleTableBody.appendChild(tr);
   });
 
-  if (currentActiveTd) {
+  if (!hasAutoScrolledToNow && currentActiveTd) {
     setTimeout(() => {
-      const container = document.querySelector('.timeline-table-container');
-      if (container) {
+      const c = document.querySelector('.timeline-table-container');
+      if (c) {
         const tdTop = currentActiveTd.offsetTop;
-        const containerHeight = container.clientHeight;
-        container.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
+        const containerHeight = c.clientHeight;
+        c.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
+        hasAutoScrolledToNow = true;
       }
     }, 150);
+  } else if (container) {
+    container.scrollTop = prevScrollTop;
+    container.scrollLeft = prevScrollLeft;
   }
 }
 
@@ -674,21 +746,156 @@ function getStatusIcon(status) {
   }
 }
 
-export function selectSlotCell(slotKey, cellElement = null) {
+export function syncMultiSelectedClasses() {
+  document.querySelectorAll('.slot-cell').forEach(el => {
+    const k = el.dataset.slotKey;
+    if (k && STATE.selectedSlotKeys && STATE.selectedSlotKeys.has(k)) {
+      el.classList.add('multi-selected-slot');
+    } else {
+      el.classList.remove('multi-selected-slot');
+    }
+  });
+}
+
+export function updateBulkActionBar() {
+  const bar = document.getElementById('bulkActionBar');
+  if (!bar) return;
+
+  const count = STATE.selectedSlotKeys ? STATE.selectedSlotKeys.size : 0;
+  if (count >= 2) {
+    bar.style.display = 'flex';
+    const countEl = document.getElementById('bulkSelectedCount');
+    if (countEl) countEl.textContent = count;
+
+    const durEl = document.getElementById('bulkSelectedDuration');
+    if (durEl) {
+      const totalMinutes = count * 30;
+      if (totalMinutes >= 60) {
+        const hrs = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        durEl.textContent = mins > 0 ? `(${hrs}h ${mins}m)` : `(${hrs}h)`;
+      } else {
+        durEl.textContent = `(${totalMinutes}m)`;
+      }
+    }
+  } else {
+    bar.style.display = 'none';
+    const catMenu = document.getElementById('bulkCategoryMenu');
+    if (catMenu) catMenu.style.display = 'none';
+  }
+}
+
+export function getRangeSlotKeys(startKey, endKey) {
+  if (!startKey || !endKey) return startKey ? [startKey] : (endKey ? [endKey] : []);
+  if (startKey === endKey) return [startKey];
+
+  const [startDateStr, startTimeKey] = startKey.split('_');
+  const [endDateStr, endTimeKey] = endKey.split('_');
+
+  const startTimeIdx = TIME_SLOTS.findIndex(s => s.key === startTimeKey);
+  const endTimeIdx = TIME_SLOTS.findIndex(s => s.key === endTimeKey);
+
+  if (startTimeIdx === -1 || endTimeIdx === -1) {
+    return [startKey, endKey];
+  }
+
+  const minTimeIdx = Math.min(startTimeIdx, endTimeIdx);
+  const maxTimeIdx = Math.max(startTimeIdx, endTimeIdx);
+
+  const mode = STATE.scheduleViewMode || 'week';
+  const rangeKeys = [];
+
+  if (mode === 'day' || startDateStr === endDateStr) {
+    for (let t = minTimeIdx; t <= maxTimeIdx; t++) {
+      rangeKeys.push(`${startDateStr}_${TIME_SLOTS[t].key}`);
+    }
+  } else {
+    const weekDates = getWeekDates(STATE.currentWeekStart);
+    const startDayIdx = weekDates.indexOf(startDateStr);
+    const endDayIdx = weekDates.indexOf(endDateStr);
+
+    if (startDayIdx !== -1 && endDayIdx !== -1) {
+      const minDayIdx = Math.min(startDayIdx, endDayIdx);
+      const maxDayIdx = Math.max(startDayIdx, endDayIdx);
+
+      for (let d = minDayIdx; d <= maxDayIdx; d++) {
+        for (let t = minTimeIdx; t <= maxTimeIdx; t++) {
+          rangeKeys.push(`${weekDates[d]}_${TIME_SLOTS[t].key}`);
+        }
+      }
+    } else {
+      rangeKeys.push(startKey, endKey);
+    }
+  }
+
+  return rangeKeys;
+}
+
+export function selectSlotCell(slotKey, cellElement = null, event = null) {
+  if (!STATE.selectedSlotKeys) {
+    STATE.selectedSlotKeys = new Set();
+  }
+
+  const isCtrl = event && (event.ctrlKey || event.metaKey);
+  const isShift = event && event.shiftKey;
+
+  if (isCtrl) {
+    if (STATE.selectedSlotKeys.size === 0 && STATE.selectedSlotKey && STATE.selectedSlotKey !== slotKey) {
+      STATE.selectedSlotKeys.add(STATE.selectedSlotKey);
+    }
+
+    if (STATE.selectedSlotKeys.has(slotKey)) {
+      STATE.selectedSlotKeys.delete(slotKey);
+      if (STATE.selectedSlotKey === slotKey) {
+        STATE.selectedSlotKey = Array.from(STATE.selectedSlotKeys).pop() || null;
+      }
+    } else {
+      STATE.selectedSlotKeys.add(slotKey);
+      STATE.selectedSlotKey = slotKey;
+    }
+
+    syncMultiSelectedClasses();
+    updateBulkActionBar();
+    return;
+  }
+
+  if (isShift) {
+    const anchorKey = STATE.selectedSlotKey || slotKey;
+    const rangeKeys = getRangeSlotKeys(anchorKey, slotKey);
+
+    rangeKeys.forEach(k => STATE.selectedSlotKeys.add(k));
+    STATE.selectedSlotKey = slotKey;
+
+    syncMultiSelectedClasses();
+    updateBulkActionBar();
+    return;
+  }
+
+  STATE.selectedSlotKeys.clear();
   STATE.selectedSlotKey = slotKey;
+
   document.querySelectorAll('.slot-cell.selected-slot').forEach(el => el.classList.remove('selected-slot'));
+  document.querySelectorAll('.slot-cell.multi-selected-slot').forEach(el => el.classList.remove('multi-selected-slot'));
+
   const target = cellElement || document.querySelector(`.slot-cell[data-slot-key="${slotKey}"]`);
   if (target) {
     target.classList.add('selected-slot');
     target.focus({ preventScroll: true });
   }
+
+  updateBulkActionBar();
 }
 
 export function clearSlotSelection() {
   STATE.selectedSlotKey = null;
   STATE.copiedSlotKey = null;
+  if (STATE.selectedSlotKeys) {
+    STATE.selectedSlotKeys.clear();
+  }
   document.querySelectorAll('.slot-cell.selected-slot').forEach(el => el.classList.remove('selected-slot'));
+  document.querySelectorAll('.slot-cell.multi-selected-slot').forEach(el => el.classList.remove('multi-selected-slot'));
   document.querySelectorAll('.slot-cell.copied-source').forEach(el => el.classList.remove('copied-source'));
+  updateBulkActionBar();
 }
 
 export function clearCopiedSource() {
