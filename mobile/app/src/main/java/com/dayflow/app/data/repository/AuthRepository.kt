@@ -6,9 +6,11 @@ import com.dayflow.app.data.model.UserDto
 import com.dayflow.app.data.remote.DayFlowApiService
 import com.dayflow.app.data.remote.TokenManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.dayflow.app.data.local.DayFlowDatabase
 
 interface AuthRepository {
     suspend fun login(email: String, password: String): Result<UserDto>
@@ -24,7 +26,8 @@ interface AuthRepository {
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val apiService: DayFlowApiService,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val database: DayFlowDatabase
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<UserDto> = withContext(Dispatchers.IO) {
@@ -128,5 +131,8 @@ class AuthRepositoryImpl @Inject constructor(
     override fun logout() {
         tokenManager.clearToken()
         tokenManager.setDemoMode(false)
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            database.clearAllTables()
+        }
     }
 }

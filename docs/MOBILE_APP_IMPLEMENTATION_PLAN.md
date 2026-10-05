@@ -197,6 +197,18 @@ DayFlow/ (Monorepo root)
 
 ---
 
+### Phase 9: Post-v1.0 Enhancements (Day Templates & Bulk Actions Parity)
+* **Goal:** Achieve full feature parity with DayFlow v2.7.0 Web (Day Templates & Multi-Slot Bulk Actions).
+* **Tasks:**
+  1. Room schema migration to add `day_templates` table.
+  2. Implement `DayTemplateDao` and `TemplateRepository` (`/api/templates`).
+  3. `ApplyTemplateUseCase` strictly adhering to the *Least Priority Rule* (never overwrite populated slots).
+  4. Day Templates management and "Apply to Day" UI dialog.
+  5. Multi-slot selection with contextual action bar (bulk mark done, bulk category assign, bulk clear).
+* **Deliverable:** Full template application and bulk editing capabilities on Android.
+
+---
+
 ## 3. Sprint Breakdown & Milestones
 
 | Sprint | Focus Area | Key Deliverables |

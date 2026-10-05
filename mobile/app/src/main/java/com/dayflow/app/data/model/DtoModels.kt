@@ -58,11 +58,13 @@ data class MessageResponse(
 
 @Serializable
 data class SlotDto(
-    val slotKey: String,
-    val plannedTask: String,
+    val slotKey: String = "",
+    val plannedTask: String = "",
     val actualTask: String = "",
     val category: String = "Work",
+    @SerialName("planned")
     val plannedDuration: Int = 30,
+    @SerialName("actual")
     val actualDuration: Int = 0,
     val status: String = "Pending",
     val notes: String? = null
@@ -79,11 +81,14 @@ data class WeekScheduleResponse(
 
 @Serializable
 data class SaveSlotRequest(
+    val weekStart: String = "",
     val slotKey: String,
     val plannedTask: String,
     val actualTask: String = "",
     val category: String = "Work",
+    @SerialName("planned")
     val plannedDuration: Int = 30,
+    @SerialName("actual")
     val actualDuration: Int = 0,
     val status: String = "Pending",
     val notes: String? = null
@@ -97,6 +102,7 @@ data class SaveSlotResponse(
 
 @Serializable
 data class DeleteSlotRequest(
+    val weekStart: String? = null,
     val slotKey: String
 )
 
@@ -106,18 +112,24 @@ data class DeleteSlotRequest(
 
 @Serializable
 data class HabitLogDto(
-    val id: String,
-    val habitName: String,
+    val id: String = "",
+    @SerialName("name")
+    val habitName: String = "",
     val category: String = "Health",
+    @SerialName("pts")
     val pointsImpact: Int = 0,
     val notes: String? = null,
+    @SerialName("time")
     val logTime: String? = null
 )
 
 @Serializable
 data class LogHabitRequest(
+    val weekStart: String = "",
+    @SerialName("name")
     val habitName: String,
     val category: String = "Health",
+    @SerialName("pts")
     val pointsImpact: Int = 0,
     val notes: String? = null,
     val logTime: String? = null
@@ -135,21 +147,29 @@ data class LogHabitResponse(
 
 @Serializable
 data class TodoItemDto(
-    val id: String,
-    val title: String,
+    val id: String = "",
+    @SerialName("text")
+    val title: String = "",
+    @SerialName("completed")
     val isCompleted: Boolean = false,
+    val priority: String = "Medium",
+    val category: String = "General",
+    val dueDate: String? = null,
     val weekStart: String? = null
 )
 
 @Serializable
 data class CreateTodoRequest(
     val weekStart: String,
+    @SerialName("text")
     val title: String
 )
 
 @Serializable
 data class UpdateTodoRequest(
+    @SerialName("completed")
     val isCompleted: Boolean? = null,
+    @SerialName("text")
     val title: String? = null
 )
 

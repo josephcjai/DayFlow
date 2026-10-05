@@ -46,9 +46,9 @@ class ScheduleRepositoryImpl @Inject constructor(
             val response = apiService.getWeekSchedule(weekStart)
             if (response.isSuccessful && response.body() != null) {
                 val weekBody = response.body()!!
-                val entities = weekBody.slots.values.map { slotDto ->
+                val entities = weekBody.slots.map { (key, slotDto) ->
                     ScheduleSlotEntity(
-                        slotKey = slotDto.slotKey,
+                        slotKey = key,
                         weekStart = weekStart,
                         plannedTask = slotDto.plannedTask,
                         actualTask = slotDto.actualTask,
@@ -60,7 +60,10 @@ class ScheduleRepositoryImpl @Inject constructor(
                         isSyncPending = false
                     )
                 }
-                slotDao.upsertSlots(entities)
+                slotDao.clearWeek(weekStart)
+                if (entities.isNotEmpty()) {
+                    slotDao.upsertSlots(entities)
+                }
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Failed to fetch week schedule (${response.code()})"))
@@ -82,6 +85,7 @@ class ScheduleRepositoryImpl @Inject constructor(
 
         // 2. Dispatch network update or queue if offline
         val saveRequest = SaveSlotRequest(
+            weekStart = slot.weekStart,
             slotKey = slot.slotKey,
             plannedTask = slot.plannedTask,
             actualTask = slot.actualTask,

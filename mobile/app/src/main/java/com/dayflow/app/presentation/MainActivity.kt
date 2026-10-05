@@ -4,12 +4,16 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -56,6 +60,7 @@ import com.dayflow.app.presentation.schedule.ScheduleViewModel
 import com.dayflow.app.presentation.theme.BackgroundDark
 import com.dayflow.app.presentation.theme.DayFlowPrimary
 import com.dayflow.app.presentation.theme.DayFlowSecondary
+import com.dayflow.app.presentation.theme.StatusDone
 import com.dayflow.app.presentation.theme.DayFlowTheme
 import com.dayflow.app.presentation.theme.SurfaceDark
 import com.dayflow.app.presentation.theme.SurfaceElevated
@@ -134,7 +139,10 @@ fun DashboardScreen(
     var selectedNavIndex by remember { mutableIntStateOf(0) } // 0 = Schedule, 1 = Habits, 2 = Todos
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding(),
         containerColor = BackgroundDark,
         topBar = {
             Surface(
@@ -144,7 +152,7 @@ fun DashboardScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -175,25 +183,47 @@ fun DashboardScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = authState.displayName ?: "Active User",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = TextSecondary
-                        )
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        IconButton(
-                            onClick = onLogout,
-                            modifier = Modifier.size(32.dp)
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier.padding(end = 10.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Log Out",
-                                tint = TextMuted,
-                                modifier = Modifier.size(18.dp)
+                            Text(
+                                text = authState.displayName ?: if (authState.isDemoMode) "Demo User" else "Active User",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
                             )
+                            Text(
+                                text = if (authState.isDemoMode) "Local Storage" else "Docker Sync",
+                                fontSize = 10.sp,
+                                color = if (authState.isDemoMode) DayFlowSecondary else StatusDone
+                            )
+                        }
+
+                        Surface(
+                            modifier = Modifier.clickable { onLogout() },
+                            color = SurfaceElevated,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, TextMuted.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                    contentDescription = "Log Out",
+                                    tint = DayFlowSecondary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Logout",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DayFlowSecondary
+                                )
+                            }
                         }
                     }
                 }

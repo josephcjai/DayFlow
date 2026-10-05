@@ -3,6 +3,8 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dayflow.app.data.repository.ScheduleRepository
+import com.dayflow.app.data.sync.SyncManager
+import com.dayflow.app.data.sync.SyncStatus
 import com.dayflow.app.domain.model.Category
 import com.dayflow.app.domain.model.Slot
 import com.dayflow.app.domain.model.SlotStatus
@@ -42,7 +44,8 @@ data class ScheduleUiState(
     val isEditingNewSlot: Boolean = false,
     val editingSlotKey: String? = null,
     val errorMessage: String? = null,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val syncStatus: SyncStatus = SyncStatus.IDLE
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -51,7 +54,8 @@ class ScheduleViewModel @Inject constructor(
     private val getWeekScheduleUseCase: GetWeekScheduleUseCase,
     private val saveSlotUseCase: SaveSlotUseCase,
     private val deleteSlotUseCase: DeleteSlotUseCase,
-    private val scheduleRepository: ScheduleRepository
+    private val scheduleRepository: ScheduleRepository,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScheduleUiState())
@@ -90,13 +94,23 @@ class ScheduleViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
+        initialValue = buildInitialDaySlots(LocalDate.now())
     )
+
+    init {
+        viewModelScope.launch {
+            syncManager.syncStatus.collect { status ->
+                _uiState.update { it.copy(syncStatus = status) }
+            }
+        }
+        refreshSchedule()
+    }
 
     fun selectDate(date: LocalDate) {
         val monday = DateTimeUtils.getMondayOfWeek(date)
         val weekKey = DateTimeUtils.getWeekKey(date)
         val weekDays = DateTimeUtils.generateWeekDays(monday)
+        val oldWeek = _uiState.value.weekStart
 
         _uiState.update {
             it.copy(
@@ -104,6 +118,12 @@ class ScheduleViewModel @Inject constructor(
                 weekStart = weekKey,
                 weekDays = weekDays
             )
+        }
+
+        if (weekKey != oldWeek) {
+            viewModelScope.launch {
+                scheduleRepository.refreshWeekSchedule(weekKey)
+            }
         }
     }
 
@@ -195,8 +215,30 @@ class ScheduleViewModel @Inject constructor(
     fun refreshSchedule() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
+            syncManager.syncNow()
             scheduleRepository.refreshWeekSchedule(_uiState.value.weekStart)
             _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
+    companion object {
+        fun buildInitialDaySlots(selectedDate: LocalDate): List<SlotRowUiModel> {
+            val allDayKeys = DateTimeUtils.generateDaySlotKeys(selectedDate)
+            val now = LocalDateTime.now()
+            val isToday = selectedDate == LocalDate.now()
+            return allDayKeys.map { key ->
+                val (_, time) = DateTimeUtils.parseSlotKey(key)
+                val endTime = time.plusMinutes(30)
+                val isPassed = DateTimeUtils.isSlotTimePassed(key, now)
+                val isCurrent = isToday && !now.toLocalTime().isBefore(time) && now.toLocalTime().isBefore(endTime)
+                SlotRowUiModel(
+                    slotKey = key,
+                    timeLabel = String.format("%02d:%02d", time.hour, time.minute),
+                    endTimeLabel = String.format("%02d:%02d", endTime.hour, endTime.minute),
+                    slot = null,
+                    isTimePassed = isPassed,
+                    isCurrentSlot = isCurrent
+                )
+            }
         }
     }
 }

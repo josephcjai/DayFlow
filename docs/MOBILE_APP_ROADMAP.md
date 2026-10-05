@@ -105,6 +105,17 @@
 - [ ] Signed Android App Bundle (AAB) generation.
 - [ ] **Test Gate 8:** Final user sign-off for Google Play Store release.
 
+### Phase 9: Post-v1.0 Enhancements (Day Templates & Bulk Actions Parity)
+- [ ] **Day Templates Support (v2.7.0 Web Parity):**
+  - Implement `DayTemplateEntity` and `DayTemplateDao` in Room database.
+  - Implement `TemplateRepository` and Retrofit client for `/api/templates/*`.
+  - Implement `ApplyTemplateUseCase` enforcing the *Least Priority Rule* (populates blank slots only, preserves existing planned/actual tasks).
+  - UI: "Apply Template" bottom sheet and template management screen.
+- [ ] **Multi-Slot Selection & Bulk Actions:**
+  - Long-press selection mode on the 30-minute timeline.
+  - Bulk actions bar: Mark as Done, Change Category, Clear Slots.
+- [ ] **Test Gate 9:** User verification of Day Templates and multi-slot bulk editing.
+
 ---
 
 ## ðŸ–¥ï¸ Future macOS Expansion (Milestone 6)

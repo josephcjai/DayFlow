@@ -1,5 +1,10 @@
-﻿package com.dayflow.app.presentation.schedule
+package com.dayflow.app.presentation.schedule
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,13 +25,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dayflow.app.data.sync.SyncStatus
 import com.dayflow.app.domain.model.Slot
 import com.dayflow.app.domain.model.SlotStatus
 import com.dayflow.app.presentation.theme.BackgroundDark
@@ -56,6 +68,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleTimelineScreen(
     viewModel: ScheduleViewModel
@@ -174,25 +187,93 @@ fun ScheduleTimelineScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 3. 48-Slot Timeline List
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
+        // 3. Offline / Sync Status Indicator Banner
+        AnimatedVisibility(
+            visible = uiState.syncStatus == SyncStatus.OFFLINE,
+            enter = fadeIn() + slideInVertically(),
+            exit = fadeOut() + slideOutVertically()
         ) {
-            items(daySlots, key = { it.slotKey }) { row ->
-                TimelineSlotItem(
-                    row = row,
-                    onSlotClick = { viewModel.openSlotEditor(row.slotKey, row.slot) },
-                    onStatusClick = { slot -> viewModel.quickToggleStatus(slot) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+            if (uiState.syncStatus == SyncStatus.OFFLINE) {
+                Surface(
+                    color = Color(0xFFF59E0B).copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudOff,
+                            contentDescription = "Offline",
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Offline Mode · Changes are saved locally and will auto-sync",
+                            color = Color(0xFFF59E0B),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            } else if (uiState.syncStatus == SyncStatus.SYNCING) {
+                Surface(
+                    color = DayFlowPrimary.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = DayFlowPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Syncing changes with server...",
+                            color = DayFlowPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
+        }
 
-            item {
-                Spacer(modifier = Modifier.height(64.dp))
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 4. Pull-to-Refresh & 48-Slot Timeline List
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refreshSchedule() },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                items(daySlots, key = { it.slotKey }) { row ->
+                    TimelineSlotItem(
+                        row = row,
+                        onSlotClick = { viewModel.openSlotEditor(row.slotKey, row.slot) },
+                        onStatusClick = { slot -> viewModel.quickToggleStatus(slot) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(64.dp))
+                }
             }
         }
     }
@@ -217,8 +298,8 @@ fun TimelineSlotItem(
     onStatusClick: (Slot) -> Unit
 ) {
     val hasTask = row.slot != null && (row.slot.plannedTask.isNotBlank() || row.slot.actualTask.isNotBlank())
-    val categoryColor = if (hasTask && row.slot != null) {
-        Color(android.graphics.Color.parseColor(row.slot.category.hexColor))
+    val categoryColor = if (hasTask) {
+        Color(android.graphics.Color.parseColor(row.slot!!.category.hexColor))
     } else {
         Color.Transparent
     }
@@ -259,98 +340,130 @@ fun TimelineSlotItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp, horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Category Color Stripe (if task scheduled)
+                // Category color accent stripe
                 if (hasTask) {
                     Box(
                         modifier = Modifier
                             .width(4.dp)
-                            .height(34.dp)
-                            .background(categoryColor, RoundedCornerShape(2.dp))
+                            .height(36.dp)
+                            .background(categoryColor, shape = RoundedCornerShape(2.dp))
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                 }
 
-                // Task Details
-                Column(modifier = Modifier.weight(1f)) {
-                    if (hasTask && row.slot != null) {
-                        val displayTitle = row.slot.plannedTask.ifBlank { row.slot.actualTask }
+                // Center Column: Task details
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (hasTask) {
+                        val displayTask = if (row.slot.plannedTask.isNotBlank()) row.slot.plannedTask else row.slot.actualTask
+                        Text(
+                            text = displayTask,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (row.slot.actualTask.isNotBlank() && row.slot.actualTask != row.slot.plannedTask && row.slot.plannedTask.isNotBlank()) {
                             Text(
-                                text = displayTitle,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary,
+                                text = "Actual: ${row.slot.actualTask}",
+                                fontSize = 12.sp,
+                                color = TextSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            Text(
+                                text = row.slot.category.displayName,
+                                fontSize = 11.sp,
+                                color = categoryColor,
+                                fontWeight = FontWeight.Medium
+                            )
+
+                            val durationToShow = if (row.slot.actualDuration > 0) row.slot.actualDuration else row.slot.plannedDuration
+                            Text(
+                                text = "  •  ${durationToShow}m",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+
                             if (row.isTimePassed) {
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
                                     imageVector = Icons.Default.Lock,
-                                    contentDescription = "Baseline Locked",
+                                    contentDescription = "Plan Locked",
                                     tint = TimeLockedBadge,
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(11.dp)
                                 )
                             }
                         }
-
-                        if (row.slot.actualTask.isNotBlank() && row.slot.plannedTask.isNotBlank() && row.slot.actualTask != row.slot.plannedTask) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Actual: ${row.slot.actualTask}",
-                                fontSize = 11.sp,
-                                color = TextMuted,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
                     } else {
-                        // Empty Slot Placeholder
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Empty slot prompt
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = TextMuted,
-                                modifier = Modifier.size(14.dp)
+                                contentDescription = "Add task",
+                                tint = TextMuted.copy(alpha = 0.5f),
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Available slot",
-                                fontSize = 12.sp,
-                                color = TextMuted
+                                text = if (row.isTimePassed) "Available slot (past)" else "Available slot",
+                                fontSize = 13.sp,
+                                color = TextMuted.copy(alpha = 0.6f)
                             )
                         }
                     }
                 }
 
-                // Right Status / Quick Action
-                if (hasTask && row.slot != null) {
-                    val statusColor = when (row.slot.status) {
-                        SlotStatus.DONE -> StatusDone
-                        SlotStatus.PARTIAL -> StatusPartial
-                        SlotStatus.MISSED -> StatusMissed
-                        SlotStatus.PENDING -> StatusPending
-                    }
-
-                    Surface(
-                        modifier = Modifier.clickable { onStatusClick(row.slot) },
-                        color = statusColor.copy(alpha = 0.18f),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = row.slot.status.displayName,
-                            color = statusColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
+                // Right Status Chip / Action Button
+                if (hasTask) {
+                    StatusChip(
+                        status = row.slot.status,
+                        onClick = { onStatusClick(row.slot) }
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StatusChip(
+    status: SlotStatus,
+    onClick: () -> Unit
+) {
+    val (bgColor, textColor, text) = when (status) {
+        SlotStatus.DONE -> Triple(StatusDone.copy(alpha = 0.2f), StatusDone, "Done")
+        SlotStatus.PARTIAL -> Triple(StatusPartial.copy(alpha = 0.2f), StatusPartial, "Partial")
+        SlotStatus.MISSED -> Triple(StatusMissed.copy(alpha = 0.2f), StatusMissed, "Missed")
+        SlotStatus.PENDING -> Triple(StatusPending.copy(alpha = 0.15f), StatusPending, "Pending")
+    }
+
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        color = bgColor,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }

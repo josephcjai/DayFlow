@@ -316,44 +316,75 @@ fun TaskEditorBottomSheet(
             ) {
                 StatusChip(SlotStatus.DONE, StatusDone, selectedStatus == SlotStatus.DONE, Modifier.weight(1f)) {
                     selectedStatus = SlotStatus.DONE
+                    if (actualDuration == 0) actualDuration = 30
                 }
                 StatusChip(SlotStatus.PARTIAL, StatusPartial, selectedStatus == SlotStatus.PARTIAL, Modifier.weight(1f)) {
                     selectedStatus = SlotStatus.PARTIAL
+                    if (actualDuration == 0 || actualDuration == 30) actualDuration = 15
                 }
                 StatusChip(SlotStatus.MISSED, StatusMissed, selectedStatus == SlotStatus.MISSED, Modifier.weight(1f)) {
                     selectedStatus = SlotStatus.MISSED
+                    actualDuration = 0
                 }
                 StatusChip(SlotStatus.PENDING, StatusPending, selectedStatus == SlotStatus.PENDING, Modifier.weight(1f)) {
                     selectedStatus = SlotStatus.PENDING
+                    actualDuration = 0
                 }
             }
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // 5. ACTUAL DURATION (Mins)
+            // 5. ACTUAL DURATION (Mins - Max 30m per slot)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Actual Duration",
+                    text = "Actual Duration (Max 30m)",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextSecondary
                 )
                 Text(
-                    text = "${actualDuration} mins",
+                    text = "${actualDuration}m / 30m",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = DayFlowPrimary
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(0, 15, 20, 25, 30).forEach { mins ->
+                    val isSelected = actualDuration == mins
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { actualDuration = mins },
+                        color = if (isSelected) DayFlowPrimary.copy(alpha = 0.2f) else SurfaceElevated,
+                        shape = RoundedCornerShape(8.dp),
+                        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, DayFlowPrimary) else null
+                    ) {
+                        Text(
+                            text = "${mins}m",
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) DayFlowPrimary else TextSecondary,
+                            modifier = Modifier.padding(vertical = 6.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             Slider(
-                value = actualDuration.toFloat(),
-                onValueChange = { actualDuration = (it / 5).toInt() * 5 },
-                valueRange = 0f..120f,
-                steps = 23,
+                value = actualDuration.coerceIn(0, 30).toFloat(),
+                onValueChange = { actualDuration = ((it / 5).toInt() * 5).coerceIn(0, 30) },
+                valueRange = 0f..30f,
+                steps = 5,
                 colors = SliderDefaults.colors(
                     thumbColor = DayFlowPrimary,
                     activeTrackColor = DayFlowPrimary,

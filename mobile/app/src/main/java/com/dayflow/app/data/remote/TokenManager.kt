@@ -9,17 +9,18 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class TokenManager @Inject constructor(
-    @ApplicationContext private val context: Context
+open class TokenManager @Inject constructor(
+    @ApplicationContext private val context: Context?
 ) {
     private val prefs: SharedPreferences by lazy {
+        val ctx = context ?: throw IllegalStateException("Context required for SharedPreferences")
         try {
-            val masterKey = MasterKey.Builder(context)
+            val masterKey = MasterKey.Builder(ctx)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
 
             EncryptedSharedPreferences.create(
-                context,
+                ctx,
                 PREFS_FILENAME,
                 masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
@@ -27,43 +28,43 @@ class TokenManager @Inject constructor(
             )
         } catch (e: Exception) {
             // Fallback for emulators or devices without Keystore support in dev
-            context.getSharedPreferences(FALLBACK_PREFS, Context.MODE_PRIVATE)
+            ctx.getSharedPreferences(FALLBACK_PREFS, Context.MODE_PRIVATE)
         }
     }
 
-    fun saveToken(token: String) {
+    open fun saveToken(token: String) {
         prefs.edit().putString(KEY_TOKEN, token).apply()
     }
 
-    fun getToken(): String? {
+    open fun getToken(): String? {
         return prefs.getString(KEY_TOKEN, null)
     }
 
-    fun clearToken() {
+    open fun clearToken() {
         prefs.edit().remove(KEY_TOKEN).apply()
     }
 
-    fun saveUserEmail(email: String) {
+    open fun saveUserEmail(email: String) {
         prefs.edit().putString(KEY_USER_EMAIL, email).apply()
     }
 
-    fun getUserEmail(): String? {
+    open fun getUserEmail(): String? {
         return prefs.getString(KEY_USER_EMAIL, null)
     }
 
-    fun saveDisplayName(name: String) {
+    open fun saveDisplayName(name: String) {
         prefs.edit().putString(KEY_DISPLAY_NAME, name).apply()
     }
 
-    fun getDisplayName(): String? {
+    open fun getDisplayName(): String? {
         return prefs.getString(KEY_DISPLAY_NAME, null)
     }
 
-    fun setDemoMode(isDemo: Boolean) {
+    open fun setDemoMode(isDemo: Boolean) {
         prefs.edit().putBoolean(KEY_IS_DEMO, isDemo).apply()
     }
 
-    fun isDemoMode(): Boolean {
+    open fun isDemoMode(): Boolean {
         return prefs.getBoolean(KEY_IS_DEMO, false)
     }
 
