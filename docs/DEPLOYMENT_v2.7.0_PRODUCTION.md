@@ -8,7 +8,7 @@
 | **Domain** | `https://dayflowlive.com` and `https://www.dayflowlive.com` |
 | **Coexisting Application** | **HelpFinder4U** (`hf-web`, `hf-api`, `helpfinder_db`) — **DO NOT TOUCH** |
 | **Current Production Version** | `v2.6.0` (Commit `21b96d5`) |
-| **Target Release Version** | **`v2.7.0`** (Commit `c28e3f9`) |
+| **Target Release Version** | **`v2.7.0`** |
 | **Target Git Tag** | **`v2.7.0`** on branch `main` |
 | **Deployment Type** | In-place zero-downtime upgrade (Additive DB Migration + API Rebuild + PM2 Graceful Reload + Cache Invalidation) |
 | **Database Migration** | **YES** (Additive Step 5: `user_day_templates` table + index; zero lock contention) |
@@ -56,11 +56,11 @@
 
 ## 2. Pre-Deployment Tag & Repository Verification
 
-The certified release tag `v2.7.0` has been pushed to GitHub. Deployment engineers should verify the commit boundary before proceeding:
+The certified release tag `v2.7.0` has been pushed to GitHub. Deployment engineers can verify either by tag or directly by commit hash:
 
 ```bash
 # Verify tag commit
-git rev-parse v2.7.0^{commit}
+git rev-parse "v2.7.0^{commit}"
 # (Resolves to the certified release commit on branch main)
 
 # Inspect release commit summary
@@ -134,8 +134,11 @@ git log -1 --oneline
 # Fetch latest tags and commits from GitHub origin
 git fetch --tags origin
 
-# Checkout the certified v2.7.0 production release tag
+# Option A (Standard): Checkout the certified v2.7.0 production release tag
 git checkout v2.7.0
+
+# Option B (Immutable Commit): Alternatively checkout the verified commit hash directly
+# git checkout $(git rev-parse "v2.7.0^{commit}")
 ```
 
 Verify that the working tree is cleanly on `v2.7.0`:
@@ -340,6 +343,7 @@ Target Environment:  AWS Lightsail (13.200.154.214) / dayflowlive.com
 Target Release Tag:  v2.7.0
 Pre-Deploy Status:   All services healthy (HelpFinder4U & DayFlow online)
 Git Checkout Tag:    v2.7.0 confirmed (git describe --tags -> v2.7.0)
+Commit SHA:          Confirmed via git rev-parse "v2.7.0^{commit}"
 DB Migration:        npm run migrate passed (user_day_templates table verified)
 API Build Status:    tsc build successful (dayflow-server@2.7.0)
 PM2 Reload:          dayflow-api reloaded, 0 errors, online
