@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:name=".DayFlowApp"
@@ -32,6 +34,25 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".presentation.widget.DayFlowWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dayflow_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".notification.SlotAlertReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.dayflow.app.ACTION_SLOT_REMINDER" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

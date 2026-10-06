@@ -45,6 +45,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.ui.platform.LocalContext
+import com.dayflow.app.presentation.widget.DayFlowWidgetReceiver
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
@@ -70,6 +75,26 @@ import com.dayflow.app.presentation.theme.TextSecondary
 import com.dayflow.app.presentation.todos.TodosScreen
 import com.dayflow.app.presentation.todos.TodosViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.core.content.ContextCompat
+import com.dayflow.app.notification.SlotNotificationScheduler
+import com.dayflow.app.presentation.util.BiometricHelper
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -136,7 +161,41 @@ fun DashboardScreen(
     onLogout: () -> Unit
 ) {
     val authState by authViewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity
     var selectedNavIndex by remember { mutableIntStateOf(0) } // 0 = Schedule, 1 = Habits, 2 = Todos
+
+    val hasBiometrics = remember { BiometricHelper.isBiometricAvailable(context) }
+    var isUnlocked by rememberSaveable { mutableStateOf(!hasBiometrics) }
+    var biometricError by remember { mutableStateOf<String?>(null) }
+
+    // Request notification permission and start slot boundary scheduler
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        SlotNotificationScheduler.scheduleNextReminder(context)
+
+        // Trigger biometric prompt on entry if locked
+        if (hasBiometrics && !isUnlocked && activity != null) {
+            BiometricHelper.authenticate(
+                activity = activity,
+                onSuccess = {
+                    isUnlocked = true
+                    biometricError = null
+                },
+                onError = { err ->
+                    biometricError = err
+                }
+            )
+        }
+    }
 
     Scaffold(
         modifier = Modifier
@@ -200,8 +259,74 @@ fun DashboardScreen(
                             )
                         }
 
+                        if (hasBiometrics) {
+                            Surface(
+                                modifier = Modifier.clickable {
+                                    isUnlocked = false
+                                },
+                                color = SurfaceElevated,
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, TextMuted.copy(alpha = 0.3f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Lock App",
+                                        tint = DayFlowSecondary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Lock",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = DayFlowSecondary
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
                         Surface(
-                            modifier = Modifier.clickable { onLogout() },
+                            modifier = Modifier.clickable {
+                                val appWidgetManager = AppWidgetManager.getInstance(context)
+                                val myProvider = ComponentName(context, DayFlowWidgetReceiver::class.java)
+                                if (appWidgetManager.isRequestPinAppWidgetSupported) {
+                                    appWidgetManager.requestPinAppWidget(myProvider, null, null)
+                                }
+                            },
+                            color = SurfaceElevated,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, TextMuted.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Widgets,
+                                    contentDescription = "Pin Widget",
+                                    tint = DayFlowPrimary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Widget",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DayFlowPrimary
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            modifier = Modifier.clickable {
+                                SlotNotificationScheduler.cancelReminder(context)
+                                onLogout()
+                            },
                             color = SurfaceElevated,
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, TextMuted.copy(alpha = 0.3f))
@@ -293,6 +418,101 @@ fun DashboardScreen(
                 0 -> ScheduleTimelineScreen(viewModel = scheduleViewModel)
                 1 -> HabitsScreen(viewModel = habitsViewModel)
                 2 -> TodosScreen(viewModel = todosViewModel)
+            }
+
+            // Biometric Quick-Resume Lock Overlay
+            if (hasBiometrics && !isUnlocked) {
+                Surface(
+                    color = BackgroundDark.copy(alpha = 0.98f),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Surface(
+                            color = DayFlowPrimary.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier.size(80.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Fingerprint,
+                                    contentDescription = "Biometrics",
+                                    tint = DayFlowPrimary,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Text(
+                            text = "DayFlow Quick Resume",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Confirm biometric credentials or screen lock to access your schedule.",
+                            fontSize = 14.sp,
+                            color = TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+
+                        if (biometricError != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = biometricError ?: "",
+                                fontSize = 12.sp,
+                                color = DayFlowSecondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        Button(
+                            onClick = {
+                                if (activity != null) {
+                                    BiometricHelper.authenticate(
+                                        activity = activity,
+                                        onSuccess = {
+                                            isUnlocked = true
+                                            biometricError = null
+                                        },
+                                        onError = { err ->
+                                            biometricError = err
+                                        }
+                                    )
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Text("Unlock DayFlow", fontWeight = FontWeight.Bold, color = BackgroundDark)
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                SlotNotificationScheduler.cancelReminder(context)
+                                onLogout()
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Text("Log Out", color = DayFlowSecondary)
+                        }
+                    }
+                }
             }
         }
     }

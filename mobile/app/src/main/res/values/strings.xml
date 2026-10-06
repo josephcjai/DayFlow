@@ -2,4 +2,5 @@
     <string name="app_name">DayFlow</string>
     <string name="app_tagline">Focus-Driven Daily Schedule &amp; Habit Enforcement</string>
     <string name="baseline_locked_badge">Baseline plan locked</string>
+    <string name="widget_description">Current 30-minute time block and quick status logger.</string>
 </resources>

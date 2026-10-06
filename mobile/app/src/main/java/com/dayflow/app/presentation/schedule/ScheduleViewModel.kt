@@ -26,6 +26,10 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
+import android.content.Context
+import androidx.glance.appwidget.updateAll
+import com.dayflow.app.presentation.widget.DayFlowWidget
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 data class SlotRowUiModel(
     val slotKey: String,
@@ -55,7 +59,8 @@ class ScheduleViewModel @Inject constructor(
     private val saveSlotUseCase: SaveSlotUseCase,
     private val deleteSlotUseCase: DeleteSlotUseCase,
     private val scheduleRepository: ScheduleRepository,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScheduleUiState())
@@ -169,6 +174,13 @@ class ScheduleViewModel @Inject constructor(
                 editingSlotKey = null,
                 errorMessage = null
             )
+        }
+        viewModelScope.launch {
+            try {
+                DayFlowWidget().updateAll(context)
+            } catch (e: Exception) {
+                // Ignore if no widget placed
+            }
         }
     }
 

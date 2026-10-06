@@ -85,6 +85,16 @@ object DateTimeUtils {
         return slotKeys
     }
 
+    /**
+     * Computes the slot key for the current 30-minute block based on LocalDateTime.now().
+     * e.g. 20:15 -> 20:00, 20:45 -> 20:30
+     */
+    fun getCurrentSlotKey(now: LocalDateTime = LocalDateTime.now()): String {
+        val minute = if (now.minute < 30) 0 else 30
+        val slotTime = LocalTime.of(now.hour, minute)
+        return formatSlotKey(now.toLocalDate(), slotTime)
+    }
+
     fun generateWeekDays(monday: LocalDate): List<LocalDate> {
         return (0L..6L).map { monday.plusDays(it) }
     }
