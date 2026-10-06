@@ -72,8 +72,29 @@ export const DEFAULT_SETTINGS = {
   notificationTone: 'chime', // 'chime', 'bell', 'ping', 'marimba'
   notifyLeadMinutes: 2, // 0, 1, 2, 5
   notifySlotEnd: true,
-  dayTemplates: DEFAULT_DAY_TEMPLATES
+  dayTemplates: DEFAULT_DAY_TEMPLATES,
+  productiveCategories: ['Work', 'Learning']
 };
+
+export const AVAILABLE_CATEGORIES = [
+  { id: 'Work', name: 'Work / Job Tasks', icon: '💼' },
+  { id: 'Learning', name: 'Learning (Tech/Skills)', icon: '📚' },
+  { id: 'Health', name: 'Health & Meals', icon: '🏃' },
+  { id: 'Household', name: 'Household & Chores', icon: '🧹' },
+  { id: 'Family', name: 'Family & Personal', icon: '👨‍👩‍👧' },
+  { id: 'Travel', name: 'Travel & Commute', icon: '✈️' },
+  { id: 'General', name: 'General', icon: '📌' }
+];
+
+export function isSlotProductive(slot, userSettings = USER_SETTINGS) {
+  if (!slot) return false;
+  if (typeof slot.isProductive === 'boolean') {
+    return slot.isProductive;
+  }
+  const prodCats = userSettings?.productiveCategories || ['Work', 'Learning'];
+  const cat = slot.category || 'General';
+  return prodCats.includes(cat);
+}
 
 export let USER_SETTINGS = { ...DEFAULT_SETTINGS };
 let onSettingsChangedCallback = null;
@@ -96,7 +117,8 @@ export function loadUserSettings() {
       USER_SETTINGS = {
         ...DEFAULT_SETTINGS,
         ...parsed,
-        dayTemplates: Array.isArray(parsed.dayTemplates) ? parsed.dayTemplates : JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES))
+        dayTemplates: Array.isArray(parsed.dayTemplates) ? parsed.dayTemplates : JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES)),
+        productiveCategories: Array.isArray(parsed.productiveCategories) ? parsed.productiveCategories : ['Work', 'Learning']
       };
     } else {
       USER_SETTINGS = { ...DEFAULT_SETTINGS, dayTemplates: JSON.parse(JSON.stringify(DEFAULT_DAY_TEMPLATES)) };
@@ -302,6 +324,51 @@ export function initSettingsUI(domElements, renderAllCallback) {
     accentPills.forEach(pill => {
       pill.classList.toggle('active', pill.dataset.accent === USER_SETTINGS.accentColor);
     });
+
+    renderProductiveCategoryPills();
+  };
+
+  const productivePillsContainer = document.getElementById('settingsProductiveCategoriesPills');
+
+  const renderProductiveCategoryPills = () => {
+    if (!productivePillsContainer) return;
+    productivePillsContainer.innerHTML = '';
+    const activeCats = USER_SETTINGS.productiveCategories || ['Work', 'Learning'];
+
+    AVAILABLE_CATEGORIES.forEach(cat => {
+      const isSelected = activeCats.includes(cat.id);
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = `prod-cat-pill ${isSelected ? 'active' : ''}`;
+      pill.dataset.category = cat.id;
+      pill.title = isSelected
+        ? `${cat.name} is counted as productive work (Click to toggle)`
+        : `${cat.name} is standard work (Click to mark as productive)`;
+      pill.innerHTML = `
+        <span class="prod-cat-icon">${cat.icon}</span>
+        <span class="prod-cat-name">${cat.id}</span>
+        <span class="prod-cat-badge">${isSelected ? '⚡ Productive' : 'Standard'}</span>
+      `;
+
+      pill.addEventListener('click', () => {
+        let currentList = [...(USER_SETTINGS.productiveCategories || ['Work', 'Learning'])];
+        if (currentList.includes(cat.id)) {
+          currentList = currentList.filter(c => c !== cat.id);
+          showToast(`${cat.id} removed from productive categories`, 'info');
+        } else {
+          currentList.push(cat.id);
+          showToast(`${cat.id} marked as productive`, 'success');
+        }
+        USER_SETTINGS.productiveCategories = currentList;
+        saveUserSettings({ productiveCategories: currentList });
+        renderProductiveCategoryPills();
+        if (onSettingsChangedCallback) {
+          onSettingsChangedCallback();
+        }
+      });
+
+      productivePillsContainer.appendChild(pill);
+    });
   };
 
   syncInputsToState();
@@ -420,7 +487,8 @@ export function initSettingsUI(domElements, renderAllCallback) {
         notificationVolume: parseInt(notifVolumeSlider?.value, 10) || 70,
         notificationTone: notifToneSelect?.value || 'chime',
         notifyLeadMinutes: parseInt(notifLeadTimeSelect?.value, 10) || 0,
-        notifySlotEnd: !!notifSlotEndToggle?.checked
+        notifySlotEnd: !!notifSlotEndToggle?.checked,
+        productiveCategories: USER_SETTINGS.productiveCategories || ['Work', 'Learning']
       };
 
       saveUserSettings(updated);
@@ -444,6 +512,7 @@ export function initSettingsUI(domElements, renderAllCallback) {
         USER_SETTINGS = { ...DEFAULT_SETTINGS };
         saveUserSettings(USER_SETTINGS);
         syncInputsToState();
+        renderProductiveCategoryPills();
         updateNotificationBellUI();
         applySettings(USER_SETTINGS, onSettingsChangedCallback);
 

@@ -26,7 +26,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 
     // Query PostgreSQL filtered strictly by user_id
     const resPg = await executeQuery(
-      `SELECT s.slot_key, s.planned_task, s.actual_task, s.category, s.planned_duration, s.actual_duration, s.status, s.notes 
+      `SELECT s.slot_key, s.planned_task, s.actual_task, s.category, s.planned_duration, s.actual_duration, s.status, s.notes, s.is_productive 
        FROM schedule_slots s
        JOIN schedule_weeks w ON s.week_id = w.id
        WHERE w.start_date = $1::date AND w.user_id = $2`,
@@ -43,7 +43,8 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
           planned: r.planned_duration,
           actual: r.actual_duration,
           status: r.status,
-          notes: r.notes
+          notes: r.notes,
+          ...(r.is_productive !== null && r.is_productive !== undefined ? { isProductive: r.is_productive } : {})
         };
       });
     } else {
@@ -64,7 +65,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 // Save or Update a 30-Minute Slot Task for authenticated user ONLY
 router.post('/slot', async (req: AuthenticatedRequest, res) => {
   try {
-    const { weekStart, slotKey, plannedTask, actualTask, category, planned, actual, status, notes } = req.body;
+    const { weekStart, slotKey, plannedTask, actualTask, category, planned, actual, status, notes, isProductive } = req.body;
     const userId = req.userId;
 
     if (!userId) {
@@ -91,7 +92,8 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
       planned: isNaN(parseInt(planned, 10)) ? 30 : parseInt(planned, 10),
       actual: actual !== undefined && !isNaN(parseInt(actual, 10)) ? parseInt(actual, 10) : 0,
       status: status || 'Pending',
-      notes: notes || ''
+      notes: notes || '',
+      ...(typeof isProductive === 'boolean' ? { isProductive } : {})
     };
 
     // 1. Ensure schedule_weeks row exists specifically for THIS user_id and weekStart
@@ -112,9 +114,10 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
 
     // 2. Insert or Update schedule_slots row
     if (weekId) {
+      const prodVal = typeof isProductive === 'boolean' ? isProductive : null;
       await executeQuery(
-        `INSERT INTO schedule_slots (week_id, slot_key, planned_task, actual_task, category, planned_duration, actual_duration, status, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO schedule_slots (week_id, slot_key, planned_task, actual_task, category, planned_duration, actual_duration, status, notes, is_productive)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (week_id, slot_key) DO UPDATE 
          SET planned_task = EXCLUDED.planned_task,
              actual_task = EXCLUDED.actual_task,
@@ -123,8 +126,9 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
              actual_duration = EXCLUDED.actual_duration,
              status = EXCLUDED.status,
              notes = EXCLUDED.notes,
+             is_productive = EXCLUDED.is_productive,
              updated_at = CURRENT_TIMESTAMP`,
-        [weekId, slotKey, slotObj.plannedTask, slotObj.actualTask, slotObj.category, slotObj.planned, slotObj.actual, slotObj.status, slotObj.notes]
+        [weekId, slotKey, slotObj.plannedTask, slotObj.actualTask, slotObj.category, slotObj.planned, slotObj.actual, slotObj.status, slotObj.notes, prodVal]
       );
     }
 

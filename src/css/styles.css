@@ -3433,6 +3433,65 @@ body {
   align-items: center;
 }
 
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+  margin-top: 1.25rem;
+}
+
+.settings-section-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section-icon {
+  font-size: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.settings-section-header-text h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.settings-section-header-text p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0.2rem 0 0 0;
+}
+
+.settings-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.settings-section-grid .settings-card {
+  height: 100%;
+  box-sizing: border-box;
+}
+
 .settings-grid-layout {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
@@ -4579,7 +4638,8 @@ body.theme-light .bulk-cat-item:hover {
     gap: 1.25rem;
   }
 
-  .settings-grid-layout {
+  .settings-grid-layout,
+  .settings-section-grid {
     grid-template-columns: 1fr !important;
   }
 }
@@ -5704,4 +5764,161 @@ body.theme-light .bulk-cat-item:hover {
   background: rgba(245, 158, 11, 0.15);
   color: #f59e0b;
 }
+
+/* ==========================================================================
+   WORK EFFECTIVENESS & PRODUCTIVE WORK CLASSIFICATION
+   ========================================================================== */
+
+.stat-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+#taskProductiveGroup {
+  margin-top: -0.25rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.productive-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.custom-toggle-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #f59e0b;
+  cursor: pointer;
+}
+
+.productive-toggle-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.task-field-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: 1.85rem;
+}
+
+/* Productive Category Pills in Settings */
+.productive-categories-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.prod-cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+}
+
+.prod-cat-pill:hover {
+  background: var(--bg-hover, var(--bg-secondary));
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.prod-cat-pill.active {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.12);
+}
+
+.prod-cat-icon {
+  font-size: 1.05rem;
+}
+
+.prod-cat-name {
+  font-size: 0.85rem;
+}
+
+.prod-cat-badge {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.prod-cat-pill.active .prod-cat-badge {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #fbbf24;
+}
+
+.prod-cat-badge-pill {
+  font-size: 0.68rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  font-weight: 600;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+/* Slot Card Productive Indicator */
+.slot-prod-icon {
+  font-size: 0.72rem;
+  color: #f59e0b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.5));
+  margin-left: 2px;
+  cursor: help;
+}
+
+/* Bulk Action Bar Productive Toggle */
+.bulk-btn-productive {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.bulk-btn-productive:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #fef3c7;
+}
+
 

@@ -5,6 +5,7 @@
 import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected } from './state.js?v=2.9.22';
 import { openTaskModal } from './modal.js?v=2.9.22';
 import { escapeHtml } from './utils.js?v=2.9.22';
+import { isSlotProductive } from './settings.js?v=2.9.22';
 
 export const TIME_SLOTS = [];
 
@@ -398,6 +399,7 @@ function renderWeekGridBody(scheduleTableBody) {
         const statusIcon = getStatusIcon(slotData.status);
         const catName = slotData.category || 'General';
         const escapedCat = escapeHtml(catName);
+        const isProd = isSlotProductive(slotData);
         
         const plannedText = slotData.plannedTask || slotData.title || '';
         const actualText = slotData.actualTask || slotData.title || plannedText;
@@ -419,6 +421,7 @@ function renderWeekGridBody(scheduleTableBody) {
             ${isDifferent ? `<div class="planned-subtext">Plan: ${escapeHtml(plannedText)}</div>` : ''}
             <div class="slot-footer-row">
               <span class="category-tag ${escapedCat}">${escapedCat}</span>
+              ${isProd ? '<span class="slot-prod-icon" title="Marked as Productive (High-Impact Work)">⚡</span>' : ''}
               <span class="time-dur-badge">${slotData.planned || 30}m | <strong class="actual-time-badge inline-editable" data-slot-key="${slotKey}" title="Click to edit actual duration">${slotData.actual !== undefined ? slotData.actual : 0}m</strong></span>
             </div>
           </div>
@@ -543,6 +546,7 @@ function renderDayGridBody(scheduleTableBody) {
       const escapedCat = escapeHtml(catName);
       const plannedText = slotData.plannedTask || slotData.title || '';
       const actualText = slotData.actualTask || slotData.title || plannedText;
+      const isProd = isSlotProductive(slotData);
 
       td.innerHTML = `
         <div class="slot-content day-view-content">
@@ -562,6 +566,7 @@ function renderDayGridBody(scheduleTableBody) {
           ${slotData.notes ? `<div class="slot-notes-preview">📝 ${escapeHtml(slotData.notes)}</div>` : ''}
           <div class="slot-footer-row">
             <span class="category-tag ${escapedCat}">${escapedCat}</span>
+            ${isProd ? '<span class="slot-prod-icon" title="Marked as Productive (High-Impact Work)">⚡</span>' : ''}
             <span class="time-dur-badge">Planned: ${slotData.planned || 30}m | <strong class="actual-time-badge inline-editable" data-slot-key="${slotKey}" title="Click to edit actual duration">Actual: ${slotData.actual !== undefined ? slotData.actual : 0}m</strong></span>
           </div>
         </div>
