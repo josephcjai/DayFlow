@@ -66,7 +66,8 @@ function sanitizeSlots(rawSlots: any): Record<string, any> {
       plannedTask: title,
       category: String(s.category || 'General').trim().slice(0, 50),
       planned: 30,
-      notes: s.notes ? String(s.notes).slice(0, 500) : ''
+      notes: s.notes ? String(s.notes).slice(0, 500) : '',
+      ...(typeof s.isProductive === 'boolean' ? { isProductive: s.isProductive } : {})
     };
   }
   return cleaned;

@@ -7,6 +7,7 @@
  */
 import { getCurrentWeekData, STATE, getWeekDates, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.22';
 import { escapeHtml, getPriorityPoints } from './utils.js?v=2.9.22';
+import { USER_SETTINGS, isSlotProductive } from './settings.js?v=2.9.22';
 
 const CATEGORIES = [
   { id: 'Learning', name: 'Learning (WPF/WCF/React/Angular)', color: 'var(--cat-learning)' },
@@ -29,8 +30,13 @@ export function renderAnalytics(
   habitDailyTrendContainer,
   analyticsSubtitle,
   analyticsTrendHeading,
-  analyticsTrendSubtitle
+  analyticsTrendSubtitle,
+  statEffectiveness,
+  statEffectivenessSub
 ) {
+  const elEffectiveness = statEffectiveness || document.getElementById('statEffectiveness');
+  const elEffectivenessSub = statEffectivenessSub || document.getElementById('statEffectivenessSub');
+
   const viewMode = STATE.scheduleViewMode || 'week';
   const selDate = STATE.selectedDate || new Date();
   const selDateISO = formatDateISO(selDate);
@@ -124,29 +130,44 @@ export function renderAnalytics(
 
   let grandPlannedMins = 0;
   let grandActualMins = 0;
+  let grandProductiveActualMins = 0;
 
   Object.values(targetSlots).forEach(slot => {
     const cat = slot.category || 'General';
     if (!categoryTotals[cat]) {
       categoryTotals[cat] = { plannedMins: 0, actualMins: 0, color: 'var(--cat-general)', name: cat };
     }
-    categoryTotals[cat].plannedMins += (slot.planned || 30);
-    categoryTotals[cat].actualMins += (slot.actual || 0);
+    const pMins = (slot.planned || 30);
+    const aMins = (slot.actual || 0);
 
-    grandPlannedMins += (slot.planned || 30);
-    grandActualMins += (slot.actual || 0);
+    categoryTotals[cat].plannedMins += pMins;
+    categoryTotals[cat].actualMins += aMins;
+
+    grandPlannedMins += pMins;
+    grandActualMins += aMins;
+
+    if (isSlotProductive(slot)) {
+      grandProductiveActualMins += aMins;
+    }
   });
 
   const plannedHrs = (grandPlannedMins / 60).toFixed(1);
   const actualHrs = (grandActualMins / 60).toFixed(1);
+  const productiveHrs = (grandProductiveActualMins / 60).toFixed(1);
   const score = grandPlannedMins > 0 ? Math.min(100, Math.round((grandActualMins / grandPlannedMins) * 100)) : 0;
+  const effectivenessScore = grandActualMins > 0 ? Math.min(100, Math.round((grandProductiveActualMins / grandActualMins) * 100)) : 0;
 
   if (statPlannedHours) statPlannedHours.textContent = `${plannedHrs} hrs`;
   if (statActualHours) statActualHours.textContent = `${actualHrs} hrs`;
   if (statScore) statScore.textContent = `${score}%`;
 
+  if (elEffectiveness) elEffectiveness.textContent = `${effectivenessScore}%`;
+  if (elEffectivenessSub) elEffectivenessSub.textContent = `${productiveHrs}h of ${actualHrs}h logged`;
+
   if (categoryBarsContainer) {
     categoryBarsContainer.innerHTML = '';
+    const activeProdCats = USER_SETTINGS?.productiveCategories || ['Work', 'Learning'];
+
     Object.keys(categoryTotals).forEach(catId => {
       const data = categoryTotals[catId];
       if (data.plannedMins === 0 && data.actualMins === 0) return;
@@ -154,12 +175,16 @@ export function renderAnalytics(
       const pVal = (data.plannedMins / 60).toFixed(1);
       const aVal = (data.actualMins / 60).toFixed(1);
       const pct = data.plannedMins > 0 ? Math.min(100, Math.round((data.actualMins / data.plannedMins) * 100)) : 0;
+      const isProductiveCat = activeProdCats.includes(catId);
+      const prodBadgeHtml = isProductiveCat
+        ? '<span class="prod-cat-badge-pill" title="Default productive category">⚡ High Impact</span>'
+        : '';
 
       const item = document.createElement('div');
       item.className = 'cat-bar-item';
       item.innerHTML = `
         <div class="cat-bar-header">
-          <span><strong style="color: ${data.color}">■</strong> ${data.name}</span>
+          <span><strong style="color: ${data.color}">■</strong> ${data.name}${prodBadgeHtml}</span>
           <span>Planned: ${pVal}h | <strong>Actual: ${aVal}h</strong> (${pct}%)</span>
         </div>
         <div class="progress-track">

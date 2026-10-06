@@ -36,7 +36,7 @@ import { initModal, openTaskModal } from './modal.js?v=2.9.22';
 import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.22';
 import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.22';
 import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.22';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi } from './settings.js?v=2.9.22';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive } from './settings.js?v=2.9.22';
 import { showToast } from './utils.js?v=2.9.22';
 import {
   initNotificationEngine,
@@ -100,6 +100,8 @@ function cacheDomElements() {
   DOM.statPlannedHours = document.getElementById('statPlannedHours');
   DOM.statActualHours = document.getElementById('statActualHours');
   DOM.statScore = document.getElementById('statScore');
+  DOM.statEffectiveness = document.getElementById('statEffectiveness');
+  DOM.statEffectivenessSub = document.getElementById('statEffectivenessSub');
   DOM.statHabitPoints = document.getElementById('statHabitPoints');
   DOM.categoryBarsContainer = document.getElementById('categoryBarsContainer');
   DOM.habitTotalActionsCount = document.getElementById('habitTotalActionsCount');
@@ -180,6 +182,8 @@ function cacheDomElements() {
     plannedLockMsg: document.getElementById('plannedLockMsg'),
     taskCategorySelect: document.getElementById('taskCategorySelect'),
     taskStatusSelect: document.getElementById('taskStatusSelect'),
+    taskIsProductiveInput: document.getElementById('taskIsProductiveInput'),
+    taskProductiveHint: document.getElementById('taskProductiveHint'),
     plannedDurationInput: document.getElementById('plannedDurationInput'),
     actualDurationInput: document.getElementById('actualDurationInput'),
     taskNotesInput: document.getElementById('taskNotesInput'),
@@ -2265,7 +2269,9 @@ function renderAll() {
       DOM.habitDailyTrendContainer,
       DOM.analyticsSubtitle,
       DOM.analyticsTrendHeading,
-      DOM.analyticsTrendSubtitle
+      DOM.analyticsTrendSubtitle,
+      DOM.statEffectiveness,
+      DOM.statEffectivenessSub
     );
   }
   if (STATE.activeView === 'notes') renderNotes(DOM.todoList, DOM.weeklyNotesTextarea, renderAll);
@@ -3047,6 +3053,7 @@ function initBulkActionsUI() {
   const bulkMarkDoneBtn = document.getElementById('bulkMarkDoneBtn');
   const bulkMarkInProgressBtn = document.getElementById('bulkMarkInProgressBtn');
   const bulkMarkPendingBtn = document.getElementById('bulkMarkPendingBtn');
+  const bulkToggleProductiveBtn = document.getElementById('bulkToggleProductiveBtn');
   const bulkCategoryBtn = document.getElementById('bulkCategoryBtn');
   const bulkCategoryMenu = document.getElementById('bulkCategoryMenu');
   const bulkAssignTaskBtn = document.getElementById('bulkAssignTaskBtn');
@@ -3091,6 +3098,14 @@ function initBulkActionsUI() {
     bulkMarkPendingBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await handleBulkStatusChange('Pending');
+    });
+  }
+
+  // Productive toggle
+  if (bulkToggleProductiveBtn) {
+    bulkToggleProductiveBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await handleBulkToggleProductive();
     });
   }
 
@@ -3387,6 +3402,83 @@ async function handleBulkCategoryChange(newCategory) {
   );
 
   showToast(`🏷️ Set category to "${newCategory}" for ${updatedCount} slots`, 'success');
+}
+
+async function handleBulkToggleProductive() {
+  const selectedKeys = getSelectedSlotKeys();
+  if (!selectedKeys || selectedKeys.length === 0) return;
+
+  const affectedSlots = [];
+  const previousSlotsSnapshot = {};
+  const newSlotsSnapshot = {};
+
+  // Check how many currently productive
+  let productiveCount = 0;
+  for (const slotKey of selectedKeys) {
+    const weekKey = getSlotWeekKey(slotKey);
+    const existing = STATE.scheduleData[weekKey]?.slots?.[slotKey];
+    if (existing && isSlotProductive(existing)) {
+      productiveCount++;
+    }
+  }
+
+  // If majority are productive, toggle them to standard (false); else mark productive (true)
+  const targetProductive = productiveCount <= selectedKeys.length / 2;
+
+  for (const slotKey of selectedKeys) {
+    const weekKey = getSlotWeekKey(slotKey);
+    if (!STATE.scheduleData[weekKey]) {
+      STATE.scheduleData[weekKey] = { slots: {}, habits: [], todos: [], notes: '', noteSheets: [] };
+    }
+    const weekData = STATE.scheduleData[weekKey];
+    const existing = weekData.slots[slotKey];
+    const base = existing ? JSON.parse(JSON.stringify(existing)) : {
+      plannedTask: 'Task',
+      actualTask: 'Task',
+      category: 'General',
+      status: 'Pending',
+      planned: 30,
+      actual: 30,
+      notes: ''
+    };
+
+    const updated = {
+      ...base,
+      isProductive: targetProductive
+    };
+
+    affectedSlots.push({ weekKey, slotKey });
+    previousSlotsSnapshot[slotKey] = existing ? JSON.parse(JSON.stringify(existing)) : null;
+    newSlotsSnapshot[slotKey] = JSON.parse(JSON.stringify(updated));
+
+    weekData.slots[slotKey] = updated;
+    markSlotPendingSave(weekKey, slotKey, updated);
+  }
+
+  recordUndoAction({
+    type: 'bulk_edit',
+    affectedSlots,
+    previousSlotsSnapshot,
+    newSlotsSnapshot,
+    label: targetProductive ? 'Marked Productive (⚡)' : 'Marked Standard'
+  });
+
+  saveStateToStorage();
+  renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
+  renderAnalytics(DOM.statPlannedHours, DOM.statActualHours, DOM.statScore, DOM.categoryBarsContainer);
+  updateBulkActionBar();
+
+  // Background API sync
+  Promise.allSettled(
+    affectedSlots.map(async ({ weekKey, slotKey }) => {
+      try {
+        const ok = await ApiClient.saveSlot(weekKey, slotKey, newSlotsSnapshot[slotKey]);
+        if (ok) clearSlotPendingSave(slotKey);
+      } catch (e) {}
+    })
+  );
+
+  showToast(`${targetProductive ? '⚡' : '📌'} Marked ${selectedKeys.length} slots as ${targetProductive ? 'Productive' : 'Standard'}`, 'success');
 }
 
 async function handleConfirmBulkAssign(taskName, category, targetKeys = null) {

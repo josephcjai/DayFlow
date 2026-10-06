@@ -72,6 +72,7 @@ export async function runMigrations() {
         actual_duration INT DEFAULT 0,
         status VARCHAR(20) DEFAULT 'Pending',
         notes TEXT,
+        is_productive BOOLEAN,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT unique_week_slot UNIQUE(week_id, slot_key)
       );
@@ -129,6 +130,7 @@ export async function runMigrations() {
     await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;");
     await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;");
     await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 1;");
+    await client.query("ALTER TABLE schedule_slots ADD COLUMN IF NOT EXISTS is_productive BOOLEAN;");
 
     // 4. Date validation constraints
     await client.query(`

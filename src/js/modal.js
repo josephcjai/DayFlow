@@ -5,9 +5,25 @@
 import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction, markSlotPendingSave, clearSlotPendingSave } from './state.js?v=2.9.22';
 import { ApiClient } from './apiClient.js?v=2.9.22';
 import { clearSlotSelection } from './grid.js?v=2.9.22';
+import { isSlotProductive, USER_SETTINGS } from './settings.js?v=2.9.22';
 
 let modalElements = {};
 let renderCallback = null;
+
+function updateModalProductiveHint() {
+  if (!modalElements.taskProductiveHint) return;
+  const currentCat = modalElements.taskCategorySelect ? modalElements.taskCategorySelect.value : 'General';
+  const prodCats = USER_SETTINGS?.productiveCategories || ['Work', 'Learning'];
+  const catIsDefault = prodCats.includes(currentCat);
+  const isExplicit = modalElements.taskIsProductiveInput?.dataset.userEdited === 'true';
+  const isChecked = !!modalElements.taskIsProductiveInput?.checked;
+
+  if (isExplicit) {
+    modalElements.taskProductiveHint.textContent = `Custom override: ${isChecked ? '⚡ Productive' : 'Standard'} (Default for ${currentCat} is ${catIsDefault ? 'Productive' : 'Standard'})`;
+  } else {
+    modalElements.taskProductiveHint.textContent = `Category default: ${catIsDefault ? '⚡ Productive' : 'Standard'}`;
+  }
+}
 
 export function initModal(elements, onSaveOrDelete) {
   modalElements = elements;
@@ -25,6 +41,23 @@ export function initModal(elements, onSaveOrDelete) {
   modalElements.actualTaskInput.addEventListener('input', () => {
     modalElements.actualTaskInput.dataset.userEdited = 'true';
   });
+
+  if (modalElements.taskCategorySelect) {
+    modalElements.taskCategorySelect.addEventListener('change', () => {
+      if (modalElements.taskIsProductiveInput && modalElements.taskIsProductiveInput.dataset.userEdited !== 'true') {
+        const prodCats = USER_SETTINGS?.productiveCategories || ['Work', 'Learning'];
+        modalElements.taskIsProductiveInput.checked = prodCats.includes(modalElements.taskCategorySelect.value);
+      }
+      updateModalProductiveHint();
+    });
+  }
+
+  if (modalElements.taskIsProductiveInput) {
+    modalElements.taskIsProductiveInput.addEventListener('change', () => {
+      modalElements.taskIsProductiveInput.dataset.userEdited = 'true';
+      updateModalProductiveHint();
+    });
+  }
 
   modalElements.closeModalBtn.addEventListener('click', closeModal);
   modalElements.taskModal.addEventListener('click', (e) => {
@@ -104,6 +137,17 @@ export function openTaskModal(slotKey, dayName, timeLabel, existingData) {
     modalElements.plannedDurationInput.value = Math.min(30, Math.max(5, parseInt(existingData.planned, 10) || 30));
     modalElements.actualDurationInput.value = existingData.actual !== undefined ? Math.min(30, Math.max(0, parseInt(existingData.actual, 10))) : 30;
     modalElements.taskNotesInput.value = existingData.notes || '';
+
+    if (modalElements.taskIsProductiveInput) {
+      if (typeof existingData.isProductive === 'boolean') {
+        modalElements.taskIsProductiveInput.checked = existingData.isProductive;
+        modalElements.taskIsProductiveInput.dataset.userEdited = 'true';
+      } else {
+        modalElements.taskIsProductiveInput.checked = isSlotProductive(existingData);
+        delete modalElements.taskIsProductiveInput.dataset.userEdited;
+      }
+      updateModalProductiveHint();
+    }
   } else {
     modalElements.modalTitle.textContent = 'Schedule 30-Min Time Slot';
     modalElements.plannedTaskInput.value = '';
@@ -113,6 +157,13 @@ export function openTaskModal(slotKey, dayName, timeLabel, existingData) {
     modalElements.plannedDurationInput.value = 30;
     modalElements.actualDurationInput.value = 30;
     modalElements.taskNotesInput.value = '';
+
+    if (modalElements.taskIsProductiveInput) {
+      const prodCats = USER_SETTINGS?.productiveCategories || ['Work', 'Learning'];
+      modalElements.taskIsProductiveInput.checked = prodCats.includes('Learning');
+      delete modalElements.taskIsProductiveInput.dataset.userEdited;
+      updateModalProductiveHint();
+    }
   }
 
   // Enforce Time-Lock Rule on Planned Task for past slots
@@ -163,6 +214,10 @@ async function saveSlotTask() {
     : (plannedTask || actualTask);
   const finalActualTask = actualTask || plannedTask;
 
+  const isProductiveVal = modalElements.taskIsProductiveInput
+    ? modalElements.taskIsProductiveInput.checked
+    : isSlotProductive({ category: modalElements.taskCategorySelect.value });
+
   const slotObject = {
     ...existing,
     plannedTask: finalPlannedTask,
@@ -171,6 +226,7 @@ async function saveSlotTask() {
     status: modalElements.taskStatusSelect.value || 'Pending',
     planned: Math.min(30, Math.max(5, parseInt(modalElements.plannedDurationInput.value, 10) || 30)),
     actual: modalElements.actualDurationInput.value !== '' ? Math.min(30, Math.max(0, parseInt(modalElements.actualDurationInput.value, 10) || 0)) : 30,
+    isProductive: isProductiveVal,
     notes: modalElements.taskNotesInput.value.trim()
   };
 

@@ -350,6 +350,14 @@
                 <span class="stat-value" id="statScore">0%</span>
               </div>
             </div>
+            <div class="stat-card" id="statEffectivenessCard" title="Work Effectiveness = (Productive Actual Logged Hours / Total Actual Logged Hours) × 100">
+              <div class="stat-icon">⚡</div>
+              <div class="stat-info">
+                <span class="stat-label">Work Effectiveness</span>
+                <span class="stat-value" id="statEffectiveness">0%</span>
+                <span class="stat-meta" id="statEffectivenessSub">0.0h of 0.0h logged</span>
+              </div>
+            </div>
             <div class="stat-card clickable-stat-card" id="statHabitPointsCard" title="Click to view detailed points bifurcation and audit trail">
               <div class="stat-icon">🏆</div>
               <div class="stat-info">
@@ -575,340 +583,416 @@
           </div>
         </div>
 
-        <div class="settings-grid-layout">
-          <!-- CARD 1: Schedule Grid & Timeline Window -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">🕒</span>
-              <div>
-                <h3>Schedule Grid & Timeline Window</h3>
-                <p class="settings-card-desc">Configure your active calendar hours and time display format.</p>
+        <div class="settings-container">
+          <!-- SECTION 1: Schedule & Productivity -->
+          <div class="settings-section-group">
+            <div class="settings-section-header">
+              <span class="settings-section-icon">⏱️</span>
+              <div class="settings-section-header-text">
+                <h3>Schedule & Productivity</h3>
+                <p>Configure calendar timeline hours, date/time formats, and high-impact effectiveness categories.</p>
               </div>
             </div>
 
-            <!-- Quick Window Presets -->
-            <div class="form-group" style="margin-bottom: 1.25rem;">
-              <label>Quick Window Presets</label>
-              <div class="window-presets-container">
-                <button type="button" class="window-preset-pill active" data-start="0" data-end="23">🌐 Full 24 Hours (12 AM – 11:30 PM)</button>
-                <button type="button" class="window-preset-pill" data-start="4" data-end="23">🌅 Early Bird (4 AM – 11:30 PM)</button>
-                <button type="button" class="window-preset-pill" data-start="6" data-end="22">☀️ Standard Day (6 AM – 10 PM)</button>
-                <button type="button" class="window-preset-pill" data-start="8" data-end="18">💼 Workday Focus (8 AM – 6 PM)</button>
-              </div>
-            </div>
-
-            <!-- Custom Start & End Hour Range Sliders -->
-            <div class="form-row-2">
-              <div class="form-group">
-                <div class="range-label-row">
-                  <label for="settingsStartHour">Grid Starts At:</label>
-                  <span id="settingsStartHourLabel" class="range-val-badge">12:00 AM (00:00)</span>
+            <div class="settings-section-grid">
+              <!-- CARD 1: Schedule Grid & Timeline Window -->
+              <div class="settings-card" id="settingsGridCard">
+                <div class="settings-card-header">
+                  <span class="settings-card-icon">🕒</span>
+                  <div>
+                    <h3>Schedule Grid & Timeline Window</h3>
+                    <p class="settings-card-desc">Configure your active calendar hours and time display format.</p>
+                  </div>
                 </div>
-                <input type="range" id="settingsStartHour" min="0" max="22" step="1" value="0" class="settings-slider">
-              </div>
 
-              <div class="form-group">
-                <div class="range-label-row">
-                  <label for="settingsEndHour">Grid Ends At:</label>
-                  <span id="settingsEndHourLabel" class="range-val-badge">11:00 PM (23:00)</span>
+                <!-- Quick Window Presets -->
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                  <label>Quick Window Presets</label>
+                  <div class="window-presets-container">
+                    <button type="button" class="window-preset-pill active" data-start="0" data-end="23">🌐 Full 24 Hours (12 AM – 11:30 PM)</button>
+                    <button type="button" class="window-preset-pill" data-start="4" data-end="23">🌅 Early Bird (4 AM – 11:30 PM)</button>
+                    <button type="button" class="window-preset-pill" data-start="6" data-end="22">☀️ Standard Day (6 AM – 10 PM)</button>
+                    <button type="button" class="window-preset-pill" data-start="8" data-end="18">💼 Workday Focus (8 AM – 6 PM)</button>
+                  </div>
                 </div>
-                <input type="range" id="settingsEndHour" min="1" max="23" step="1" value="23" class="settings-slider">
-              </div>
-            </div>
 
-            <div class="form-row-2" style="margin-top: 0.75rem;">
-              <div class="form-group">
-                <label for="settingsTimeFormat">Time Display Format</label>
-                <select id="settingsTimeFormat" class="select-input">
-                  <option value="12h">12-Hour (09:00 AM)</option>
-                  <option value="24h">24-Hour (09:00)</option>
-                </select>
+                <!-- Custom Start & End Hour Range Sliders -->
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <div class="range-label-row">
+                      <label for="settingsStartHour">Grid Starts At:</label>
+                      <span id="settingsStartHourLabel" class="range-val-badge">12:00 AM (00:00)</span>
+                    </div>
+                    <input type="range" id="settingsStartHour" min="0" max="22" step="1" value="0" class="settings-slider">
+                  </div>
+
+                  <div class="form-group">
+                    <div class="range-label-row">
+                      <label for="settingsEndHour">Grid Ends At:</label>
+                      <span id="settingsEndHourLabel" class="range-val-badge">11:00 PM (23:00)</span>
+                    </div>
+                    <input type="range" id="settingsEndHour" min="1" max="23" step="1" value="23" class="settings-slider">
+                  </div>
+                </div>
+
+                <div class="form-row-2" style="margin-top: 0.75rem;">
+                  <div class="form-group">
+                    <label for="settingsTimeFormat">Time Display Format</label>
+                    <select id="settingsTimeFormat" class="select-input">
+                      <option value="12h">12-Hour (09:00 AM)</option>
+                      <option value="24h">24-Hour (09:00)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="settingsDateFormat">Date Display Format</label>
+                    <select id="settingsDateFormat" class="select-input">
+                      <option value="DD/MM/YYYY">DD/MM/YYYY (07/09/2026)</option>
+                      <option value="MM/DD/YYYY">MM/DD/YYYY (09/07/2026)</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD (2026-09-07)</option>
+                      <option value="DD-MMM-YYYY">DD-MMM-YYYY (07-Sep-2026)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row-2" style="margin-top: 0.75rem;">
+                  <div class="form-group">
+                    <label for="settingsDefaultView">Default Landing View</label>
+                    <select id="settingsDefaultView" class="select-input">
+                      <option value="grid">📅 Schedule Grid</option>
+                      <option value="habits">⚡ Habit Ledger</option>
+                      <option value="analytics">📊 Focus Analytics</option>
+                      <option value="notes">📝 Notes & Todo</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group checkbox-group" style="display: flex; align-items: flex-end; padding-bottom: 0.5rem;">
+                    <label class="custom-checkbox-label">
+                      <input type="checkbox" id="settingsCompactGrid">
+                      <span>Compact Grid Rows (fits more hours on screen)</span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
-              <div class="form-group">
-                <label for="settingsDateFormat">Date Display Format</label>
-                <select id="settingsDateFormat" class="select-input">
-                  <option value="DD/MM/YYYY">DD/MM/YYYY (07/09/2026)</option>
-                  <option value="MM/DD/YYYY">MM/DD/YYYY (09/07/2026)</option>
-                  <option value="YYYY-MM-DD">YYYY-MM-DD (2026-09-07)</option>
-                  <option value="DD-MMM-YYYY">DD-MMM-YYYY (07-Sep-2026)</option>
-                </select>
-              </div>
-            </div>
+              <!-- CARD 2: Work Effectiveness & Productive Categories -->
+              <div class="settings-card" id="settingsEffectivenessCard">
+                <div class="settings-card-header">
+                  <span class="settings-card-icon">⚡</span>
+                  <div>
+                    <h3>Work Effectiveness & Leverage</h3>
+                    <p class="settings-card-desc">Choose which schedule categories count toward your high-impact productive hours. Individual slot tasks can also be toggled directly in the task editor.</p>
+                  </div>
+                </div>
 
-            <div class="form-row-2" style="margin-top: 0.75rem;">
-              <div class="form-group">
-                <label for="settingsDefaultView">Default Landing View</label>
-                <select id="settingsDefaultView" class="select-input">
-                  <option value="grid">📅 Schedule Grid</option>
-                  <option value="habits">⚡ Habit Ledger</option>
-                  <option value="analytics">📊 Focus Analytics</option>
-                  <option value="notes">📝 Notes & Todo</option>
-                </select>
-              </div>
-
-              <div class="form-group checkbox-group" style="display: flex; align-items: flex-end; padding-bottom: 0.5rem;">
-                <label class="custom-checkbox-label">
-                  <input type="checkbox" id="settingsCompactGrid">
-                  <span>Compact Grid Rows (fits more hours on screen)</span>
-                </label>
+                <div class="settings-card-body">
+                  <div class="form-group">
+                    <label>Default High-Impact Categories</label>
+                    <div class="productive-categories-pills" id="settingsProductiveCategoriesPills">
+                      <!-- Dynamically rendered category toggle pills -->
+                    </div>
+                    <span class="settings-input-hint" style="margin-top: 0.75rem; display: block; font-size: 0.8rem; color: var(--text-muted);">
+                      Formula: <strong>Work Effectiveness = (Productive Actual Logged Hours / Total Actual Logged Hours) × 100</strong>
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- CARD 2: Themes & Appearance -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">🎨</span>
-              <div>
-                <h3>Themes & Visual Styling</h3>
-                <p class="settings-card-desc">Personalize your color palette and accent aesthetic.</p>
+          <!-- SECTION 2: Routines & Gamification -->
+          <div class="settings-section-group">
+            <div class="settings-section-header">
+              <span class="settings-section-icon">📋</span>
+              <div class="settings-section-header-text">
+                <h3>Routines & Gamification</h3>
+                <p>Manage reusable 1-click routine schedule templates and daily discipline point targets.</p>
               </div>
             </div>
 
-            <!-- Theme Cards -->
-            <div class="form-group">
-              <label>Interface Theme</label>
-              <div class="theme-picker-grid">
-                <div class="theme-card active" data-theme="dark">
-                  <div class="theme-preview-box preview-dark">
-                    <div class="preview-header"></div>
-                    <div class="preview-content"></div>
+            <div class="settings-section-grid">
+              <!-- CARD 3: Reusable Day Templates -->
+              <div class="settings-card" id="settingsDayTemplatesCard">
+                <div class="settings-card-header" style="justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span class="settings-card-icon">📋</span>
+                    <div>
+                      <h3>Reusable Day Templates</h3>
+                      <p class="settings-card-desc">Create routine templates (e.g. Workday, Focus, Study) and apply them to any day with 1 click. Existing tasks are always kept (least priority).</p>
+                    </div>
                   </div>
-                  <span class="theme-card-name">🌌 Deep Midnight</span>
+                  <button type="button" id="createDayTemplateBtn" class="btn btn-primary btn-sm" style="white-space: nowrap;">+ New Template</button>
                 </div>
 
-                <div class="theme-card" data-theme="oled">
-                  <div class="theme-preview-box preview-oled">
-                    <div class="preview-header"></div>
-                    <div class="preview-content"></div>
+                <div class="settings-card-body" style="padding-top: 0.5rem;">
+                  <div id="settingsDayTemplatesList" class="day-templates-list">
+                    <!-- Dynamically rendered -->
                   </div>
-                  <span class="theme-card-name">🌑 Pure OLED Black</span>
-                </div>
-
-                <div class="theme-card" data-theme="emerald">
-                  <div class="theme-preview-box preview-emerald">
-                    <div class="preview-header"></div>
-                    <div class="preview-content"></div>
-                  </div>
-                  <span class="theme-card-name">🌲 Emerald Forest</span>
-                </div>
-
-                <div class="theme-card" data-theme="light">
-                  <div class="theme-preview-box preview-light">
-                    <div class="preview-header"></div>
-                    <div class="preview-content"></div>
-                  </div>
-                  <span class="theme-card-name">☀️ Clean Light</span>
                 </div>
               </div>
-            </div>
 
-            <!-- Accent Color Picker -->
-            <div class="form-group" style="margin-top: 1.25rem;">
-              <label>Accent Highlights</label>
-              <div class="accent-picker-pills">
-                <button type="button" class="accent-pill active" data-accent="indigo">
-                  <span class="accent-color-dot" style="background: #6366f1;"></span> Indigo
-                </button>
-                <button type="button" class="accent-pill" data-accent="emerald">
-                  <span class="accent-color-dot" style="background: #10b981;"></span> Emerald
-                </button>
-                <button type="button" class="accent-pill" data-accent="cyan">
-                  <span class="accent-color-dot" style="background: #06b6d4;"></span> Cyan
-                </button>
-                <button type="button" class="accent-pill" data-accent="purple">
-                  <span class="accent-color-dot" style="background: #a855f7;"></span> Purple
-                </button>
-                <button type="button" class="accent-pill" data-accent="rose">
-                  <span class="accent-color-dot" style="background: #f43f5e;"></span> Rose
-                </button>
+              <!-- CARD 4: Gamification & Targets -->
+              <div class="settings-card" id="settingsGamificationCard">
+                <div class="settings-card-header">
+                  <span class="settings-card-icon">🏆</span>
+                  <div>
+                    <h3>Gamification & Targets</h3>
+                    <p class="settings-card-desc">Set daily point goals and rewards for completed priorities.</p>
+                  </div>
+                </div>
+
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label for="settingsDailyPoints">Daily Discipline Points Goal</label>
+                    <input type="number" id="settingsDailyPoints" value="50" min="10" max="500" step="5" class="number-input">
+                    <span class="field-hint">Target displayed on your header & analytics ledger</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="settingsTodoReward">Todo Priority Reward Points</label>
+                    <input type="number" id="settingsTodoReward" value="15" min="0" max="100" step="5" class="number-input">
+                    <span class="field-hint">Points awarded when checking off a priority goal</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- CARD 3: Gamification & Targets -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">🏆</span>
-              <div>
-                <h3>Gamification & Targets</h3>
-                <p class="settings-card-desc">Set daily point goals and rewards for completed priorities.</p>
+          <!-- SECTION 3: Appearance & Notifications -->
+          <div class="settings-section-group">
+            <div class="settings-section-header">
+              <span class="settings-section-icon">🎨</span>
+              <div class="settings-section-header-text">
+                <h3>Appearance & Notifications</h3>
+                <p>Personalize visual theme modes, color accents, desktop alerts, and synthesized sound chimes.</p>
               </div>
             </div>
 
-            <div class="form-row-2">
-              <div class="form-group">
-                <label for="settingsDailyPoints">Daily Discipline Points Goal</label>
-                <input type="number" id="settingsDailyPoints" value="50" min="10" max="500" step="5" class="number-input">
-                <span class="field-hint">Target displayed on your header & analytics ledger</span>
-              </div>
+            <div class="settings-section-grid">
+              <!-- CARD 5: Themes & Visual Styling -->
+              <div class="settings-card" id="settingsThemesCard">
+                <div class="settings-card-header">
+                  <span class="settings-card-icon">🎨</span>
+                  <div>
+                    <h3>Themes & Visual Styling</h3>
+                    <p class="settings-card-desc">Personalize your color palette and accent aesthetic.</p>
+                  </div>
+                </div>
 
-              <div class="form-group">
-                <label for="settingsTodoReward">Todo Priority Reward Points</label>
-                <input type="number" id="settingsTodoReward" value="15" min="0" max="100" step="5" class="number-input">
-                <span class="field-hint">Points awarded when checking off a priority goal</span>
-              </div>
-            </div>
-          </div>
+                <!-- Theme Cards -->
+                <div class="form-group">
+                  <label>Interface Theme</label>
+                  <div class="theme-picker-grid">
+                    <div class="theme-card active" data-theme="dark">
+                      <div class="theme-preview-box preview-dark">
+                        <div class="preview-header"></div>
+                        <div class="preview-content"></div>
+                      </div>
+                      <span class="theme-card-name">🌌 Deep Midnight</span>
+                    </div>
 
-          <!-- CARD 4: Data Export & Backup -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">💾</span>
-              <div>
-                <h3>Data Export & Offline Backup</h3>
-                <p class="settings-card-desc">Download a complete portable JSON archive of your schedules, habits, and notes.</p>
-              </div>
-            </div>
+                    <div class="theme-card" data-theme="oled">
+                      <div class="theme-preview-box preview-oled">
+                        <div class="preview-header"></div>
+                        <div class="preview-content"></div>
+                      </div>
+                      <span class="theme-card-name">🌑 Pure OLED Black</span>
+                    </div>
 
-            <div class="backup-action-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0;">
-              <div>
-                <strong style="font-size: 0.9rem; color: var(--text-primary);">Export Full DayFlow Archive (JSON)</strong>
-                <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Includes all weekly timeline slots, habit histories, priority goals, and settings.</p>
-              </div>
-              <button type="button" id="exportBackupBtn" class="btn btn-secondary">📥 Export Backup (JSON)</button>
-            </div>
-          </div>
+                    <div class="theme-card" data-theme="emerald">
+                      <div class="theme-preview-box preview-emerald">
+                        <div class="preview-header"></div>
+                        <div class="preview-content"></div>
+                      </div>
+                      <span class="theme-card-name">🌲 Emerald Forest</span>
+                    </div>
 
-          <!-- CARD 5: Notifications & Audio Alarms -->
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">🔔</span>
-              <div>
-                <h3>Notifications & Audio Alarms</h3>
-                <p class="settings-card-desc">Configure browser desktop notifications, sound alerts, lead-time warnings, and wrap-up prompts.</p>
-              </div>
-            </div>
+                    <div class="theme-card" data-theme="light">
+                      <div class="theme-preview-box preview-light">
+                        <div class="preview-header"></div>
+                        <div class="preview-content"></div>
+                      </div>
+                      <span class="theme-card-name">☀️ Clean Light</span>
+                    </div>
+                  </div>
+                </div>
 
-            <!-- Permission & Master Toggle Row -->
-            <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
-              <div>
-                <strong style="font-size: 0.9rem; color: var(--text-primary);">Browser Desktop Notifications</strong>
-                <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Native OS toast notifications when DayFlow is in background or minimized.</p>
-                <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.6rem;">
-                  <span id="settingsNotifPermissionBadge" class="status-pill status-pill-warning">Checking...</span>
-                  <button type="button" id="requestNotifPermissionBtn" class="btn btn-secondary btn-sm" style="display: none; padding: 0.2rem 0.6rem; font-size: 0.75rem;">Enable Notifications</button>
+                <!-- Accent Color Picker -->
+                <div class="form-group" style="margin-top: 1.25rem;">
+                  <label>Accent Highlights</label>
+                  <div class="accent-picker-pills">
+                    <button type="button" class="accent-pill active" data-accent="indigo">
+                      <span class="accent-color-dot" style="background: #6366f1;"></span> Indigo
+                    </button>
+                    <button type="button" class="accent-pill" data-accent="emerald">
+                      <span class="accent-color-dot" style="background: #10b981;"></span> Emerald
+                    </button>
+                    <button type="button" class="accent-pill" data-accent="cyan">
+                      <span class="accent-color-dot" style="background: #06b6d4;"></span> Cyan
+                    </button>
+                    <button type="button" class="accent-pill" data-accent="purple">
+                      <span class="accent-color-dot" style="background: #a855f7;"></span> Purple
+                    </button>
+                    <button type="button" class="accent-pill" data-accent="rose">
+                      <span class="accent-color-dot" style="background: #f43f5e;"></span> Rose
+                    </button>
+                  </div>
                 </div>
               </div>
-              <label class="switch-toggle" style="margin-left: 1rem;">
-                <input type="checkbox" id="settingsNotifEnabled">
-                <span class="slider round"></span>
-              </label>
-            </div>
 
-            <!-- Sound Alerts Toggle Row -->
-            <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
-              <div>
-                <strong style="font-size: 0.9rem; color: var(--text-primary);">Sound Chime / Alarms</strong>
-                <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Play harmonized Web Audio chimes on slot transitions and reminders.</p>
-              </div>
-              <label class="switch-toggle" style="margin-left: 1rem;">
-                <input type="checkbox" id="settingsNotifSound" checked>
-                <span class="slider round"></span>
-              </label>
-            </div>
-
-            <div class="form-row-2" style="margin-top: 1rem;">
-              <div class="form-group">
-                <label for="settingsNotifTone">Chime Tone Style</label>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                  <select id="settingsNotifTone" class="select-input" style="flex: 1;">
-                    <option value="chime">🎵 Harmonic Chime (Melodic)</option>
-                    <option value="bell">🔔 Zen Singing Bell (Resonant)</option>
-                    <option value="ping">✨ Subtle Modern Ping</option>
-                    <option value="marimba">🪵 Upbeat Marimba Chord</option>
-                  </select>
-                  <button type="button" id="testNotificationSoundBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; padding: 0.45rem 0.75rem;" title="Play selected sound">🔊 Test</button>
+              <!-- CARD 6: Notifications & Audio Alarms -->
+              <div class="settings-card" id="settingsNotificationsCard">
+                <div class="settings-card-header">
+                  <span class="settings-card-icon">🔔</span>
+                  <div>
+                    <h3>Notifications & Audio Alarms</h3>
+                    <p class="settings-card-desc">Configure browser desktop notifications, sound alerts, lead-time warnings, and wrap-up prompts.</p>
+                  </div>
                 </div>
-                <span class="field-hint">Pure synthesizer audio — no external downloads</span>
-              </div>
 
-              <div class="form-group">
-                <label for="settingsNotifVolume">Audio Volume (<span id="settingsNotifVolumeLabel">70%</span>)</label>
-                <input type="range" id="settingsNotifVolume" min="0" max="100" value="70" step="5" class="slider-range">
-                <span class="field-hint">Master volume level for alarm chimes</span>
-              </div>
-            </div>
-
-            <div class="form-row-2" style="margin-top: 0.75rem;">
-              <div class="form-group">
-                <label for="settingsNotifLeadTime">Upcoming Slot Lead-Time Warning</label>
-                <select id="settingsNotifLeadTime" class="select-input">
-                  <option value="0">At Slot Start (0 mins before)</option>
-                  <option value="1">1 minute before start</option>
-                  <option value="2" selected>2 minutes before start (Recommended)</option>
-                  <option value="5">5 minutes before start</option>
-                </select>
-                <span class="field-hint">Gives you time to wrap up before the next block begins</span>
-              </div>
-
-              <div class="form-group" style="display: flex; flex-direction: column; justify-content: center;">
-                <label style="display: flex; align-items: center; justify-content: space-between;">
-                  <span>End-of-Slot Wrap-Up Alert</span>
-                  <label class="switch-toggle" style="margin-left: 0.5rem;">
-                    <input type="checkbox" id="settingsNotifSlotEnd" checked>
+                <!-- Permission & Master Toggle Row -->
+                <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                  <div>
+                    <strong style="font-size: 0.9rem; color: var(--text-primary);">Browser Desktop Notifications</strong>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Native OS toast notifications when DayFlow is in background or minimized.</p>
+                    <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.6rem;">
+                      <span id="settingsNotifPermissionBadge" class="status-pill status-pill-warning">Checking...</span>
+                      <button type="button" id="requestNotifPermissionBtn" class="btn btn-secondary btn-sm" style="display: none; padding: 0.2rem 0.6rem; font-size: 0.75rem;">Enable Notifications</button>
+                    </div>
+                  </div>
+                  <label class="switch-toggle" style="margin-left: 1rem;">
+                    <input type="checkbox" id="settingsNotifEnabled">
                     <span class="slider round"></span>
                   </label>
-                </label>
-                <span class="field-hint" style="margin-top: 0.35rem;">Reminds you to mark the block Done or log actual executed time</span>
+                </div>
+
+                <!-- Sound Alerts Toggle Row -->
+                <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                  <div>
+                    <strong style="font-size: 0.9rem; color: var(--text-primary);">Sound Chime / Alarms</strong>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Play harmonized Web Audio chimes on slot transitions and reminders.</p>
+                  </div>
+                  <label class="switch-toggle" style="margin-left: 1rem;">
+                    <input type="checkbox" id="settingsNotifSound" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="form-row-2" style="margin-top: 1rem;">
+                  <div class="form-group">
+                    <label for="settingsNotifTone">Chime Tone Style</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                      <select id="settingsNotifTone" class="select-input" style="flex: 1;">
+                        <option value="chime">🎵 Harmonic Chime (Melodic)</option>
+                        <option value="bell">🔔 Zen Singing Bell (Resonant)</option>
+                        <option value="ping">✨ Subtle Modern Ping</option>
+                        <option value="marimba">🪵 Upbeat Marimba Chord</option>
+                      </select>
+                      <button type="button" id="testNotificationSoundBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; padding: 0.45rem 0.75rem;" title="Play selected sound">🔊 Test</button>
+                    </div>
+                    <span class="field-hint">Pure synthesizer audio — no external downloads</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="settingsNotifVolume">Audio Volume (<span id="settingsNotifVolumeLabel">70%</span>)</label>
+                    <input type="range" id="settingsNotifVolume" min="0" max="100" value="70" step="5" class="slider-range">
+                    <span class="field-hint">Master volume level for alarm chimes</span>
+                  </div>
+                </div>
+
+                <div class="form-row-2" style="margin-top: 0.75rem;">
+                  <div class="form-group">
+                    <label for="settingsNotifLeadTime">Upcoming Slot Lead-Time Warning</label>
+                    <select id="settingsNotifLeadTime" class="select-input">
+                      <option value="0">At Slot Start (0 mins before)</option>
+                      <option value="1">1 minute before start</option>
+                      <option value="2" selected>2 minutes before start (Recommended)</option>
+                      <option value="5">5 minutes before start</option>
+                    </select>
+                    <span class="field-hint">Gives you time to wrap up before the next block begins</span>
+                  </div>
+
+                  <div class="form-group" style="display: flex; flex-direction: column; justify-content: center;">
+                    <label style="display: flex; align-items: center; justify-content: space-between;">
+                      <span>End-of-Slot Wrap-Up Alert</span>
+                      <label class="switch-toggle" style="margin-left: 0.5rem;">
+                        <input type="checkbox" id="settingsNotifSlotEnd" checked>
+                        <span class="slider round"></span>
+                      </label>
+                    </label>
+                    <span class="field-hint" style="margin-top: 0.35rem;">Reminds you to mark the block Done or log actual executed time</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- CARD 6: Account & Security -->
-          <div class="settings-card" id="settingsAccountCard">
-            <div class="settings-card-header">
-              <span class="settings-card-icon">🔐</span>
-              <div>
-                <h3>Account & Security</h3>
-                <p class="settings-card-desc">Change your password and manage account security credentials.</p>
+          <!-- SECTION 4: Account & Data Management -->
+          <div class="settings-section-group">
+            <div class="settings-section-header">
+              <span class="settings-section-icon">🔐</span>
+              <div class="settings-section-header-text">
+                <h3>Account & Data Management</h3>
+                <p>Manage your account password credentials and export complete portable JSON archives.</p>
               </div>
             </div>
 
-            <form id="settingsChangePasswordForm">
-              <div class="form-group" id="settingsCurrentPasswordGroup">
-                <label for="settingsCurrentPassword">Current Password *</label>
-                <input type="password" id="settingsCurrentPassword" placeholder="Enter your current password" class="text-input" autocomplete="current-password">
-              </div>
-
-              <div class="form-row-2">
-                <div class="form-group">
-                  <label for="settingsNewPassword">New Password *</label>
-                  <input type="password" id="settingsNewPassword" placeholder="Minimum 6 characters" minlength="6" required class="text-input" autocomplete="new-password">
+            <div class="settings-section-grid">
+              <!-- CARD 7: Account & Security -->
+              <div class="settings-card" id="settingsAccountCard">
+                <div class="settings-card-header">
+                  <span class="settings-card-icon">🔐</span>
+                  <div>
+                    <h3>Account & Security</h3>
+                    <p class="settings-card-desc">Change your password and manage account security credentials.</p>
+                  </div>
                 </div>
 
-                <div class="form-group">
-                  <label for="settingsConfirmPassword">Confirm New Password *</label>
-                  <input type="password" id="settingsConfirmPassword" placeholder="Re-enter new password" minlength="6" required class="text-input" autocomplete="new-password">
+                <form id="settingsChangePasswordForm">
+                  <div class="form-group" id="settingsCurrentPasswordGroup">
+                    <label for="settingsCurrentPassword">Current Password *</label>
+                    <input type="password" id="settingsCurrentPassword" placeholder="Enter your current password" class="text-input" autocomplete="current-password">
+                  </div>
+
+                  <div class="form-row-2">
+                    <div class="form-group">
+                      <label for="settingsNewPassword">New Password *</label>
+                      <input type="password" id="settingsNewPassword" placeholder="Minimum 6 characters" minlength="6" required class="text-input" autocomplete="new-password">
+                    </div>
+
+                    <div class="form-group">
+                      <label for="settingsConfirmPassword">Confirm New Password *</label>
+                      <input type="password" id="settingsConfirmPassword" placeholder="Re-enter new password" minlength="6" required class="text-input" autocomplete="new-password">
+                    </div>
+                  </div>
+
+                  <div id="settingsPasswordStatusMsg" class="auth-error-msg" style="display: none; margin-bottom: 1rem;"></div>
+
+                  <div style="display: flex; justify-content: flex-end;">
+                    <button type="submit" id="settingsSavePasswordBtn" class="btn btn-primary">
+                      <span>🔒</span> Update Password
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- CARD 8: Data Export & Offline Backup -->
+              <div class="settings-card" id="settingsBackupCard">
+                <div class="settings-card-header">
+                  <span class="settings-card-icon">💾</span>
+                  <div>
+                    <h3>Data Export & Offline Backup</h3>
+                    <p class="settings-card-desc">Download a complete portable JSON archive of your schedules, habits, and notes.</p>
+                  </div>
                 </div>
-              </div>
 
-              <div id="settingsPasswordStatusMsg" class="auth-error-msg" style="display: none; margin-bottom: 1rem;"></div>
-
-              <div style="display: flex; justify-content: flex-end;">
-                <button type="submit" id="settingsSavePasswordBtn" class="btn btn-primary">
-                  <span>🔒</span> Update Password
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <!-- CARD 7: Reusable Day Templates -->
-          <div class="settings-card settings-card-wide" id="settingsDayTemplatesCard">
-            <div class="settings-card-header" style="justify-content: space-between; align-items: center;">
-              <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <span class="settings-card-icon">📋</span>
-                <div>
-                  <h3>Reusable Day Templates</h3>
-                  <p class="settings-card-desc">Create routine templates (e.g. Workday, Focus, Study) and apply them to any day with 1 click. Existing tasks are always kept (least priority).</p>
+                <div class="backup-action-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0;">
+                  <div>
+                    <strong style="font-size: 0.9rem; color: var(--text-primary);">Export Full DayFlow Archive (JSON)</strong>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Includes all weekly timeline slots, habit histories, priority goals, and settings.</p>
+                  </div>
+                  <button type="button" id="exportBackupBtn" class="btn btn-secondary">📥 Export Backup (JSON)</button>
                 </div>
-              </div>
-              <button type="button" id="createDayTemplateBtn" class="btn btn-primary btn-sm" style="white-space: nowrap;">+ New Template</button>
-            </div>
-
-            <div class="settings-card-body" style="padding-top: 0.5rem;">
-              <div id="settingsDayTemplatesList" class="day-templates-list">
-                <!-- Dynamically rendered -->
               </div>
             </div>
           </div>
@@ -991,6 +1075,15 @@
                 <option value="Not Done">❌ Not Done</option>
               </select>
             </div>
+          </div>
+
+          <!-- Productive / High-Impact Work Override -->
+          <div class="form-group" id="taskProductiveGroup">
+            <label class="productive-toggle-label">
+              <input type="checkbox" id="taskIsProductiveInput" class="custom-toggle-checkbox">
+              <span class="productive-toggle-text">⚡ Mark as Productive (High-Impact Work)</span>
+            </label>
+            <span id="taskProductiveHint" class="task-field-hint">Category default: ⚡ Productive</span>
           </div>
 
           <div class="form-row-2">
@@ -1681,6 +1774,11 @@
             <button type="button" class="bulk-cat-item" data-category="General">📌 General</button>
           </div>
         </div>
+
+        <!-- Productive Toggle Button -->
+        <button type="button" class="bulk-btn bulk-btn-productive" id="bulkToggleProductiveBtn" title="Toggle Productive (⚡) or Standard for selected slots">
+          <span>⚡</span> Productive
+        </button>
 
         <!-- Assign Task Button (Quick Timeblock) -->
         <button type="button" class="bulk-btn bulk-btn-assign" id="bulkAssignTaskBtn" title="Set task name across all selected slots">
