@@ -65,7 +65,7 @@ router.get('/week/:weekStart', async (req: AuthenticatedRequest, res) => {
 // Save or Update a 30-Minute Slot Task for authenticated user ONLY
 router.post('/slot', async (req: AuthenticatedRequest, res) => {
   try {
-    const { weekStart, slotKey, plannedTask, actualTask, category, planned, actual, status, notes, isProductive } = req.body;
+    const { weekStart, slotKey, plannedTask, actualTask, category, planned, actual, status, notes, isProductive, clearProductive } = req.body;
     const userId = req.userId;
 
     if (!userId) {
@@ -85,16 +85,18 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
       return res.status(400).json({ error: 'Invalid date in slotKey: must be between 1800-01-01 and 2200-12-31' });
     }
 
-    const slotObj = {
+    const slotObj: Record<string, any> = {
       plannedTask: plannedTask || '',
       actualTask: actualTask || plannedTask || '',
       category: category || 'General',
       planned: isNaN(parseInt(planned, 10)) ? 30 : parseInt(planned, 10),
       actual: actual !== undefined && !isNaN(parseInt(actual, 10)) ? parseInt(actual, 10) : 0,
       status: status || 'Pending',
-      notes: notes || '',
-      ...(typeof isProductive === 'boolean' ? { isProductive } : {})
+      notes: notes || ''
     };
+
+    const shouldClear = clearProductive === true || isProductive === null;
+    const prodVal = typeof isProductive === 'boolean' ? isProductive : null;
 
     // 1. Ensure schedule_weeks row exists specifically for THIS user_id and weekStart
     let weekId: string | null = null;
@@ -113,9 +115,10 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
     }
 
     // 2. Insert or Update schedule_slots row
+    // Finding 45 fix: If isProductive is omitted or non-boolean, preserve existing database value via COALESCE.
+    // Explicit clear is supported when clearProductive === true or isProductive === null.
     if (weekId) {
-      const prodVal = typeof isProductive === 'boolean' ? isProductive : null;
-      await executeQuery(
+      const upsertRes = await executeQuery(
         `INSERT INTO schedule_slots (week_id, slot_key, planned_task, actual_task, category, planned_duration, actual_duration, status, notes, is_productive)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (week_id, slot_key) DO UPDATE 
@@ -126,16 +129,36 @@ router.post('/slot', async (req: AuthenticatedRequest, res) => {
              actual_duration = EXCLUDED.actual_duration,
              status = EXCLUDED.status,
              notes = EXCLUDED.notes,
-             is_productive = EXCLUDED.is_productive,
-             updated_at = CURRENT_TIMESTAMP`,
-        [weekId, slotKey, slotObj.plannedTask, slotObj.actualTask, slotObj.category, slotObj.planned, slotObj.actual, slotObj.status, slotObj.notes, prodVal]
+             is_productive = CASE 
+               WHEN $11 = TRUE THEN NULL
+               WHEN EXCLUDED.is_productive IS NOT NULL THEN EXCLUDED.is_productive
+               ELSE schedule_slots.is_productive
+             END,
+             updated_at = CURRENT_TIMESTAMP
+         RETURNING is_productive`,
+        [weekId, slotKey, slotObj.plannedTask, slotObj.actualTask, slotObj.category, slotObj.planned, slotObj.actual, slotObj.status, slotObj.notes, prodVal, shouldClear]
       );
+
+      const savedProd = upsertRes.rows[0]?.is_productive;
+      if (savedProd !== null && savedProd !== undefined) {
+        slotObj.isProductive = savedProd;
+      }
     }
 
     // Memory Store Cache
     const userWeekKey = `${userId}_${weekStart}`;
     if (!memoryStore.scheduleWeeks[userWeekKey]) {
       memoryStore.scheduleWeeks[userWeekKey] = { slots: {}, habits: [], todos: [], notes: '' };
+    }
+    if (!weekId) {
+      const existingMemSlot = memoryStore.scheduleWeeks[userWeekKey].slots[slotKey];
+      if (shouldClear) {
+        delete slotObj.isProductive;
+      } else if (typeof isProductive === 'boolean') {
+        slotObj.isProductive = isProductive;
+      } else if (existingMemSlot && typeof existingMemSlot.isProductive === 'boolean') {
+        slotObj.isProductive = existingMemSlot.isProductive;
+      }
     }
     memoryStore.scheduleWeeks[userWeekKey].slots[slotKey] = slotObj;
 

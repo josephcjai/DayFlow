@@ -2,10 +2,10 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected } from './state.js?v=2.9.22';
-import { openTaskModal } from './modal.js?v=2.9.22';
-import { escapeHtml } from './utils.js?v=2.9.22';
-import { isSlotProductive } from './settings.js?v=2.9.22';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected } from './state.js?v=2.9.23';
+import { openTaskModal } from './modal.js?v=2.9.23';
+import { escapeHtml } from './utils.js?v=2.9.23';
+import { isSlotProductive } from './settings.js?v=2.9.23';
 
 export const TIME_SLOTS = [];
 

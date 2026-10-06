@@ -1,6 +1,6 @@
 # DayFlow REST API Documentation
 
-**Version:** 2.7.0  
+**Version:** 2.8.0  
 **Base URL (Local):** `http://localhost:5000/api`  
 **Base URL (Production HTTPS):** `https://<your_domain>/api`  
 **Authentication Method:** JSON Web Token (`Authorization: Bearer <token>`)
@@ -279,11 +279,14 @@ All date parameters across the API (`weekStart`, `dueDate`, `slotKey` date prefi
         "status": "Done",
         "planned": 30,
         "actual": 30,
-        "notes": "Healthy meal"
+        "notes": "Healthy meal",
+        "isProductive": false
       }
     }
   }
   ```
+- **Field Details:**
+  - `isProductive` (boolean, optional): Explicit productive classification (`true` or `false`). When omitted/null, the slot inherits the productive classification configured for its category (by default, `Work` and `Learning` are productive).
 
 ---
 
@@ -302,14 +305,29 @@ All date parameters across the API (`weekStart`, `dueDate`, `slotKey` date prefi
     "status": "Done",
     "planned": 30,
     "actual": 30,
-    "notes": "Meal log"
+    "notes": "Meal log",
+    "isProductive": false
   }
   ```
+- **Field Details:**
+  - `isProductive` (boolean, optional): Explicitly flags the slot as productive (`true`) or non-productive (`false`).
+  - **Preservation on Omission (`COALESCE` semantics):** If `isProductive` is omitted from the request body or provided as a non-boolean (e.g. `undefined`, string), the server preserves the previously stored value, protecting against data loss during partial updates.
+  - `clearProductive` (boolean, optional): Set to `true` (or pass `isProductive: null`) to explicitly remove the slot-level override and revert the slot to its category default.
 - **Success Response (200 OK):**
   ```json
   {
     "message": "Slot saved successfully",
-    "slotKey": "2026-08-10_13:00"
+    "slotKey": "2026-08-10_13:00",
+    "slot": {
+      "plannedTask": "Lunch & Rest",
+      "actualTask": "Lunch & Rest",
+      "category": "Health",
+      "planned": 30,
+      "actual": 30,
+      "status": "Done",
+      "notes": "Meal log",
+      "isProductive": false
+    }
   }
   ```
 

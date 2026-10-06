@@ -168,12 +168,13 @@ npm run migrate
 ✅ DayFlow schema migrations and indexes completed successfully!
 ```
 
-Verify table creation directly in PostgreSQL:
+Verify table and column creation directly in PostgreSQL:
 ```bash
-# Run quick verification query
+# Run quick verification queries
 sudo -u postgres psql -d dayflow_db -c "\d user_day_templates"
+sudo -u postgres psql -d dayflow_db -c "\d schedule_slots"
 ```
-*(Confirms columns: `id`, `user_id`, `name`, `description`, `slots`, `is_default`, `created_at`, `updated_at`, and primary key `pk_user_day_templates`)*.
+*(Confirms `user_day_templates` columns and `schedule_slots.is_productive BOOLEAN` column)*.
 
 ---
 
@@ -324,7 +325,7 @@ curl -s https://dayflowlive.com/api/health | grep '"version":"2.6.0"'
 
 > [!NOTE]
 > **Database Rollback Caveat:**
-> Rolling back code to `v2.6.0` leaves the `user_day_templates` table in place and intact in PostgreSQL (there is no need to drop it; `v2.6.0` simply does not query it).
+> Rolling back code to `v2.6.0` leaves the `user_day_templates` table and `schedule_slots.is_productive` column in place and intact in PostgreSQL (there is no need to drop them; `v2.6.0` simply does not query them).
 > Any templates created or updated in the cloud while running `v2.7.0` will remain safely preserved in the database, but will not appear in the `v2.6.0` UI (which reads only from local storage) until the deployment is upgraded back to `v2.7.0`.
 
 ---
