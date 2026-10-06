@@ -15,6 +15,9 @@
 | 🏷️ [**Custom Categories Roadmap**](docs/CUSTOM_CATEGORIES_ROADMAP.md) | Architecture specification & soft-deletion strategy for Custom Categories (v2.9.0). |
 | ⚙️ [**Technical Specification**](docs/TECHNICAL_SPECIFICATION.md) | System architecture, planned vs. actual time-lock mechanics, and design tokens. |
 | 🚀 [**Production Deployment Guide**](docs/DEPLOYMENT_LIGHTSAIL.md) | AWS Lightsail / Docker deployment guide with Nginx reverse proxy. |
+| 🚢 [**v2.8.0 Production Deployment Runbook**](docs/DEPLOYMENT_v2.8.0_PRODUCTION.md) | Step-by-step production runbook, DB migration ordering, and rollback instructions for `v2.8.0`. |
+| 📋 [**v2.8.0 Deployment Execution Log**](docs/DEPLOYMENT_v2.8.0_EXECUTION_LOG.md) | DevOps execution log template, pre-flight checks, and verification smoke tests. |
+| 📜 [**v2.8.0 Production Execution Record**](docs/DEPLOYMENT_v2.8.0_EXECUTION_RECORD.md) | Live execution record from production deployment on AWS Lightsail (`v2.8.0` / 2026-10-06). |
 
 ---
 

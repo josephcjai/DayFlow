@@ -9,9 +9,10 @@
 | **Coexisting Application** | **HelpFinder4U** (`hf-web`, `hf-api`, `helpfinder_db`) — **DO NOT TOUCH** |
 | **Current Production Version** | `v2.7.0` (Commit `a094f6b`) |
 | **Target Release Version** | **`v2.8.0`** |
-| **Target Git Tag** | **`v2.8.0`** on branch `main` |
+| **Target Git Tag & Commit** | **`v2.8.0`** (Commit `7b4dd012fc5808df23463b603d32ec71c2a32b39`) on branch `main` |
 | **Deployment Type** | In-place zero-downtime upgrade (Additive DB Migration + API Rebuild + PM2 Graceful Reload + Cache Invalidation) |
 | **Database Migration** | **YES (CRITICAL ORDERING: Step 5.4 MUST run before Step 5.6 API reload)** |
+| **QA Verification Status** | ✅ **PASSED & CERTIFIED (2026-10-06)** — 155 API + 109 E2E tests, 14/14 prod-mode tests |
 | **Estimated Maintenance Window** | 5 – 10 minutes (Zero expected user downtime) |
 | **Audience** | DevOps Engineers / Deployment Team / Site Reliability Engineers |
 
@@ -39,29 +40,38 @@
      - Section D: Reusable Day Templates & Cloud Sync
    - Responsive 2-column layout for wide desktop displays.
 5. **Static Asset Cache Busting:**
-   - Asset version parameter bumped to `?v=2.9.23` across `index.html` and all JavaScript modules (39 references aligned).
+   - Asset version parameter bumped to `?v=2.9.23` across `index.html` and all JavaScript modules (42 references aligned: 2 in `index.html`, 40 across modules).
 
 ### Database Impact & Migration Ordering:
 - **New Column:** `schedule_slots.is_productive BOOLEAN`
 - **Migration Script:** `server/src/db/migrate.ts` executes `ALTER TABLE schedule_slots ADD COLUMN IF NOT EXISTS is_productive BOOLEAN;`.
 - **CRITICAL EXECUTION ORDER:** The database migration (`npm run migrate`) **MUST RUN BEFORE** rebuilding and reloading `dayflow-api`.
   - *Why:* The `v2.8.0` API queries `s.is_productive` in `GET /api/schedule/week/:weekStart`. If the API boots before the column exists, queries fail with `{"error":"column s.is_productive does not exist"}`.
-  - *Risk:* Zero lock contention; `ALTER TABLE ADD COLUMN` in PostgreSQL is an instantaneous metadata-only operation without full-table rewrites.
+  - *Risk:* Brief metadata-level table lock (milliseconds) on `schedule_slots` and re-run migration statements; instantaneous metadata-only operation without full-table rewrites.
 - **Rollback Safety:** If code is reverted to `v2.7.0` or `v2.6.0`, the `is_productive` column remains safely dormant in PostgreSQL without impact.
 
 ---
 
 ## 2. Pre-Deployment Tag & Repository Verification
 
-The certified release tag `v2.8.0` is available on GitHub:
+The certified release tag `v2.8.0` resolves to commit `7b4dd012fc5808df23463b603d32ec71c2a32b39` on GitHub:
 
 ```bash
-# Verify tag commit
+# Verify tag resolves to expected certified commit
 git rev-parse "v2.8.0^{commit}"
+# Expected: 7b4dd012fc5808df23463b603d32ec71c2a32b39
 
 # Inspect release commit summary
 git show v2.8.0 --stat
 ```
+
+### QA Retest Verification Certificate:
+- **Test Date:** 2026-10-06
+- **Release Commit:** `7b4dd012fc5808df23463b603d32ec71c2a32b39`
+- **Finding 45 (Omitted field preservation):** Verified live (`COALESCE` probe sequences: `true` → omitted → `true`; `false` → omitted → `false`; `null` → cleared).
+- **Regression Suite:** 155 API + 109 E2E tests passed across two consecutive runs, 0 retries.
+- **Production Mode:** 14/14 passed under `NODE_ENV=production`.
+- **Verdict:** Certified production-ready for promotion.
 
 ---
 
@@ -142,6 +152,16 @@ git status
 ---
 
 ### Step 5.4: Execute Database Migration (MUST RUN BEFORE API RELOAD)
+
+**Step 5.4.1: Pre-Migration Database Snapshot (Standard Best Practice)**
+```bash
+mkdir -p ~/backups
+pg_dump -Fc -d dayflow_db > ~/backups/dayflow_db_pre_v2.8.0_$(date +%Y%m%d_%H%M).dump
+# Verify backup integrity
+pg_restore --list ~/backups/dayflow_db_pre_v2.8.0_*.dump | head -n 5
+```
+
+**Step 5.4.2: Execute Schema Migration**
 Run the migration script to ensure the `schedule_slots.is_productive` column exists:
 
 ```bash
@@ -201,8 +221,8 @@ Check startup logs:
 pm2 logs dayflow-api --lines 25 --nostream
 ```
 **Verify log lines include:**
-- `DayFlow REST API Server running on port 5000 (production)`
-- `Database connected`
+- `🚀 DayFlow Express REST API running on http://localhost:5000`
+- `✅ Connected directly to PostgreSQL Database ('dayflow_db' on localhost:5432)!`
 
 ---
 
@@ -314,6 +334,7 @@ Deployment Date:     YYYY-MM-DD
 Deployed By:         [Engineer Name]
 Target Environment:  AWS Lightsail (13.200.154.214) / dayflowlive.com
 Target Release Tag:  v2.8.0
+Target Commit SHA:   7b4dd012fc5808df23463b603d32ec71c2a32b39
 Pre-Deploy Status:   All services healthy (HelpFinder4U & DayFlow online)
 Git Checkout Tag:    v2.8.0 confirmed (git describe --tags -> v2.8.0)
 Commit SHA:          Confirmed via git rev-parse "v2.8.0^{commit}"
@@ -321,7 +342,7 @@ DB Migration:        npm run migrate passed (schedule_slots.is_productive verifi
 API Build Status:    tsc build successful (dayflow-server@2.8.0)
 PM2 Reload:          dayflow-api reloaded, 0 errors, online
 Nginx Reload:        sudo nginx -t passed, systemctl reload nginx completed
-Asset Verification:  styles.css?v=2.9.23 & app.js?v=2.9.23 confirmed live
+Asset Verification:  styles.css?v=2.9.23 & app.js?v=2.9.23 confirmed live (42 references)
 API Health Check:    GET /api/health -> version: 2.8.0, database: connected
 Templates Route:     GET /api/templates -> 401 Unauthorized (JWT protected)
 Swagger Check:       /docs returns 404 in production mode
@@ -329,3 +350,23 @@ HelpFinder Health:   HelpFinder4U hf-web and hf-api verified 100% untouched
 Final Status:        [ SUCCESS / ROLLED BACK ]
 ================================================================================
 ```
+
+---
+
+## 9. Operational Notes & v2.9.0 Maintenance Backlog (from QA Review)
+
+The QA team identified the following non-blocking maintenance items to schedule for the next release (`v2.9.0`):
+
+1. **Dependency Hygiene (`proxy-addr` transitive advisory):**
+   - `npm audit` reports an advisory on `proxy-addr` (IP spoofing via IPv4-mapped IPv6 trust subnets), pulled in transitively via Express.
+   - **Production Impact Assessment:** Zero practical exposure. The server configures `app.set('trust proxy', 1)` (hop count), which bypasses the subnet matching logic where the vulnerability resides.
+   - **Action Item:** Upgrade Express / dependencies to pull `proxy-addr >= 2.0.8` during the `v2.9.0` sprint.
+
+2. **Docker Node Runtime Alignment:**
+   - Some Google Auth dependencies declare `engines: node >= 22`, while the production server image runs Node 20 LTS.
+   - The application runs cleanly and passes all regression suites under Node 20, but runtime image upgrade to Node 22 LTS will be evaluated in `v2.9.0`.
+
+3. **Client-Side Temporary ID / UUID Sanitization (from Deploy Record §6):**
+   - In offline/intermittent scenarios, `Date.now()` numeric timestamp IDs can reach UUID columns if initial creation fails and is subsequently updated, triggering PostgreSQL syntax `500` errors.
+   - **Action Item:** Switch client-side temporary IDs to `crypto.randomUUID()` and validate UUID syntax on backend routes returning `400 Bad Request` instead of unhandled `500`.
+
