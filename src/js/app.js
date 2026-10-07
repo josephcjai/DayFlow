@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DayFlow Main Entry Point & Router
  * Enforces mandatory login screen gate, multi-view (Day/Week/Month) switching, and user-isolated PostgreSQL sync
  */
@@ -28,31 +28,40 @@ import {
   toggleSelectedSlotKey,
   addSelectedSlotKey,
   removeSelectedSlotKey,
-  isSlotMultiSelected
-} from './state.js?v=2.9.23';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.23';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.9.23';
-import { initModal, openTaskModal } from './modal.js?v=2.9.23';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.23';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.23';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.23';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive } from './settings.js?v=2.9.23';
-import { showToast, generateUUID } from './utils.js?v=2.9.23';
+  isSlotMultiSelected,
+  getActiveCategories,
+  getAllCategories,
+  getCategoryColor,
+  getCategoryIcon,
+  syncCategoriesWithApi
+} from './state.js?v=2.9.24';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.24';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.9.24';
+import { initModal, openTaskModal } from './modal.js?v=2.9.24';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.24';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.24';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.24';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive } from './settings.js?v=2.9.24';
+import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.9.24';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.23';
+} from './notifications.js?v=2.9.24';
 
 const DOM = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
   cacheDomElements();
   loadStateFromStorage();
+  renderCategoryDropdowns();
   initModal(DOM.modalElements, renderAll);
-  initSettingsUI(DOM, renderAll);
+  initSettingsUI(DOM, () => {
+    renderCategoryDropdowns();
+    renderAll();
+  });
   initPointsBreakdownModal();
   bindEvents();
   initBulkActionsUI();
@@ -2249,7 +2258,103 @@ function updateViewModeButtons() {
   }
 }
 
+export function renderCategoryDropdowns() {
+  const activeCats = getActiveCategories();
+
+  // 1. Filter Dropdown (Header toolbar)
+  const catFilter = DOM.categoryFilter || document.getElementById('categoryFilter');
+  if (catFilter) {
+    const currentVal = catFilter.value;
+    catFilter.innerHTML = `
+      <option value="ALL">All Categories</option>
+      ${activeCats.map(c => `<option value="${escapeHtml(c.name)}">${c.icon ? `${c.icon} ` : ''}${escapeHtml(c.name)}</option>`).join('')}
+    `;
+    if (activeCats.some(c => c.name === currentVal) || currentVal === 'ALL') {
+      catFilter.value = currentVal;
+    } else {
+      catFilter.value = 'ALL';
+      STATE.selectedCategoryFilter = 'ALL';
+    }
+  }
+
+  // 2. Task Modal Category Select
+  const taskCatSelect = DOM.modalElements?.taskCategorySelect || document.getElementById('taskCategorySelect');
+  if (taskCatSelect) {
+    const currentVal = taskCatSelect.value;
+    taskCatSelect.innerHTML = activeCats.map(c => `
+      <option value="${escapeHtml(c.name)}">${c.icon ? `${c.icon} ` : ''}${escapeHtml(c.name)}</option>
+    `).join('');
+    if (currentVal && activeCats.some(c => c.name === currentVal)) {
+      taskCatSelect.value = currentVal;
+    } else if (activeCats.length > 0) {
+      taskCatSelect.value = activeCats[0].name;
+    }
+  }
+
+  // 3. Quick Todo Category Select
+  const todoCatSelect = DOM.todoCategorySelect || document.getElementById('todoCategorySelect');
+  if (todoCatSelect) {
+    const currentVal = todoCatSelect.value;
+    todoCatSelect.innerHTML = activeCats.map(c => `
+      <option value="${escapeHtml(c.name)}">${c.icon ? `${c.icon} ` : ''}${escapeHtml(c.name)}</option>
+    `).join('');
+    if (currentVal && activeCats.some(c => c.name === currentVal)) {
+      todoCatSelect.value = currentVal;
+    } else if (activeCats.length > 0) {
+      todoCatSelect.value = activeCats[0].name;
+    }
+  }
+
+  // 4. Edit Todo Category Select
+  const editTodoSelect = document.getElementById('editTodoCategorySelect');
+  if (editTodoSelect) {
+    const currentVal = editTodoSelect.value;
+    editTodoSelect.innerHTML = activeCats.map(c => `
+      <option value="${escapeHtml(c.name)}">${c.icon ? `${c.icon} ` : ''}${escapeHtml(c.name)}</option>
+    `).join('');
+    if (currentVal && activeCats.some(c => c.name === currentVal)) {
+      editTodoSelect.value = currentVal;
+    }
+  }
+
+  // 5. Schedule Todo Category Select
+  const schedTodoSelect = document.getElementById('scheduleTodoCategorySelect');
+  if (schedTodoSelect) {
+    const currentVal = schedTodoSelect.value;
+    schedTodoSelect.innerHTML = activeCats.map(c => `
+      <option value="${escapeHtml(c.name)}">${c.icon ? `${c.icon} ` : ''}${escapeHtml(c.name)}</option>
+    `).join('');
+    if (currentVal && activeCats.some(c => c.name === currentVal)) {
+      schedTodoSelect.value = currentVal;
+    }
+  }
+
+  // 6. Bulk Assign Category Select
+  const bulkAssignSelect = document.getElementById('bulkAssignCategorySelect');
+  if (bulkAssignSelect) {
+    const currentVal = bulkAssignSelect.value;
+    bulkAssignSelect.innerHTML = activeCats.map(c => `
+      <option value="${escapeHtml(c.name)}">${c.icon ? `${c.icon} ` : ''}${escapeHtml(c.name)}</option>
+    `).join('');
+    if (currentVal && activeCats.some(c => c.name === currentVal)) {
+      bulkAssignSelect.value = currentVal;
+    }
+  }
+
+  // 7. Bulk Category Menu
+  const bulkCatMenu = document.getElementById('bulkCategoryMenu');
+  if (bulkCatMenu) {
+    bulkCatMenu.innerHTML = activeCats.map(c => `
+      <button type="button" class="bulk-cat-item" data-category="${escapeHtml(c.name)}">
+        <span class="cat-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.color || '#64748b'};margin-right:6px;"></span>
+        ${c.icon ? `${c.icon} ` : ''}${escapeHtml(c.name)}
+      </button>
+    `).join('');
+  }
+}
+
 function renderAll() {
+  renderCategoryDropdowns();
   updateViewModeButtons();
   renderHeaderRangeText();
   if (STATE.activeView === 'grid') renderGrid(DOM.scheduleTableBody, handleSwitchToDayView);
@@ -3117,15 +3222,15 @@ function initBulkActionsUI() {
       bulkCategoryMenu.style.display = isVisible ? 'none' : 'flex';
     });
 
-    bulkCategoryMenu.querySelectorAll('.bulk-cat-item').forEach(item => {
-      item.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const cat = item.dataset.category;
-        bulkCategoryMenu.style.display = 'none';
-        if (cat) {
-          await handleBulkCategoryChange(cat);
-        }
-      });
+    bulkCategoryMenu.addEventListener('click', async (e) => {
+      const item = e.target.closest('.bulk-cat-item');
+      if (!item) return;
+      e.stopPropagation();
+      const cat = item.dataset.category;
+      bulkCategoryMenu.style.display = 'none';
+      if (cat) {
+        await handleBulkCategoryChange(cat);
+      }
     });
 
     document.addEventListener('click', (e) => {

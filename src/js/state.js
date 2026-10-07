@@ -1,8 +1,18 @@
-/**
+﻿/**
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.23';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.24';
+
+export const DEFAULT_CATEGORIES = [
+  { id: 'cat_work', name: 'Work', icon: '💼', color: '#3b82f6', isProductive: true, isSystem: false, isArchived: false, sortOrder: 0 },
+  { id: 'cat_learning', name: 'Learning', icon: '📚', color: '#8b5cf6', isProductive: true, isSystem: false, isArchived: false, sortOrder: 1 },
+  { id: 'cat_health', name: 'Health', icon: '🏃', color: '#f59e0b', isProductive: false, isSystem: false, isArchived: false, sortOrder: 2 },
+  { id: 'cat_household', name: 'Household', icon: '🧹', color: '#10b981', isProductive: false, isSystem: false, isArchived: false, sortOrder: 3 },
+  { id: 'cat_family', name: 'Family', icon: '👨‍👩‍👧', color: '#ec4899', isProductive: false, isSystem: false, isArchived: false, sortOrder: 4 },
+  { id: 'cat_travel', name: 'Travel', icon: '✈️', color: '#06b6d4', isProductive: false, isSystem: false, isArchived: false, sortOrder: 5 },
+  { id: 'cat_general', name: 'General', icon: '📌', color: '#64748b', isProductive: false, isSystem: true, isArchived: false, sortOrder: 6 }
+];
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -24,8 +34,134 @@ export const STATE = {
   failedNotesWeekKeys: new Set(),
   notesInFlightWeekKey: null,
   pendingSlotSaves: {},
-  selectedSlotKeys: new Set()
+  selectedSlotKeys: new Set(),
+  categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES))
 };
+
+if (typeof window !== 'undefined') {
+  window.__DAYFLOW_STATE__ = STATE;
+}
+
+export function loadCategoriesFromStorage() {
+  try {
+    const key = getUserStorageKey('dayflow_categories');
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        STATE.categories = parsed;
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load categories from storage:', e);
+  }
+  STATE.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+}
+
+export function saveCategoriesToStorage() {
+  try {
+    const key = getUserStorageKey('dayflow_categories');
+    localStorage.setItem(key, JSON.stringify(STATE.categories));
+  } catch (e) {
+    console.warn('Failed to save categories to storage:', e);
+  }
+}
+
+export function getActiveCategories() {
+  if (!STATE.categories || !Array.isArray(STATE.categories) || STATE.categories.length === 0) {
+    return DEFAULT_CATEGORIES.filter(c => !c.isArchived);
+  }
+  return STATE.categories.filter(c => !c.isArchived);
+}
+
+export function getAllCategories() {
+  if (!STATE.categories || !Array.isArray(STATE.categories) || STATE.categories.length === 0) {
+    return DEFAULT_CATEGORIES;
+  }
+  return STATE.categories;
+}
+
+export function getCategoryByName(catName) {
+  if (!catName) return null;
+  const list = STATE.categories && STATE.categories.length > 0 ? STATE.categories : DEFAULT_CATEGORIES;
+  return list.find(c => c.name.toLowerCase() === catName.toLowerCase()) || null;
+}
+
+export function getCategoryColor(catName) {
+  if (!catName) return '#64748b';
+  const cat = getCategoryByName(catName);
+  if (cat && cat.color) return cat.color;
+  const legacyMap = {
+    'learning': '#8b5cf6',
+    'work': '#3b82f6',
+    'household': '#10b981',
+    'family': '#ec4899',
+    'health': '#f59e0b',
+    'travel': '#06b6d4',
+    'general': '#64748b'
+  };
+  return legacyMap[catName.toLowerCase()] || '#64748b';
+}
+
+export function getCategoryIcon(catName) {
+  if (!catName) return '📌';
+  const cat = getCategoryByName(catName);
+  if (cat && cat.icon) return cat.icon;
+  const legacyMap = {
+    'learning': '📚',
+    'work': '💼',
+    'household': '🧹',
+    'family': '👨‍👩‍👧',
+    'health': '🏃',
+    'travel': '✈️',
+    'general': '📌'
+  };
+  return legacyMap[catName.toLowerCase()] || '📌';
+}
+
+export function isCategoryProductive(catName) {
+  if (!catName) return false;
+  const cat = getCategoryByName(catName);
+  if (cat && typeof cat.isProductive === 'boolean') return cat.isProductive;
+  return ['work', 'learning'].includes(catName.toLowerCase());
+}
+
+export function cascadeCategoryRenameLocally(oldName, newName) {
+  if (!oldName || !newName || oldName === newName) return;
+  // Update all weeks in STATE.scheduleData
+  Object.values(STATE.scheduleData).forEach(week => {
+    if (week && week.slots) {
+      Object.values(week.slots).forEach(slot => {
+        if (slot && slot.category && slot.category.toLowerCase() === oldName.toLowerCase()) {
+          slot.category = newName;
+        }
+      });
+    }
+    if (week && week.todos && Array.isArray(week.todos)) {
+      week.todos.forEach(todo => {
+        if (todo && todo.category && todo.category.toLowerCase() === oldName.toLowerCase()) {
+          todo.category = newName;
+        }
+      });
+    }
+  });
+  saveStateToStorage();
+}
+
+export async function syncCategoriesWithApi() {
+  if (isDemoMode()) return;
+  try {
+    const serverCategories = await ApiClient.getCategories(true);
+    if (serverCategories && Array.isArray(serverCategories) && serverCategories.length > 0) {
+      STATE.categories = serverCategories;
+      saveCategoriesToStorage();
+    }
+  } catch (e) {
+    console.warn('Failed to sync categories with API:', e);
+  }
+}
+
 
 export function getSelectedSlotKeys() {
   if (!STATE.selectedSlotKeys) STATE.selectedSlotKeys = new Set();
@@ -381,6 +517,8 @@ export function loadStateFromStorage() {
         }
       } catch (e) {}
     }
+
+    loadCategoriesFromStorage();
   } catch (e) {
     console.error('Failed to load DayFlow state:', e);
   }
@@ -391,6 +529,7 @@ export function saveStateToStorage() {
     const key = getUserStorageKey();
     localStorage.setItem(key, JSON.stringify(STATE.scheduleData));
     savePendingSlotsToStorage();
+    saveCategoriesToStorage();
   } catch (e) {
     console.error('Failed to save DayFlow state:', e);
   }
@@ -418,12 +557,18 @@ export async function syncWeekDataWithApi(onRender) {
   const weekKey = getWeekKey(STATE.currentWeekStart);
   const weekData = getCurrentWeekData();
 
-  // Run all 3 fetches concurrently to shrink the network latency window (Addresses Finding 06)
-  const [apiSlots, apiHabits, apiTodosNotes] = await Promise.all([
+  // Run all fetches concurrently to shrink the network latency window
+  const [apiSlots, apiHabits, apiTodosNotes, apiCategories] = await Promise.all([
     ApiClient.fetchWeekSchedule(weekKey),
     ApiClient.fetchHabits(weekKey),
-    ApiClient.fetchTodosAndNotes(weekKey)
+    ApiClient.fetchTodosAndNotes(weekKey),
+    ApiClient.getCategories(true)
   ]);
+
+  if (apiCategories !== null && Array.isArray(apiCategories) && apiCategories.length > 0) {
+    STATE.categories = apiCategories;
+    saveCategoriesToStorage();
+  }
 
   if (apiSlots !== null && typeof apiSlots === 'object') {
     // Merge server slots, but preserve any local slots that have pending unsaved edits (Finding 41)
@@ -440,6 +585,7 @@ export async function syncWeekDataWithApi(onRender) {
   if (apiHabits !== null && Array.isArray(apiHabits)) {
     weekData.habits = apiHabits;
   }
+
 
   if (apiTodosNotes !== null && typeof apiTodosNotes === 'object') {
     if (apiTodosNotes.todos) weekData.todos = apiTodosNotes.todos;

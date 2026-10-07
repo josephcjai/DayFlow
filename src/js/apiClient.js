@@ -445,5 +445,76 @@ export const ApiClient = {
       console.warn('Deleted day template offline:', e);
       return false;
     }
+  },
+
+  async getCategories(includeArchived = false) {
+    if (isDemoMode()) return null;
+    try {
+      const res = await fetch(`${API_BASE}/categories${includeArchived ? '?includeArchived=true' : ''}`, {
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(4000)
+      });
+      if (checkUnauthorized(res)) return null;
+      if (!res.ok) return null;
+      const data = await res.json();
+      return Array.isArray(data.categories) ? data.categories : null;
+    } catch (e) {
+      console.warn('Fetched categories offline:', e);
+      return null;
+    }
+  },
+
+  async createCategory(cat) {
+    if (isDemoMode()) return { id: `demo_cat_${Date.now()}`, ...cat, isSystem: false, isArchived: false };
+    try {
+      const res = await fetch(`${API_BASE}/categories`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(cat)
+      });
+      if (checkUnauthorized(res)) return null;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to create category');
+      return data.category || null;
+    } catch (e) {
+      console.warn('Create category error:', e);
+      throw e;
+    }
+  },
+
+  async updateCategory(id, updates) {
+    if (isDemoMode()) return { id, ...updates };
+    try {
+      const res = await fetch(`${API_BASE}/categories/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updates)
+      });
+      if (checkUnauthorized(res)) return null;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to update category');
+      return data.category || null;
+    } catch (e) {
+      console.warn('Update category error:', e);
+      throw e;
+    }
+  },
+
+  async deleteCategory(id) {
+    if (isDemoMode()) return true;
+    try {
+      const res = await fetch(`${API_BASE}/categories/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (checkUnauthorized(res)) return false;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to archive category');
+      return true;
+    } catch (e) {
+      console.warn('Delete category error:', e);
+      throw e;
+    }
   }
 };
+

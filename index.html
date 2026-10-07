@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/styles.css?v=2.9.23">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.9.24">
   <!-- Google Identity Services (Sign in with Google) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -675,23 +675,40 @@
                 </div>
               </div>
 
-              <!-- CARD 2: Work Effectiveness & Productive Categories -->
+              <!-- CARD 2: Custom Categories & Work Effectiveness -->
               <div class="settings-card" id="settingsEffectivenessCard">
-                <div class="settings-card-header">
-                  <span class="settings-card-icon">⚡</span>
-                  <div>
-                    <h3>Work Effectiveness & Leverage</h3>
-                    <p class="settings-card-desc">Choose which schedule categories count toward your high-impact productive hours. Individual slot tasks can also be toggled directly in the task editor.</p>
+                <div class="settings-card-header" style="justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span class="settings-card-icon">⚡</span>
+                    <div>
+                      <h3>Custom Categories & Work Effectiveness</h3>
+                      <p class="settings-card-desc">Personalize categories with custom colors, icons, and productivity classifications. Past logged entries are safely preserved.</p>
+                    </div>
                   </div>
+                  <button type="button" id="addNewCategoryBtn" class="btn btn-primary btn-sm" style="white-space: nowrap;">+ New Category</button>
                 </div>
 
                 <div class="settings-card-body">
-                  <div class="form-group">
-                    <label>Default High-Impact Categories</label>
-                    <div class="productive-categories-pills" id="settingsProductiveCategoriesPills">
-                      <!-- Dynamically rendered category toggle pills -->
+                  <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                      <label style="margin: 0; font-weight: 600; font-size: 0.85rem;">Active Categories & Productivity Status</label>
+                      <span style="font-size: 0.78rem; color: var(--text-muted);">⚡ = High-Impact Hours</span>
                     </div>
-                    <span class="settings-input-hint" style="margin-top: 0.75rem; display: block; font-size: 0.8rem; color: var(--text-muted);">
+                    <div id="settingsCategoriesList" class="categories-management-list">
+                      <!-- Dynamically rendered category rows -->
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+                    <div class="category-archived-summary" id="categoryArchivedSummary" style="display: none; margin-bottom: 0.5rem;">
+                      <button type="button" id="toggleArchivedCategoriesBtn" class="btn btn-link btn-xs" style="color: var(--text-muted); font-size: 0.8rem; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0;">
+                        Show Archived Categories (<span id="archivedCategoryCount">0</span>)
+                      </button>
+                      <div id="archivedCategoriesList" class="categories-management-list" style="display: none; margin-top: 0.5rem; opacity: 0.8;">
+                        <!-- Dynamically rendered archived category rows -->
+                      </div>
+                    </div>
+                    <span class="settings-input-hint" style="display: block; font-size: 0.8rem; color: var(--text-muted);">
                       Formula: <strong>Work Effectiveness = (Productive Actual Logged Hours / Total Actual Logged Hours) × 100</strong>
                     </span>
                   </div>
@@ -1735,6 +1752,89 @@
     </div>
   </div>
 
+  <!-- CATEGORY EDIT / CREATE MODAL -->
+  <div id="categoryModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 500px; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 1rem 1.5rem;">
+        <h3 id="categoryModalTitle" style="margin: 0; font-size: 1.15rem; font-weight: 700;">Create Custom Category</h3>
+        <button type="button" id="closeCategoryModalBtn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.15rem;">
+        <input type="hidden" id="categoryEditId">
+
+        <div class="form-group">
+          <label for="categoryEditName" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; display: block;">Category Name *</label>
+          <input type="text" id="categoryEditName" class="text-input" placeholder="e.g. Finance, Side Projects, Meditation" maxlength="50" required>
+          <span id="categorySystemNameHint" style="display: none; font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem;">System category name cannot be modified.</span>
+        </div>
+
+        <div class="form-group">
+          <label style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.45rem; display: block;">Category Icon / Emoji</label>
+          <div class="category-icon-picker-wrap" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+            <div id="categoryIconPreview" class="category-icon-preview" style="font-size: 1.8rem; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px;">📌</div>
+            <input type="text" id="categoryEditIcon" class="text-input" placeholder="Emoji" maxlength="8" style="width: 80px; text-align: center; font-size: 1.1rem;" value="📌">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Pick below or type custom emoji</span>
+          </div>
+          <div class="category-preset-emojis" id="categoryPresetEmojis" style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+            <!-- Emojis populated by JS -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.45rem; display: block;">Category Color</label>
+          <div class="category-color-picker-wrap" style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+            <div id="categoryColorPreview" class="category-color-preview" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background-color: #3b82f6; box-shadow: 0 2px 6px rgba(0,0,0,0.2);"></div>
+            <input type="color" id="categoryEditColorPicker" value="#3b82f6" style="width: 44px; height: 36px; padding: 2px; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer; background: var(--bg-secondary);">
+            <input type="text" id="categoryEditColorHex" class="text-input" placeholder="#3b82f6" maxlength="20" style="width: 100px; font-family: monospace;" value="#3b82f6">
+          </div>
+          <div class="category-preset-colors" id="categoryPresetColors" style="display: flex; flex-wrap: wrap; gap: 0.45rem;">
+            <!-- Swatches populated by JS -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="custom-checkbox-label" style="display: flex; align-items: flex-start; gap: 0.65rem; cursor: pointer;">
+            <input type="checkbox" id="categoryEditIsProductive" style="margin-top: 0.2rem;">
+            <div>
+              <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.35rem;">
+                ⚡ Count as Productive / High-Impact
+              </span>
+              <span style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+                Tasks in this category will automatically be counted towards your Work Effectiveness score and high-impact hours by default.
+              </span>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 0.85rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" id="cancelCategoryModalBtn" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="saveCategoryModalBtn" class="btn btn-primary">Save Category</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARCHIVE CATEGORY CONFIRMATION MODAL -->
+  <div id="archiveCategoryConfirmModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 1rem 1.5rem;">
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #f87171;">Archive Category</h3>
+        <button type="button" id="closeArchiveCategoryModalBtn" class="modal-close-btn" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem 1.5rem;">
+        <p style="margin: 0 0 0.85rem; font-size: 0.92rem; color: var(--text-primary);">
+          Are you sure you want to archive <strong id="archiveCategoryNameText"></strong>?
+        </p>
+        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.82rem; color: #fbbf24; line-height: 1.45;">
+          <strong>Historical Preservation:</strong> All existing schedule slots and todo entries with this category will retain their tags and analytics history. It will simply be hidden from new task selection dropdowns.
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 0.85rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" id="cancelArchiveCategoryBtn" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="confirmArchiveCategoryBtn" class="btn btn-danger" style="background: #ef4444; color: white;">Archive Category</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FLOATING BULK SLOT ACTION BAR -->
   <div id="bulkActionBar" class="bulk-action-bar" style="display: none;" role="toolbar" aria-label="Bulk slot actions">
     <div class="bulk-action-inner">
@@ -1853,6 +1953,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.9.23"></script>
+  <script type="module" src="src/js/app.js?v=2.9.24"></script>
 </body>
 </html>

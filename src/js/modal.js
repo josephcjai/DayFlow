@@ -1,11 +1,11 @@
-/**
+﻿/**
  * DayFlow Task Editor Modal Controller
  * Implements Planned vs Actual Task distinction, clear slot button, & time-lock rules
  */
-import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction, markSlotPendingSave, clearSlotPendingSave } from './state.js?v=2.9.23';
-import { ApiClient } from './apiClient.js?v=2.9.23';
-import { clearSlotSelection } from './grid.js?v=2.9.23';
-import { isSlotProductive, USER_SETTINGS } from './settings.js?v=2.9.23';
+import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction, markSlotPendingSave, clearSlotPendingSave, isCategoryProductive } from './state.js?v=2.9.24';
+import { ApiClient } from './apiClient.js?v=2.9.24';
+import { clearSlotSelection } from './grid.js?v=2.9.24';
+import { isSlotProductive, USER_SETTINGS } from './settings.js?v=2.9.24';
 
 let modalElements = {};
 let renderCallback = null;
@@ -13,8 +13,7 @@ let renderCallback = null;
 function updateModalProductiveHint() {
   if (!modalElements.taskProductiveHint) return;
   const currentCat = modalElements.taskCategorySelect ? modalElements.taskCategorySelect.value : 'General';
-  const prodCats = USER_SETTINGS?.productiveCategories || ['Work', 'Learning'];
-  const catIsDefault = prodCats.includes(currentCat);
+  const catIsDefault = isCategoryProductive(currentCat);
   const isExplicit = modalElements.taskIsProductiveInput?.dataset.userEdited === 'true';
   const isChecked = !!modalElements.taskIsProductiveInput?.checked;
 
@@ -45,8 +44,7 @@ export function initModal(elements, onSaveOrDelete) {
   if (modalElements.taskCategorySelect) {
     modalElements.taskCategorySelect.addEventListener('change', () => {
       if (modalElements.taskIsProductiveInput && modalElements.taskIsProductiveInput.dataset.userEdited !== 'true') {
-        const prodCats = USER_SETTINGS?.productiveCategories || ['Work', 'Learning'];
-        modalElements.taskIsProductiveInput.checked = prodCats.includes(modalElements.taskCategorySelect.value);
+        modalElements.taskIsProductiveInput.checked = isCategoryProductive(modalElements.taskCategorySelect.value);
       }
       updateModalProductiveHint();
     });

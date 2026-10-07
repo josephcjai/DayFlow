@@ -121,6 +121,42 @@ export async function runMigrations() {
       );
     `);
 
+    // 2b. User Custom Task Categories table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_categories (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(50) NOT NULL,
+        icon VARCHAR(10) NOT NULL DEFAULT '📌',
+        color VARCHAR(30) NOT NULL DEFAULT '#64748b',
+        is_productive BOOLEAN NOT NULL DEFAULT false,
+        is_system BOOLEAN NOT NULL DEFAULT false,
+        is_archived BOOLEAN NOT NULL DEFAULT false,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT uq_user_category_name UNIQUE(user_id, name)
+      );
+    `);
+
+    // Auto-seed default categories for any existing users without categories
+    await client.query(`
+      INSERT INTO user_categories (user_id, name, icon, color, is_productive, is_system, sort_order)
+      SELECT u.id, d.name, d.icon, d.color, d.is_productive, d.is_system, d.sort_order
+      FROM users u
+      CROSS JOIN (
+        VALUES 
+          ('Work', '💼', '#3b82f6', true, false, 0),
+          ('Learning', '📚', '#8b5cf6', true, false, 1),
+          ('Health', '🏃', '#f59e0b', false, false, 2),
+          ('Household', '🧹', '#10b981', false, false, 3),
+          ('Family', '👨‍👩‍👧', '#ec4899', false, false, 4),
+          ('Travel', '✈️', '#06b6d4', false, false, 5),
+          ('General', '📌', '#64748b', false, true, 6)
+      ) AS d(name, icon, color, is_productive, is_system, sort_order)
+      ON CONFLICT (user_id, name) DO NOTHING;
+    `);
+
     // 3. Incremental column upgrades
     await client.query("ALTER TABLE schedule_weeks ADD COLUMN IF NOT EXISTS note_sheets JSONB DEFAULT '[]'::jsonb;");
     await client.query("ALTER TABLE todo_items ADD COLUMN IF NOT EXISTS due_date DATE;");
@@ -158,6 +194,7 @@ export async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_pwd_reset_token ON password_reset_tokens (token_hash);
       CREATE INDEX IF NOT EXISTS idx_pwd_reset_user ON password_reset_tokens (user_id);
       CREATE INDEX IF NOT EXISTS idx_user_day_templates_user ON user_day_templates (user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_categories_user ON user_categories (user_id);
     `);
 
     await client.query('COMMIT');

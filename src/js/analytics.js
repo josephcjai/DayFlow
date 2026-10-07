@@ -1,23 +1,13 @@
-/**
+﻿/**
  * DayFlow Focus & Habit Analytics Calculator
  * Dynamically adapts to:
  * 1. Day Mode: Daily KPI, category breakdown, habit points, and 7-day context highlighting active day
  * 2. Week Mode: Weekly KPI, 7-category time distribution, and Mon-Sun consistency trend
  * 3. Month Mode: Monthly KPI aggregation across all weeks, monthly category breakdown, and weekly trend distribution
  */
-import { getCurrentWeekData, STATE, getWeekDates, formatDateISO, formatDateDisplay, formatDateDisplayShort } from './state.js?v=2.9.23';
-import { escapeHtml, getPriorityPoints } from './utils.js?v=2.9.23';
-import { USER_SETTINGS, isSlotProductive } from './settings.js?v=2.9.23';
-
-const CATEGORIES = [
-  { id: 'Learning', name: 'Learning (WPF/WCF/React/Angular)', color: 'var(--cat-learning)' },
-  { id: 'Work', name: 'Work / Job Tasks', color: 'var(--cat-work)' },
-  { id: 'Household', name: 'Household & Daily Chores', color: 'var(--cat-household)' },
-  { id: 'Family', name: 'Family & Personal', color: 'var(--cat-family)' },
-  { id: 'Health', name: 'Health & Meals', color: 'var(--cat-health)' },
-  { id: 'Travel', name: 'Travel & Commute', color: 'var(--cat-travel)' },
-  { id: 'General', name: 'General', color: 'var(--cat-general)' }
-];
+import { getCurrentWeekData, STATE, getWeekDates, formatDateISO, formatDateDisplay, formatDateDisplayShort, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive } from './state.js?v=2.9.24';
+import { escapeHtml, getPriorityPoints } from './utils.js?v=2.9.24';
+import { USER_SETTINGS, isSlotProductive } from './settings.js?v=2.9.24';
 
 export function renderAnalytics(
   statPlannedHours,
@@ -124,8 +114,9 @@ export function renderAnalytics(
   // 2. SCHEDULE TIME AGGREGATION & CATEGORY BREAKDOWN
   // -------------------------------------------------------------
   const categoryTotals = {};
-  CATEGORIES.forEach(c => {
-    categoryTotals[c.id] = { plannedMins: 0, actualMins: 0, color: c.color, name: c.name };
+  const allCats = getAllCategories();
+  allCats.forEach(c => {
+    categoryTotals[c.name] = { plannedMins: 0, actualMins: 0, color: c.color || getCategoryColor(c.name), name: `${c.icon ? `${c.icon} ` : ''}${c.name}` };
   });
 
   let grandPlannedMins = 0;
@@ -135,7 +126,7 @@ export function renderAnalytics(
   Object.values(targetSlots).forEach(slot => {
     const cat = slot.category || 'General';
     if (!categoryTotals[cat]) {
-      categoryTotals[cat] = { plannedMins: 0, actualMins: 0, color: 'var(--cat-general)', name: cat };
+      categoryTotals[cat] = { plannedMins: 0, actualMins: 0, color: getCategoryColor(cat), name: `${getCategoryIcon(cat)} ${cat}` };
     }
     const pMins = (slot.planned || 30);
     const aMins = (slot.actual || 0);
@@ -166,7 +157,6 @@ export function renderAnalytics(
 
   if (categoryBarsContainer) {
     categoryBarsContainer.innerHTML = '';
-    const activeProdCats = USER_SETTINGS?.productiveCategories || ['Work', 'Learning'];
 
     Object.keys(categoryTotals).forEach(catId => {
       const data = categoryTotals[catId];
@@ -175,7 +165,7 @@ export function renderAnalytics(
       const pVal = (data.plannedMins / 60).toFixed(1);
       const aVal = (data.actualMins / 60).toFixed(1);
       const pct = data.plannedMins > 0 ? Math.min(100, Math.round((data.actualMins / data.plannedMins) * 100)) : 0;
-      const isProductiveCat = activeProdCats.includes(catId);
+      const isProductiveCat = isCategoryProductive(catId);
       const prodBadgeHtml = isProductiveCat
         ? '<span class="prod-cat-badge-pill" title="Default productive category">⚡ High Impact</span>'
         : '';

@@ -1,11 +1,11 @@
-/**
+﻿/**
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected } from './state.js?v=2.9.23';
-import { openTaskModal } from './modal.js?v=2.9.23';
-import { escapeHtml } from './utils.js?v=2.9.23';
-import { isSlotProductive } from './settings.js?v=2.9.23';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected, getCategoryColor, getCategoryIcon } from './state.js?v=2.9.24';
+import { openTaskModal } from './modal.js?v=2.9.24';
+import { escapeHtml } from './utils.js?v=2.9.24';
+import { isSlotProductive } from './settings.js?v=2.9.24';
 
 export const TIME_SLOTS = [];
 
@@ -420,7 +420,7 @@ function renderWeekGridBody(scheduleTableBody) {
             </div>
             ${isDifferent ? `<div class="planned-subtext">Plan: ${escapeHtml(plannedText)}</div>` : ''}
             <div class="slot-footer-row">
-              <span class="category-tag ${escapedCat}">${escapedCat}</span>
+              <span class="category-tag ${escapedCat}" style="background-color: ${getCategoryColor(catName)}; color: #ffffff;">${getCategoryIcon(catName) ? `${getCategoryIcon(catName)} ` : ''}${escapedCat}</span>
               ${isProd ? '<span class="slot-prod-icon" title="Marked as Productive (High-Impact Work)">⚡</span>' : ''}
               <span class="time-dur-badge">${slotData.planned || 30}m | <strong class="actual-time-badge inline-editable" data-slot-key="${slotKey}" title="Click to edit actual duration">${slotData.actual !== undefined ? slotData.actual : 0}m</strong></span>
             </div>
@@ -565,7 +565,7 @@ function renderDayGridBody(scheduleTableBody) {
           ${plannedText && plannedText !== actualText ? `<div class="planned-subtext">Baseline Plan: ${escapeHtml(plannedText)}</div>` : ''}
           ${slotData.notes ? `<div class="slot-notes-preview">📝 ${escapeHtml(slotData.notes)}</div>` : ''}
           <div class="slot-footer-row">
-            <span class="category-tag ${escapedCat}">${escapedCat}</span>
+            <span class="category-tag ${escapedCat}" style="background-color: ${getCategoryColor(catName)}; color: #ffffff;">${getCategoryIcon(catName) ? `${getCategoryIcon(catName)} ` : ''}${escapedCat}</span>
             ${isProd ? '<span class="slot-prod-icon" title="Marked as Productive (High-Impact Work)">⚡</span>' : ''}
             <span class="time-dur-badge">Planned: ${slotData.planned || 30}m | <strong class="actual-time-badge inline-editable" data-slot-key="${slotKey}" title="Click to edit actual duration">Actual: ${slotData.actual !== undefined ? slotData.actual : 0}m</strong></span>
           </div>

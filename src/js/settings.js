@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DayFlow User Settings Controller
  * Supports:
  * 1. 24-Hour Default & Custom Timeline Windowing (Start Hour, End Hour, Quick Presets)
@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.23';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat } from './state.js?v=2.9.23';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.23';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.23';
-import { showToast } from './utils.js?v=2.9.23';
+import { generateTimeSlots } from './grid.js?v=2.9.24';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage } from './state.js?v=2.9.24';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.24';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.24';
+import { showToast, escapeHtml } from './utils.js?v=2.9.24';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -91,8 +91,14 @@ export function isSlotProductive(slot, userSettings = USER_SETTINGS) {
   if (typeof slot.isProductive === 'boolean') {
     return slot.isProductive;
   }
-  const prodCats = userSettings?.productiveCategories || ['Work', 'Learning'];
   const cat = slot.category || 'General';
+  if (STATE && STATE.categories && Array.isArray(STATE.categories) && STATE.categories.length > 0) {
+    const found = STATE.categories.find(c => c.name.toLowerCase() === cat.toLowerCase());
+    if (found && typeof found.isProductive === 'boolean') {
+      return found.isProductive;
+    }
+  }
+  const prodCats = userSettings?.productiveCategories || ['Work', 'Learning'];
   return prodCats.includes(cat);
 }
 
@@ -328,47 +334,7 @@ export function initSettingsUI(domElements, renderAllCallback) {
     renderProductiveCategoryPills();
   };
 
-  const productivePillsContainer = document.getElementById('settingsProductiveCategoriesPills');
-
-  const renderProductiveCategoryPills = () => {
-    if (!productivePillsContainer) return;
-    productivePillsContainer.innerHTML = '';
-    const activeCats = USER_SETTINGS.productiveCategories || ['Work', 'Learning'];
-
-    AVAILABLE_CATEGORIES.forEach(cat => {
-      const isSelected = activeCats.includes(cat.id);
-      const pill = document.createElement('button');
-      pill.type = 'button';
-      pill.className = `prod-cat-pill ${isSelected ? 'active' : ''}`;
-      pill.dataset.category = cat.id;
-      pill.title = isSelected
-        ? `${cat.name} is counted as productive work (Click to toggle)`
-        : `${cat.name} is standard work (Click to mark as productive)`;
-      pill.innerHTML = `
-        <span class="prod-cat-icon">${cat.icon}</span>
-        <span class="prod-cat-name">${cat.id}</span>
-        <span class="prod-cat-badge">${isSelected ? '⚡ Productive' : 'Standard'}</span>
-      `;
-
-      pill.addEventListener('click', () => {
-        let currentList = [...(USER_SETTINGS.productiveCategories || ['Work', 'Learning'])];
-        if (currentList.includes(cat.id)) {
-          currentList = currentList.filter(c => c !== cat.id);
-          showToast(`${cat.id} removed from productive categories`, 'info');
-        } else {
-          currentList.push(cat.id);
-          showToast(`${cat.id} marked as productive`, 'success');
-        }
-        USER_SETTINGS.productiveCategories = currentList;
-        saveUserSettings({ productiveCategories: currentList });
-        renderProductiveCategoryPills();
-        if (onSettingsChangedCallback) {
-          onSettingsChangedCallback();
-        }
-      });
-
-      productivePillsContainer.appendChild(pill);
-    });
+    renderCategoriesManagementUI(onSettingsChangedCallback);
   };
 
   syncInputsToState();
@@ -512,7 +478,7 @@ export function initSettingsUI(domElements, renderAllCallback) {
         USER_SETTINGS = { ...DEFAULT_SETTINGS };
         saveUserSettings(USER_SETTINGS);
         syncInputsToState();
-        renderProductiveCategoryPills();
+        renderCategoriesManagementUI(onSettingsChangedCallback);
         updateNotificationBellUI();
         applySettings(USER_SETTINGS, onSettingsChangedCallback);
 
@@ -529,6 +495,9 @@ export function initSettingsUI(domElements, renderAllCallback) {
 
   // Initialize Account & Security Card
   initAccountSecurityUI();
+
+  // Initialize Custom Categories Management
+  initCategoryManagement(onSettingsChangedCallback);
 
   // Initialize Day Templates Modals and List
   initDayTemplateModals();
@@ -1079,6 +1048,483 @@ export function closeDeleteDayTemplateModal() {
   pendingDeleteTemplateId = null;
 }
 
+// ========================================================
+// CUSTOM TASK CATEGORIES CONTROLLER & MODAL HANDLERS
+// ========================================================
+const PRESET_EMOJIS = ['💼', '📚', '🏃', '🧹', '👨‍👩‍👧', '✈️', '📌', '🎯', '💡', '💻', '🎨', '🎵', '💰', '🛒', '🔬', '🏋️', '🧘', '🍽️', '✍️', '⚡'];
+const PRESET_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#ec4899', '#f59e0b', '#06b6d4', '#6366f1', '#14b8a6', '#f43f5e', '#84cc16', '#eab308', '#64748b'];
+
+let pendingArchiveCategory = null;
+let activeCategoryModalCallback = null;
+
+export function renderCategoriesManagementUI(onChangedCallback) {
+  const container = document.getElementById('settingsCategoriesList');
+  const archivedContainer = document.getElementById('archivedCategoriesList');
+  const archivedSummary = document.getElementById('categoryArchivedSummary');
+  const archivedCountEl = document.getElementById('archivedCategoryCount');
+
+  if (!container) return;
+  container.innerHTML = '';
+  if (archivedContainer) archivedContainer.innerHTML = '';
+
+  const allCategories = getAllCategories();
+  const activeCategories = allCategories.filter(c => !c.isArchived);
+  const archivedCategories = allCategories.filter(c => !!c.isArchived);
+
+  if (archivedSummary && archivedCountEl) {
+    if (archivedCategories.length > 0) {
+      archivedSummary.style.display = 'block';
+      archivedCountEl.textContent = archivedCategories.length;
+    } else {
+      archivedSummary.style.display = 'none';
+    }
+  }
+
+  // Render active categories
+  activeCategories.forEach(cat => {
+    const row = document.createElement('div');
+    row.className = 'category-manage-row';
+    row.dataset.id = cat.id;
+    row.dataset.name = cat.name;
+
+    const isSystem = Boolean(cat.isSystem);
+    const isProd = Boolean(cat.isProductive);
+
+    row.innerHTML = `
+      <div class="category-manage-info">
+        <span class="category-color-dot" style="background-color: ${cat.color || '#64748b'};"></span>
+        <span class="category-manage-icon">${cat.icon || '📌'}</span>
+        <span class="category-manage-name">${escapeSettingsHtml(cat.name)}</span>
+        <div class="category-manage-badges">
+          ${isSystem ? '<span class="category-badge-system">System Default</span>' : ''}
+          <button type="button" class="category-badge-prod-btn ${isProd ? 'is-prod' : 'is-standard'}" data-action="toggle-prod" title="${isProd ? 'Counts towards Work Effectiveness (Click to switch to Standard)' : 'Standard category (Click to mark as Productive)'}">
+            ${isProd ? '⚡ Productive' : 'Standard'}
+          </button>
+        </div>
+      </div>
+      <div class="category-manage-actions">
+        <button type="button" class="category-action-btn btn-edit-cat" data-action="edit" title="Edit Category (${escapeSettingsHtml(cat.name)})" aria-label="Edit category">
+          ✏️
+        </button>
+        <button type="button" class="category-action-btn btn-del-cat ${isSystem ? 'disabled' : ''}" data-action="archive" ${isSystem ? 'disabled title="General is a protected system default and cannot be archived"' : `title="Archive Category (${escapeSettingsHtml(cat.name)})"`} aria-label="Archive category">
+          ${isSystem ? '🔒' : '🗑️'}
+        </button>
+      </div>
+    `;
+
+    // Row button listeners
+    const prodBtn = row.querySelector('[data-action="toggle-prod"]');
+    if (prodBtn) {
+      prodBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await toggleCategoryProductive(cat, onChangedCallback);
+      });
+    }
+
+    const editBtn = row.querySelector('[data-action="edit"]');
+    if (editBtn) {
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCategoryModal(cat, onChangedCallback);
+      });
+    }
+
+    const archiveBtn = row.querySelector('[data-action="archive"]');
+    if (archiveBtn && !isSystem) {
+      archiveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openArchiveCategoryConfirmModal(cat, onChangedCallback);
+      });
+    }
+
+    container.appendChild(row);
+  });
+
+  // Render archived categories if any
+  if (archivedContainer && archivedCategories.length > 0) {
+    archivedCategories.forEach(cat => {
+      const row = document.createElement('div');
+      row.className = 'category-manage-row';
+      row.style.opacity = '0.75';
+      row.dataset.id = cat.id;
+      row.dataset.name = cat.name;
+
+      row.innerHTML = `
+        <div class="category-manage-info">
+          <span class="category-color-dot" style="background-color: ${cat.color || '#64748b'};"></span>
+          <span class="category-manage-icon">${cat.icon || '📌'}</span>
+          <span class="category-manage-name" style="text-decoration: line-through;">${escapeSettingsHtml(cat.name)}</span>
+          <div class="category-manage-badges">
+            <span class="category-badge-archived">Archived</span>
+          </div>
+        </div>
+        <div class="category-manage-actions">
+          <button type="button" class="btn btn-secondary btn-xs" data-action="unarchive" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;" title="Restore Category">
+            ↺ Restore
+          </button>
+        </div>
+      `;
+
+      const restoreBtn = row.querySelector('[data-action="unarchive"]');
+      if (restoreBtn) {
+        restoreBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          cat.isArchived = false;
+          saveCategoriesToStorage();
+          renderCategoriesManagementUI(onChangedCallback);
+          if (onChangedCallback) onChangedCallback();
+          showToast(`Restored category "${cat.name}"`, 'success');
+
+          try {
+            await ApiClient.createCategory({
+              name: cat.name,
+              icon: cat.icon,
+              color: cat.color,
+              isProductive: cat.isProductive,
+              sortOrder: cat.sortOrder
+            });
+          } catch (err) {
+            console.warn('Failed to restore category on server:', err);
+          }
+        });
+      }
+
+      archivedContainer.appendChild(row);
+    });
+  }
+}
+
+async function toggleCategoryProductive(cat, callback) {
+  const newProd = !cat.isProductive;
+  cat.isProductive = newProd;
+
+  // Sync USER_SETTINGS.productiveCategories
+  let currentList = [...(USER_SETTINGS.productiveCategories || ['Work', 'Learning'])];
+  if (newProd && !currentList.includes(cat.name)) {
+    currentList.push(cat.name);
+  } else if (!newProd && currentList.includes(cat.name)) {
+    currentList = currentList.filter(c => c !== cat.name);
+  }
+  USER_SETTINGS.productiveCategories = currentList;
+  saveUserSettings({ productiveCategories: currentList });
+
+  saveCategoriesToStorage();
+  renderCategoriesManagementUI(callback);
+  if (callback) callback();
+  showToast(`${cat.name} is now ${newProd ? 'marked as Productive (⚡)' : 'marked as Standard'}`, 'success');
+
+  try {
+    await ApiClient.updateCategory(cat.id, {
+      name: cat.name,
+      icon: cat.icon,
+      color: cat.color,
+      isProductive: newProd,
+      sortOrder: cat.sortOrder
+    });
+  } catch (err) {
+    console.warn('Failed to sync category productivity update to server:', err);
+  }
+}
+
+function openCategoryModal(cat = null, callback = null) {
+  activeCategoryModalCallback = callback;
+  const modal = document.getElementById('categoryModal');
+  const titleEl = document.getElementById('categoryModalTitle');
+  const idInput = document.getElementById('categoryEditId');
+  const nameInput = document.getElementById('categoryEditName');
+  const iconInput = document.getElementById('categoryEditIcon');
+  const iconPreview = document.getElementById('categoryIconPreview');
+  const colorPicker = document.getElementById('categoryEditColorPicker');
+  const colorHexInput = document.getElementById('categoryEditColorHex');
+  const colorPreview = document.getElementById('categoryColorPreview');
+  const isProdInput = document.getElementById('categoryEditIsProductive');
+  const systemHint = document.getElementById('categorySystemNameHint');
+  const presetEmojisContainer = document.getElementById('categoryPresetEmojis');
+  const presetColorsContainer = document.getElementById('categoryPresetColors');
+
+  if (!modal) return;
+
+  const isEditing = !!cat;
+  const isSystem = isEditing && Boolean(cat.isSystem);
+
+  if (titleEl) titleEl.textContent = isEditing ? `Edit Category: ${cat.name}` : 'Create Custom Category';
+  if (idInput) idInput.value = isEditing ? cat.id : '';
+  if (nameInput) {
+    nameInput.value = isEditing ? cat.name : '';
+    nameInput.disabled = isSystem;
+  }
+  if (systemHint) systemHint.style.display = isSystem ? 'block' : 'none';
+
+  const initialIcon = isEditing ? (cat.icon || '📌') : '📌';
+  if (iconInput) iconInput.value = initialIcon;
+  if (iconPreview) iconPreview.textContent = initialIcon;
+
+  const initialColor = isEditing ? (cat.color || '#3b82f6') : '#3b82f6';
+  if (colorPicker) colorPicker.value = initialColor;
+  if (colorHexInput) colorHexInput.value = initialColor;
+  if (colorPreview) colorPreview.style.backgroundColor = initialColor;
+
+  if (isProdInput) isProdInput.checked = isEditing ? Boolean(cat.isProductive) : false;
+
+  // Render Preset Emojis
+  if (presetEmojisContainer) {
+    presetEmojisContainer.innerHTML = PRESET_EMOJIS.map(emoji => `
+      <button type="button" class="category-emoji-btn ${emoji === initialIcon ? 'active' : ''}" data-emoji="${emoji}">
+        ${emoji}
+      </button>
+    `).join('');
+
+    presetEmojisContainer.querySelectorAll('.category-emoji-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const selected = btn.dataset.emoji;
+        if (iconInput) iconInput.value = selected;
+        if (iconPreview) iconPreview.textContent = selected;
+        presetEmojisContainer.querySelectorAll('.category-emoji-btn').forEach(b => b.classList.toggle('active', b === btn));
+      });
+    });
+  }
+
+  // Render Preset Colors
+  if (presetColorsContainer) {
+    presetColorsContainer.innerHTML = PRESET_COLORS.map(color => `
+      <button type="button" class="category-color-swatch-btn ${color.toLowerCase() === initialColor.toLowerCase() ? 'active' : ''}" data-color="${color}" style="background-color: ${color};" title="${color}"></button>
+    `).join('');
+
+    presetColorsContainer.querySelectorAll('.category-color-swatch-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const selected = btn.dataset.color;
+        if (colorPicker) colorPicker.value = selected;
+        if (colorHexInput) colorHexInput.value = selected;
+        if (colorPreview) colorPreview.style.backgroundColor = selected;
+        presetColorsContainer.querySelectorAll('.category-color-swatch-btn').forEach(b => b.classList.toggle('active', b === btn));
+      });
+    });
+  }
+
+  modal.classList.add('active');
+  if (nameInput && !isSystem) nameInput.focus();
+}
+
+function closeCategoryModal() {
+  const modal = document.getElementById('categoryModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function openArchiveCategoryConfirmModal(cat, callback) {
+  pendingArchiveCategory = cat;
+  activeCategoryModalCallback = callback;
+  const modal = document.getElementById('archiveCategoryConfirmModal');
+  const nameText = document.getElementById('archiveCategoryNameText');
+  if (nameText) nameText.textContent = `"${cat.name}"`;
+  if (modal) modal.classList.add('active');
+}
+
+function closeArchiveCategoryConfirmModal() {
+  pendingArchiveCategory = null;
+  const modal = document.getElementById('archiveCategoryConfirmModal');
+  if (modal) modal.classList.remove('active');
+}
+
+export function initCategoryManagement(onChangedCallback) {
+  const addBtn = document.getElementById('addNewCategoryBtn');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      openCategoryModal(null, onChangedCallback);
+    });
+  }
+
+  // Category Modal Close & Cancel
+  const closeBtn = document.getElementById('closeCategoryModalBtn');
+  const cancelBtn = document.getElementById('cancelCategoryModalBtn');
+  const modal = document.getElementById('categoryModal');
+
+  if (closeBtn) closeBtn.addEventListener('click', closeCategoryModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeCategoryModal);
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeCategoryModal();
+    });
+  }
+
+  // Icon Input & Color Input Sync
+  const iconInput = document.getElementById('categoryEditIcon');
+  const iconPreview = document.getElementById('categoryIconPreview');
+  if (iconInput && iconPreview) {
+    iconInput.addEventListener('input', () => {
+      iconPreview.textContent = iconInput.value.trim() || '📌';
+    });
+  }
+
+  const colorPicker = document.getElementById('categoryEditColorPicker');
+  const colorHexInput = document.getElementById('categoryEditColorHex');
+  const colorPreview = document.getElementById('categoryColorPreview');
+
+  if (colorPicker) {
+    colorPicker.addEventListener('input', () => {
+      if (colorHexInput) colorHexInput.value = colorPicker.value;
+      if (colorPreview) colorPreview.style.backgroundColor = colorPicker.value;
+    });
+  }
+
+  if (colorHexInput) {
+    colorHexInput.addEventListener('input', () => {
+      const val = colorHexInput.value.trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+        if (colorPicker) colorPicker.value = val;
+        if (colorPreview) colorPreview.style.backgroundColor = val;
+      }
+    });
+  }
+
+  // Save Category Button
+  const saveBtn = document.getElementById('saveCategoryModalBtn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const idInput = document.getElementById('categoryEditId');
+      const nameInput = document.getElementById('categoryEditName');
+      const isProdInput = document.getElementById('categoryEditIsProductive');
+
+      const catId = idInput ? idInput.value : '';
+      const name = nameInput ? nameInput.value.trim() : '';
+      const icon = (iconInput ? iconInput.value.trim() : '') || '📌';
+      const color = (colorHexInput ? colorHexInput.value.trim() : '') || '#3b82f6';
+      const isProductive = isProdInput ? Boolean(isProdInput.checked) : false;
+
+      if (!name) {
+        showToast('Please enter a category name', 'error');
+        if (nameInput) nameInput.focus();
+        return;
+      }
+
+      const allCategories = getAllCategories();
+      const existingWithSameName = allCategories.find(c => c.name.toLowerCase() === name.toLowerCase() && c.id !== catId);
+      if (existingWithSameName) {
+        showToast(`A category named "${name}" already exists`, 'error');
+        return;
+      }
+
+      if (catId) {
+        // Edit existing
+        const targetCat = allCategories.find(c => c.id === catId);
+        if (targetCat) {
+          const oldName = targetCat.name;
+          const finalName = targetCat.isSystem ? targetCat.name : name;
+
+          targetCat.name = finalName;
+          targetCat.icon = icon;
+          targetCat.color = color;
+          targetCat.isProductive = isProductive;
+
+          if (oldName !== finalName) {
+            cascadeCategoryRenameLocally(oldName, finalName);
+          }
+
+          saveCategoriesToStorage();
+          closeCategoryModal();
+          renderCategoriesManagementUI(activeCategoryModalCallback);
+          if (activeCategoryModalCallback) activeCategoryModalCallback();
+          showToast(`Category "${finalName}" updated successfully`, 'success');
+
+          try {
+            await ApiClient.updateCategory(catId, {
+              name: finalName,
+              icon,
+              color,
+              isProductive,
+              sortOrder: targetCat.sortOrder || 0
+            });
+          } catch (err) {
+            console.warn('Failed to update category on server:', err);
+          }
+        }
+      } else {
+        // Create new
+        const newCat = {
+          id: `cat_${Date.now()}`,
+          name,
+          icon,
+          color,
+          isProductive,
+          isSystem: false,
+          isArchived: false,
+          sortOrder: STATE.categories.length
+        };
+
+        STATE.categories.push(newCat);
+        saveCategoriesToStorage();
+        closeCategoryModal();
+        renderCategoriesManagementUI(activeCategoryModalCallback);
+        if (activeCategoryModalCallback) activeCategoryModalCallback();
+        showToast(`Category "${name}" created successfully`, 'success');
+
+        try {
+          const res = await ApiClient.createCategory({
+            name,
+            icon,
+            color,
+            isProductive,
+            sortOrder: newCat.sortOrder
+          });
+          if (res && res.id) {
+            newCat.id = res.id;
+            saveCategoriesToStorage();
+          }
+        } catch (err) {
+          console.warn('Failed to save category to server:', err);
+        }
+      }
+    });
+  }
+
+  // Archive Confirm Modal Handlers
+  const closeArchiveBtn = document.getElementById('closeArchiveCategoryModalBtn');
+  const cancelArchiveBtn = document.getElementById('cancelArchiveCategoryBtn');
+  const confirmArchiveBtn = document.getElementById('confirmArchiveCategoryBtn');
+  const archiveModal = document.getElementById('archiveCategoryConfirmModal');
+
+  if (closeArchiveBtn) closeArchiveBtn.addEventListener('click', closeArchiveCategoryConfirmModal);
+  if (cancelArchiveBtn) cancelArchiveBtn.addEventListener('click', closeArchiveCategoryConfirmModal);
+  if (archiveModal) {
+    archiveModal.addEventListener('click', (e) => {
+      if (e.target === archiveModal) closeArchiveCategoryConfirmModal();
+    });
+  }
+
+  if (confirmArchiveBtn) {
+    confirmArchiveBtn.addEventListener('click', async () => {
+      if (!pendingArchiveCategory) return;
+      const target = pendingArchiveCategory;
+      target.isArchived = true;
+      saveCategoriesToStorage();
+      closeArchiveCategoryConfirmModal();
+      renderCategoriesManagementUI(activeCategoryModalCallback);
+      if (activeCategoryModalCallback) activeCategoryModalCallback();
+      showToast(`Category "${target.name}" archived`, 'info');
+
+      try {
+        await ApiClient.deleteCategory(target.id);
+      } catch (err) {
+        console.warn('Failed to archive category on server:', err);
+      }
+    });
+  }
+
+  // Show / Hide archived toggle
+  const toggleArchivedBtn = document.getElementById('toggleArchivedCategoriesBtn');
+  const archivedList = document.getElementById('archivedCategoriesList');
+  if (toggleArchivedBtn && archivedList) {
+    toggleArchivedBtn.addEventListener('click', () => {
+      const isVisible = archivedList.style.display !== 'none';
+      archivedList.style.display = isVisible ? 'none' : 'flex';
+      toggleArchivedBtn.textContent = isVisible
+        ? `Show Archived Categories (${document.getElementById('archivedCategoryCount')?.textContent || 0})`
+        : `Hide Archived Categories (${document.getElementById('archivedCategoryCount')?.textContent || 0})`;
+    });
+  }
+
+  renderCategoriesManagementUI(onChangedCallback);
+}
+
 // Modal Controller for Template Builder Modal
 export function initDayTemplateModals() {
   const createBtn = document.getElementById('createDayTemplateBtn');
@@ -1207,8 +1653,12 @@ function addTemplateSlotRow(time = '09:00', title = '', category = 'Work', plann
     }
   }
 
-  const categories = ['Work', 'Learning', 'Health', 'Household', 'Family', 'Travel', 'General'];
-  const catOptions = categories.map(c => `<option value="${c}" ${c === category ? 'selected' : ''}>${c}</option>`).join('');
+  const activeCats = getActiveCategories().map(c => c.name);
+  const categories = activeCats.length > 0 ? [...activeCats] : ['Work', 'Learning', 'Health', 'Household', 'Family', 'Travel', 'General'];
+  if (category && !categories.includes(category)) {
+    categories.push(category);
+  }
+  const catOptions = categories.map(c => `<option value="${escapeSettingsHtml(c)}" ${c === category ? 'selected' : ''}>${escapeSettingsHtml(c)}</option>`).join('');
 
   row.innerHTML = `
     <select class="select-input template-row-time" style="width: 100px;">

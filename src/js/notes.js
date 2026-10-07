@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DayFlow Notes & Todo Checklist Controller
  * Supports:
  * 1. Priority Badges (High / Medium / Low)
@@ -9,11 +9,11 @@
  * 6. Cascade Clear / Keep Scheduled Slots on Todo Deletion
  * 7. Per-user & per-week PostgreSQL persistence
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes } from './state.js?v=2.9.23';
-import { ApiClient } from './apiClient.js?v=2.9.23';
-import { escapeHtml, showToast } from './utils.js?v=2.9.23';
-import { TIME_SLOTS } from './grid.js?v=2.9.23';
-import { parseMarkdown } from './markdown.js?v=2.9.23';
+import { getCurrentWeekData, saveStateToStorage, getWeekDates, getWeekKey, getMonday, STATE, formatDateISO, formatDateDisplay, formatDateDisplayShort, markNotesDirty, clearNotesDirty, markNotesSaveFailed, clearNotesSaveFailed, setNotesInFlight, clearNotesInFlight, isDirtyNotes, getCategoryColor, getCategoryIcon } from './state.js?v=2.9.24';
+import { ApiClient } from './apiClient.js?v=2.9.24';
+import { escapeHtml, showToast } from './utils.js?v=2.9.24';
+import { TIME_SLOTS } from './grid.js?v=2.9.24';
+import { parseMarkdown } from './markdown.js?v=2.9.24';
 
 let currentEditorContext = null; // { weekKey, dateKey, sheetId }
 
@@ -1028,7 +1028,9 @@ export function renderNotes(todoList, weeklyNotesTextarea, onGridUpdated) {
       li.className = `todo-item ${item.completed ? 'completed' : ''}`;
       const priorityHtml = getPriorityBadgeHtml(item.priority);
       const dueBadgeHtml = getDueDateBadgeHtml(item.dueDate, item.completed);
-      const categoryHtml = item.category ? `<span class="todo-category-badge">${escapeHtml(item.category)}</span>` : '';
+      const catColor = getCategoryColor(item.category);
+      const catIcon = getCategoryIcon(item.category);
+      const categoryHtml = item.category ? `<span class="todo-category-badge" style="border-left: 3px solid ${catColor};">${catIcon ? `${catIcon} ` : ''}${escapeHtml(item.category)}</span>` : '';
       
       const scheduledInfo = findScheduledSlotForTodo(item, weekData.slots);
       const scheduledHtml = scheduledInfo ? `<span class="todo-scheduled-badge" title="Scheduled on timeline grid">📅 ${scheduledInfo}</span>` : '';
