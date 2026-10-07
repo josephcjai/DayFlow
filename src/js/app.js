@@ -37,7 +37,7 @@ import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2
 import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.23';
 import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.23';
 import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive } from './settings.js?v=2.9.23';
-import { showToast } from './utils.js?v=2.9.23';
+import { showToast, generateUUID } from './utils.js?v=2.9.23';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
@@ -883,7 +883,7 @@ function bindEvents() {
       const weekKey = getWeekKey(STATE.currentWeekStart);
       const weekData = getCurrentWeekData();
       if (!weekData.todos) weekData.todos = [];
-      const tempId = Date.now();
+      const tempId = generateUUID();
       const localTodo = { id: tempId, text, priority, category, dueDate, completed: false };
       weekData.todos.push(localTodo);
       DOM.todoInput.value = '';

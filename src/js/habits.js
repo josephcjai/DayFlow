@@ -8,7 +8,7 @@
  */
 import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey, formatDateDisplay } from './state.js?v=2.9.23';
 import { ApiClient } from './apiClient.js?v=2.9.23';
-import { escapeHtml, getPriorityPoints } from './utils.js?v=2.9.23';
+import { escapeHtml, getPriorityPoints, generateUUID } from './utils.js?v=2.9.23';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🎯', name: 'Deep Focus Block', pts: 15, label: 'Deep Work / Study Complete' },
@@ -477,7 +477,7 @@ export async function addHabitLog(name, pts, notes, habitLogTableBody, totalPoin
   const targetWeekData = STATE.scheduleData[targetWeekKey];
 
   const newLog = {
-    id: Date.now(),
+    id: generateUUID(),
     name,
     pts: pts || 5,
     time: timestampStr,
@@ -493,5 +493,9 @@ export async function addHabitLog(name, pts, notes, habitLogTableBody, totalPoin
     renderHabits(habitLogTableBody, totalPointsBadge);
   }
 
-  await ApiClient.logHabit(targetWeekKey, name, pts, notes, timestampStr);
+  const apiRes = await ApiClient.logHabit(targetWeekKey, name, pts, notes, timestampStr);
+  if (apiRes && apiRes.habit && apiRes.habit.id) {
+    newLog.id = apiRes.habit.id;
+    saveStateToStorage();
+  }
 }
