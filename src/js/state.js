@@ -1,8 +1,8 @@
-﻿/**
+/**
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.26';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.27';
 
 export const DEFAULT_CATEGORIES = [
   { id: 'cat_work', name: 'Work', icon: '💼', color: '#3b82f6', isProductive: true, isSystem: false, isArchived: false, sortOrder: 0 },
@@ -56,6 +56,10 @@ export function loadCategoriesFromStorage() {
   } catch (e) {
     console.warn('Failed to load categories from storage:', e);
   }
+  STATE.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+}
+
+export function resetStateCategoriesToDefault() {
   STATE.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
 }
 
@@ -149,13 +153,16 @@ export function cascadeCategoryRenameLocally(oldName, newName) {
   saveStateToStorage();
 }
 
-export async function syncCategoriesWithApi() {
+export async function syncCategoriesWithApi(onCategoriesSyncedCallback = null) {
   if (isDemoMode()) return;
   try {
     const serverCategories = await ApiClient.getCategories(true);
     if (serverCategories && Array.isArray(serverCategories) && serverCategories.length > 0) {
       STATE.categories = serverCategories;
       saveCategoriesToStorage();
+      if (typeof onCategoriesSyncedCallback === 'function') {
+        onCategoriesSyncedCallback(STATE.categories);
+      }
     }
   } catch (e) {
     console.warn('Failed to sync categories with API:', e);

@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.26';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage } from './state.js?v=2.9.26';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.26';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.26';
-import { showToast, escapeHtml } from './utils.js?v=2.9.26';
+import { generateTimeSlots } from './grid.js?v=2.9.27';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi } from './state.js?v=2.9.27';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.27';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.27';
+import { showToast, escapeHtml } from './utils.js?v=2.9.27';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -104,6 +104,10 @@ export function isSlotProductive(slot, userSettings = USER_SETTINGS) {
 
 export let USER_SETTINGS = { ...DEFAULT_SETTINGS };
 let onSettingsChangedCallback = null;
+
+export function resetUserSettingsToDefault() {
+  USER_SETTINGS = { ...DEFAULT_SETTINGS };
+}
 
 export function getSettingsStorageKey() {
   const userKey = getUserStorageKey();
@@ -1055,6 +1059,7 @@ let pendingArchiveCategory = null;
 let activeCategoryModalCallback = null;
 
 export function renderCategoriesManagementUI(onChangedCallback) {
+  const cb = onChangedCallback || activeCategoryModalCallback || onSettingsChangedCallback;
   const container = document.getElementById('settingsCategoriesList');
   const archivedContainer = document.getElementById('archivedCategoriesList');
   const archivedSummary = document.getElementById('categoryArchivedSummary');
@@ -1074,6 +1079,7 @@ export function renderCategoriesManagementUI(onChangedCallback) {
       archivedCountEl.textContent = archivedCategories.length;
     } else {
       archivedSummary.style.display = 'none';
+      if (archivedContainer) archivedContainer.style.display = 'none';
     }
   }
 
@@ -1114,7 +1120,7 @@ export function renderCategoriesManagementUI(onChangedCallback) {
     if (prodBtn) {
       prodBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        await toggleCategoryProductive(cat, onChangedCallback);
+        await toggleCategoryProductive(cat, cb);
       });
     }
 
@@ -1122,7 +1128,7 @@ export function renderCategoriesManagementUI(onChangedCallback) {
     if (editBtn) {
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        openCategoryModal(cat, onChangedCallback);
+        openCategoryModal(cat, cb);
       });
     }
 
@@ -1130,7 +1136,7 @@ export function renderCategoriesManagementUI(onChangedCallback) {
     if (archiveBtn && !isSystem) {
       archiveBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        openArchiveCategoryConfirmModal(cat, onChangedCallback);
+        openArchiveCategoryConfirmModal(cat, cb);
       });
     }
 
@@ -1166,19 +1172,37 @@ export function renderCategoriesManagementUI(onChangedCallback) {
       if (restoreBtn) {
         restoreBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
+          const targetInState = (STATE.categories || []).find(c => c.id === cat.id || c.name.toLowerCase() === cat.name.toLowerCase());
+          if (targetInState) {
+            targetInState.isArchived = false;
+          }
           cat.isArchived = false;
           saveCategoriesToStorage();
-          renderCategoriesManagementUI(onChangedCallback);
-          if (onChangedCallback) onChangedCallback();
+          renderCategoriesManagementUI(cb);
+          if (typeof cb === 'function') cb();
           showToast(`Restored category "${cat.name}"`, 'success');
 
           try {
-            await ApiClient.createCategory({
-              name: cat.name,
-              icon: cat.icon,
-              color: cat.color,
-              isProductive: cat.isProductive,
-              sortOrder: cat.sortOrder
+            let res = null;
+            if (cat.id && !cat.id.startsWith('cat_')) {
+              res = await ApiClient.updateCategory(cat.id, { isArchived: false });
+            } else {
+              res = await ApiClient.createCategory({
+                name: cat.name,
+                icon: cat.icon,
+                color: cat.color,
+                isProductive: cat.isProductive,
+                sortOrder: cat.sortOrder
+              });
+            }
+            if (res && res.id) {
+              cat.id = res.id;
+              if (targetInState) targetInState.id = res.id;
+              saveCategoriesToStorage();
+            }
+            await syncCategoriesWithApi(() => {
+              renderCategoriesManagementUI(cb);
+              if (typeof cb === 'function') cb();
             });
           } catch (err) {
             console.warn('Failed to restore category on server:', err);
@@ -1491,15 +1515,22 @@ export function initCategoryManagement(onChangedCallback) {
     confirmArchiveBtn.addEventListener('click', async () => {
       if (!pendingArchiveCategory) return;
       const target = pendingArchiveCategory;
+      const targetInState = (STATE.categories || []).find(c => c.id === target.id || c.name.toLowerCase() === target.name.toLowerCase());
+      if (targetInState) targetInState.isArchived = true;
       target.isArchived = true;
       saveCategoriesToStorage();
       closeArchiveCategoryConfirmModal();
-      renderCategoriesManagementUI(activeCategoryModalCallback);
-      if (activeCategoryModalCallback) activeCategoryModalCallback();
+      const cb = activeCategoryModalCallback || onSettingsChangedCallback;
+      renderCategoriesManagementUI(cb);
+      if (typeof cb === 'function') cb();
       showToast(`Category "${target.name}" archived`, 'info');
 
       try {
         await ApiClient.deleteCategory(target.id);
+        await syncCategoriesWithApi(() => {
+          renderCategoriesManagementUI(cb);
+          if (typeof cb === 'function') cb();
+        });
       } catch (err) {
         console.warn('Failed to archive category on server:', err);
       }

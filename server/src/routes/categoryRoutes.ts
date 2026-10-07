@@ -184,7 +184,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
       }
     }
 
-    const { name, icon, color, isProductive, sortOrder } = req.body;
+    const { name, icon, color, isProductive, sortOrder, isArchived } = req.body;
 
     let cleanName: string | undefined = undefined;
     if (name !== undefined) {
@@ -234,8 +234,9 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
              color = COALESCE($3, color),
              is_productive = COALESCE($4, is_productive),
              sort_order = COALESCE($5, sort_order),
+             is_archived = COALESCE($6, is_archived),
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $6 AND user_id = $7
+         WHERE id = $7 AND user_id = $8
          RETURNING id, name, icon, color, is_productive as "isProductive", is_system as "isSystem", is_archived as "isArchived", sort_order as "sortOrder"`,
         [
           cleanName || null,
@@ -243,6 +244,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
           color !== undefined ? String(color).slice(0, 30) : null,
           typeof isProductive === 'boolean' ? isProductive : null,
           Number.isInteger(sortOrder) ? sortOrder : null,
+          typeof isArchived === 'boolean' ? isArchived : null,
           id,
           userId
         ]
@@ -284,6 +286,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
       if (icon !== undefined) item.icon = String(icon).slice(0, 10);
       if (color !== undefined) item.color = String(color).slice(0, 30);
       if (typeof isProductive === 'boolean') item.isProductive = isProductive;
+      if (typeof isArchived === 'boolean') item.isArchived = isArchived;
       if (Number.isInteger(sortOrder)) item.sortOrder = sortOrder;
 
       res.json({ message: 'Category updated successfully', category: item });

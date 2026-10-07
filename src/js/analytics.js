@@ -5,9 +5,9 @@
  * 2. Week Mode: Weekly KPI, 7-category time distribution, and Mon-Sun consistency trend
  * 3. Month Mode: Monthly KPI aggregation across all weeks, monthly category breakdown, and weekly trend distribution
  */
-import { getCurrentWeekData, STATE, getWeekDates, formatDateISO, formatDateDisplay, formatDateDisplayShort, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive } from './state.js?v=2.9.26';
-import { escapeHtml, getPriorityPoints } from './utils.js?v=2.9.26';
-import { USER_SETTINGS, isSlotProductive } from './settings.js?v=2.9.26';
+import { getCurrentWeekData, STATE, getWeekDates, formatDateISO, formatDateDisplay, formatDateDisplayShort, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive } from './state.js?v=2.9.27';
+import { escapeHtml, getPriorityPoints } from './utils.js?v=2.9.27';
+import { USER_SETTINGS, isSlotProductive } from './settings.js?v=2.9.27';
 
 export function renderAnalytics(
   statPlannedHours,
