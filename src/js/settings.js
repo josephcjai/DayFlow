@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DayFlow User Settings Controller
  * Supports:
  * 1. 24-Hour Default & Custom Timeline Windowing (Start Hour, End Hour, Quick Presets)
@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.24';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage } from './state.js?v=2.9.24';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.24';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.24';
-import { showToast, escapeHtml } from './utils.js?v=2.9.24';
+import { generateTimeSlots } from './grid.js?v=2.9.26';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage } from './state.js?v=2.9.26';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.26';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.26';
+import { showToast, escapeHtml } from './utils.js?v=2.9.26';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -330,9 +330,6 @@ export function initSettingsUI(domElements, renderAllCallback) {
     accentPills.forEach(pill => {
       pill.classList.toggle('active', pill.dataset.accent === USER_SETTINGS.accentColor);
     });
-
-    renderProductiveCategoryPills();
-  };
 
     renderCategoriesManagementUI(onSettingsChangedCallback);
   };
