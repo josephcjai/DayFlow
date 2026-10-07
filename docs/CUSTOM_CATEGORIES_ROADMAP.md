@@ -1,10 +1,11 @@
 # 🏷️ Custom Task Categories — Development Roadmap & Technical Specifications
 ## Dynamic Category Management, Archival Strategy, and Multi-Device Persistence
 
-**Status:** Planned  
-**Target Milestone:** **`v2.9.0`** (Follow-up release immediately after `v2.8.0` production promotion)  
+**Status:** Completed (Ready for Local Testing & Promotion)  
+**Target Milestone:** **`v2.9.0`**  
 **Author:** DayFlow Engineering  
 **Approved Strategy:** Soft Deletion & Archival with Protected System Default  
+**Implementation Status:** All phases (Backend, Frontend, Settings UI, Grid/Todo badges, Analytics) implemented and committed locally.  
 
 ---
 
