@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DayFlow Markdown Parser & Multi-Language Syntax Highlighter
  * Zero-dependency, fast, secure client-side Markdown rendering engine.
  * Supports:
@@ -9,7 +9,7 @@
  * - Specialized highlighters for: C#, WPF XAML, SQL, JavaScript, TypeScript, Python, JSON, CSS, Shell
  */
 
-import { escapeHtml } from './utils.js?v=2.9.27';
+import { escapeHtml } from './utils.js?v=2.9.28';
 
 /**
  * Syntax highlighter tokenizers for common developer languages

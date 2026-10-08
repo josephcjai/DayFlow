@@ -1,14 +1,14 @@
-﻿/**
+/**
  * DayFlow Notification & Audio Alarms Engine
  * - Web Audio API synthesized chimes (zero external audio file dependency)
  * - HTML5 Desktop Web Notifications with window focus on click
  * - 30-Minute Schedule Slot transition, start, and wrap-up alerts
  * - Interactive in-app actionable toasts
  */
-import { STATE, formatDateISO, isSlotTimePassed } from './state.js?v=2.9.27';
-import { USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.27';
-import { openTaskModal } from './modal.js?v=2.9.27';
-import { showToast } from './utils.js?v=2.9.27';
+import { STATE, formatDateISO, isSlotTimePassed } from './state.js?v=2.9.28';
+import { USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.28';
+import { openTaskModal } from './modal.js?v=2.9.28';
+import { showToast } from './utils.js?v=2.9.28';
 
 let audioCtx = null;
 let heartbeatTimer = null;

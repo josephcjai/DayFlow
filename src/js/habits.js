@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DayFlow Habit Ledger Module
  * Supports:
  * 1. Creating and editing quick action presets with emoji & point pickers
@@ -6,9 +6,9 @@
  * 3. Confirmation warning before deleting a habit history log entry
  * Robust row deletion, date & time logging for past dates, and Day/Week view filtering
  */
-import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey, formatDateDisplay } from './state.js?v=2.9.27';
-import { ApiClient } from './apiClient.js?v=2.9.27';
-import { escapeHtml, getPriorityPoints, generateUUID } from './utils.js?v=2.9.27';
+import { getCurrentWeekData, saveStateToStorage, getWeekKey, STATE, formatDateISO, getUserStorageKey, formatDateDisplay } from './state.js?v=2.9.28';
+import { ApiClient } from './apiClient.js?v=2.9.28';
+import { escapeHtml, getPriorityPoints, generateUUID } from './utils.js?v=2.9.28';
 
 export const DEFAULT_HABIT_PRESETS = [
   { id: 'p1', icon: '🎯', name: 'Deep Focus Block', pts: 15, label: 'Deep Work / Study Complete' },

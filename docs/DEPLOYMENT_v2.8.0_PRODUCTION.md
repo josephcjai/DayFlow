@@ -151,6 +151,20 @@ git status
 
 ---
 
+### Step 5.3.1: Host Node.js Runtime Version Check (Node 22 LTS Recommendation)
+Verify that the host environment running PM2 has Node.js 22 LTS installed:
+
+```bash
+node --version
+# Expected: v22.x.x (minimum v20.x.x)
+
+# If upgrading host Node version via NVM:
+# nvm install 22 && nvm use 22 && nvm alias default 22
+# pm2 update
+```
+
+---
+
 ### Step 5.4: Execute Database Migration (MUST RUN BEFORE API RELOAD)
 
 **Step 5.4.1: Pre-Migration Database Snapshot (Standard Best Practice)**

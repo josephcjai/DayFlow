@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.27';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi } from './state.js?v=2.9.27';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.27';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.27';
-import { showToast, escapeHtml } from './utils.js?v=2.9.27';
+import { generateTimeSlots } from './grid.js?v=2.9.28';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi, markCategoryPendingSave, clearCategoryPendingSave } from './state.js?v=2.9.28';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.28';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.28';
+import { showToast, escapeHtml, generateUUID } from './utils.js?v=2.9.28';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -1182,6 +1182,9 @@ export function renderCategoriesManagementUI(onChangedCallback) {
           if (typeof cb === 'function') cb();
           showToast(`Restored category "${cat.name}"`, 'success');
 
+          // Optimistic pending tracking: mark as pending restore in local storage (Finding 46)
+          markCategoryPendingSave(cat, false);
+
           try {
             let res = null;
             if (cat.id && !cat.id.startsWith('cat_')) {
@@ -1196,16 +1199,19 @@ export function renderCategoriesManagementUI(onChangedCallback) {
               });
             }
             if (res && res.id) {
+              clearCategoryPendingSave(cat.id);
               cat.id = res.id;
               if (targetInState) targetInState.id = res.id;
               saveCategoriesToStorage();
+            } else {
+              clearCategoryPendingSave(cat.id);
             }
             await syncCategoriesWithApi(() => {
               renderCategoriesManagementUI(cb);
               if (typeof cb === 'function') cb();
             });
           } catch (err) {
-            console.warn('Failed to restore category on server:', err);
+            console.warn('Failed to restore category on server, kept locally in pending saves:', err);
           }
         });
       }
@@ -1234,6 +1240,9 @@ async function toggleCategoryProductive(cat, callback) {
   if (callback) callback();
   showToast(`${cat.name} is now ${newProd ? 'marked as Productive (⚡)' : 'marked as Standard'}`, 'success');
 
+  // Optimistic pending tracking: mark as pending save in local storage (Finding 46)
+  markCategoryPendingSave(cat, false);
+
   try {
     await ApiClient.updateCategory(cat.id, {
       name: cat.name,
@@ -1242,8 +1251,9 @@ async function toggleCategoryProductive(cat, callback) {
       isProductive: newProd,
       sortOrder: cat.sortOrder
     });
+    clearCategoryPendingSave(cat.id);
   } catch (err) {
-    console.warn('Failed to sync category productivity update to server:', err);
+    console.warn('Failed to sync category productivity update to server, kept locally in pending saves:', err);
   }
 }
 
@@ -1446,6 +1456,9 @@ export function initCategoryManagement(onChangedCallback) {
           if (activeCategoryModalCallback) activeCategoryModalCallback();
           showToast(`Category "${finalName}" updated successfully`, 'success');
 
+          // Optimistic pending tracking: mark as pending save in local storage (Finding 46)
+          markCategoryPendingSave({ ...targetCat, _originalName: oldName }, false, oldName);
+
           try {
             await ApiClient.updateCategory(catId, {
               name: finalName,
@@ -1454,14 +1467,15 @@ export function initCategoryManagement(onChangedCallback) {
               isProductive,
               sortOrder: targetCat.sortOrder || 0
             });
+            clearCategoryPendingSave(catId);
           } catch (err) {
-            console.warn('Failed to update category on server:', err);
+            console.warn('Failed to update category on server, kept locally in pending saves:', err);
           }
         }
       } else {
         // Create new
         const newCat = {
-          id: `cat_${Date.now()}`,
+          id: generateUUID(),
           name,
           icon,
           color,
@@ -1478,6 +1492,9 @@ export function initCategoryManagement(onChangedCallback) {
         if (activeCategoryModalCallback) activeCategoryModalCallback();
         showToast(`Category "${name}" created successfully`, 'success');
 
+        // Optimistic pending tracking: mark as pending save in local storage (Finding 46)
+        markCategoryPendingSave(newCat, true);
+
         try {
           const res = await ApiClient.createCategory({
             name,
@@ -1487,11 +1504,12 @@ export function initCategoryManagement(onChangedCallback) {
             sortOrder: newCat.sortOrder
           });
           if (res && res.id) {
+            clearCategoryPendingSave(newCat.id);
             newCat.id = res.id;
             saveCategoriesToStorage();
           }
         } catch (err) {
-          console.warn('Failed to save category to server:', err);
+          console.warn('Failed to save category to server, kept locally in pending saves:', err);
         }
       }
     });
@@ -1525,14 +1543,18 @@ export function initCategoryManagement(onChangedCallback) {
       if (typeof cb === 'function') cb();
       showToast(`Category "${target.name}" archived`, 'info');
 
+      // Optimistic pending tracking: mark as pending save in local storage (Finding 46)
+      markCategoryPendingSave(target, false);
+
       try {
         await ApiClient.deleteCategory(target.id);
+        clearCategoryPendingSave(target.id);
         await syncCategoriesWithApi(() => {
           renderCategoriesManagementUI(cb);
           if (typeof cb === 'function') cb();
         });
       } catch (err) {
-        console.warn('Failed to archive category on server:', err);
+        console.warn('Failed to archive category on server, kept locally in pending saves:', err);
       }
     });
   }

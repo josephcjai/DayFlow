@@ -177,9 +177,8 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized access' });
 
     if (!isValidUuid(id)) {
-      // In-memory check for demo/dev
       const inMem = (memoryStore.categories[userId] || []).find(c => c.id === id);
-      if (!inMem && process.env.NODE_ENV === 'production') {
+      if (!inMem) {
         return res.status(400).json({ error: 'Invalid UUID format for category id' });
       }
     }
@@ -213,6 +212,11 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
       // Prevent renaming system default category (e.g. General)
       if (cleanName && cleanName !== current.name && current.isSystem) {
         return res.status(400).json({ error: 'Cannot rename the system default category "General"' });
+      }
+
+      // Prevent archiving system default category (e.g. General) - Finding 47
+      if (current.isSystem && isArchived === true) {
+        return res.status(400).json({ error: 'Cannot delete the system default category "General"' });
       }
 
       // Check name uniqueness if renaming
@@ -282,6 +286,10 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
         return res.status(400).json({ error: 'Cannot rename the system default category "General"' });
       }
 
+      if (item.isSystem && isArchived === true) {
+        return res.status(400).json({ error: 'Cannot delete the system default category "General"' });
+      }
+
       if (cleanName) item.name = cleanName;
       if (icon !== undefined) item.icon = String(icon).slice(0, 10);
       if (color !== undefined) item.color = String(color).slice(0, 30);
@@ -306,7 +314,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
 
     if (!isValidUuid(id)) {
       const inMem = (memoryStore.categories[userId] || []).find(c => c.id === id);
-      if (!inMem && process.env.NODE_ENV === 'production') {
+      if (!inMem) {
         return res.status(400).json({ error: 'Invalid UUID format for category id' });
       }
     }
