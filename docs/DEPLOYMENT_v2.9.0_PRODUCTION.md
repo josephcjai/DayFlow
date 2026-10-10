@@ -119,6 +119,27 @@ curl -s https://dayflowlive.com/api/health | jq .
 
 ## 5. Step-by-Step Production Deployment Procedure
 
+### Quick-Reference Execution Sequence Checklist
+For fast operational reference during deployment, follow this sequence:
+
+| # | Step | Exact Command | Expected Output / Check | Logged Status |
+|---|---|---|---|:---:|
+| **1** | Database Snapshot | `pg_dump -Fc -d dayflow_db > ~/backups/dayflow_db_pre_v2.9.0_$(date +%Y%m%d_%H%M).dump` | Valid dump created | `[ ]` |
+| **2** | Record Rollback Pin | `cd /var/www/dayflow && git log -1 --oneline` | `7b4dd01` (tag `v2.8.0`) | `[ ]` |
+| **3** | Fetch Tags | `git fetch --tags origin` | Latest tags fetched | `[ ]` |
+| **4** | Checkout Release | `git checkout v2.9.0` | `HEAD detached at v2.9.0` | `[ ]` |
+| **5** | Verify Clean Tree | `git status` | `nothing to commit, working tree clean` | `[ ]` |
+| **6** | Host Node Runtime Check | `node --version` | `v22.x.x` (upgrade via nvm if older) | `[ ]` |
+| **7** | **Execute DB Migration**<br>*(MUST precede API reload)* | `cd /var/www/dayflow/server && npm run migrate` | `✅ DayFlow schema migrations and indexes completed successfully!` | `[ ]` |
+| **8** | Verify Table in DB | `sudo -u postgres psql -d dayflow_db -c "\d user_categories"` | Columns present, rows seeded | `[ ]` |
+| **9** | Rebuild Server TypeScript | `npm run build` | Zero errors (`echo $?` -> `0`), `dist/server.js` generated | `[ ]` |
+| **10** | Graceful PM2 Reload | `pm2 reload dayflow-api --update-env` | Status `online`, restart count increments by 1 | `[ ]` |
+| **11** | Verify API Boot Logs | `pm2 logs dayflow-api --lines 25 --nostream` | `DayFlow REST API Server running on port 5000 (production)`, `Database connected` | `[ ]` |
+| **12** | Test Nginx Syntax | `sudo nginx -t` | `syntax is ok, test is successful` | `[ ]` |
+| **13** | Reload Nginx | `sudo systemctl reload nginx` | Clean reload, active | `[ ]` |
+
+---
+
 ### Step 5.1: Database Pre-Upgrade Backup (MANDATORY)
 Perform a full snapshot backup of PostgreSQL before touching application code:
 ```bash
@@ -353,13 +374,26 @@ curl -s https://dayflowlive.com/api/health | jq .
 
 ---
 
-## 9. Production Deployment Sign-Off Certificate
+## 9. Post-Execution Log & Production Sign-Off Certificate
+
+This section is to be completed by the deployment engineer directly upon concluding deployment execution:
+
+### Live Verification Checklist
+- [ ] **API Root Endpoint:** `curl -s https://dayflowlive.com/api/` reports `"version":"2.9.0"` and `"status":"online"`.
+- [ ] **API Health Endpoint:** `curl -s https://dayflowlive.com/api/health` reports `"version":"2.9.0"` and `"database":"connected"`.
+- [ ] **Categories API:** Unauthenticated requests to `/api/categories` return 401; UUID format validation active.
+- [ ] **Frontend Web Assets:** Header badge displays `v2.9.0 Web`; assets reference `v=2.9.29`.
+- [ ] **Settings UI:** Custom Task Categories and Quiet Hours controls load and function cleanly.
+- [ ] **HelpFinder4U Coexistence:** `hf-web` and `hf-api` remain online; restart counts unchanged.
+
+### Execution Log & Sign-Off Record
 
 ```
 ========================================================================
 DAYFLOW PRODUCTION DEPLOYMENT SIGN-OFF: RELEASE v2.9.0
 ========================================================================
 Deployment Date:     ____________________ (YYYY-MM-DD)
+Deployment Time:     ________ to ________ (UTC / Local)
 Deployment Engineer: ____________________
 Target Release Tag:  v2.9.0
 Git Checkout Tag:    v2.9.0 confirmed (git describe --tags -> v2.9.0)
@@ -371,6 +405,11 @@ API Health Check:    GET /api/health -> version: 2.9.0, database: connected
 Web Asset Check:     HTML header badge v2.9.0 Web, cache-buster ?v=2.9.29
 HelpFinder Coexist:  hf-web & hf-api verified online and untouched
 ========================================================================
+DEPLOYMENT RESULT:   [  ] SUCCESSFUL ROLLOUT    [  ] ROLLBACK TRIGGERED
 SIGN-OFF VERDICT:    [  ] APPROVED & CERTIFIED IN PRODUCTION
+========================================================================
+Engineer Notes:
+________________________________________________________________________
+________________________________________________________________________
 ========================================================================
 ```
