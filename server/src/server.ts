@@ -61,7 +61,7 @@ app.use(cors({
 // Request Body Parser with payload limit
 app.use(express.json({ limit: '200kb' }));
 
-export const APP_VERSION = '2.8.0';
+export const APP_VERSION = '2.9.0';
 
 // Interactive Swagger UI API Documentation at /docs and /api-docs (disabled in production - Finding 39)
 if (!isProd) {
