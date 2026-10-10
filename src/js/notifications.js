@@ -5,10 +5,10 @@
  * - 30-Minute Schedule Slot transition, start, and wrap-up alerts
  * - Interactive in-app actionable toasts
  */
-import { STATE, formatDateISO, isSlotTimePassed } from './state.js?v=2.9.28';
-import { USER_SETTINGS, saveUserSettings } from './settings.js?v=2.9.28';
-import { openTaskModal } from './modal.js?v=2.9.28';
-import { showToast } from './utils.js?v=2.9.28';
+import { STATE, formatDateISO, isSlotTimePassed } from './state.js?v=2.9.29';
+import { USER_SETTINGS, saveUserSettings, isSlotProductive } from './settings.js?v=2.9.29';
+import { openTaskModal } from './modal.js?v=2.9.29';
+import { showToast } from './utils.js?v=2.9.29';
 
 let audioCtx = null;
 let heartbeatTimer = null;
@@ -230,12 +230,27 @@ export function updateNotificationBellUI() {
   const perm = getNotificationPermissionStatus();
   const isEnabled = USER_SETTINGS.notificationsEnabled && perm === 'granted';
   const hasSound = USER_SETTINGS.notificationSound;
+  const inQuietHours = isQuietHoursActive();
 
   if (perm === 'denied') {
     bellIcon.textContent = '🔕';
     bellBtn.title = 'Notifications Blocked (Click to see instructions)';
     bellBtn.classList.remove('bell-active');
     bellBtn.classList.add('bell-disabled');
+  } else if (inQuietHours && (isEnabled || hasSound)) {
+    bellIcon.textContent = '🌙';
+    const day = new Date().getDay();
+    const isWeekend = (day === 0 || day === 6);
+    if (USER_SETTINGS.notifyMuteWeekends && isWeekend) {
+      bellBtn.title = '🌙 Weekend Silence Active (Alerts muted for Saturday & Sunday)';
+    } else {
+      const startH = USER_SETTINGS.notifyStartHour !== undefined ? USER_SETTINGS.notifyStartHour : 8;
+      const hour12 = startH % 12 === 0 ? 12 : startH % 12;
+      const ampm = startH >= 12 ? 'PM' : 'AM';
+      bellBtn.title = `🌙 Quiet Hours Active (Alerts muted until ${hour12}:00 ${ampm})`;
+    }
+    bellBtn.classList.add('bell-active');
+    bellBtn.classList.remove('bell-disabled');
   } else if (isEnabled) {
     bellIcon.textContent = hasSound ? '🔔' : '🔕';
     bellBtn.title = hasSound ? 'Notifications & Sound Active (Click to mute/unmute)' : 'Sound Muted (Click to enable)';
@@ -246,6 +261,57 @@ export function updateNotificationBellUI() {
     bellBtn.title = 'Click to Enable Notifications & Alarms';
     bellBtn.classList.remove('bell-active', 'bell-disabled');
   }
+}
+
+/**
+ * Check if notifications are currently suppressed (Weekend Mute, Quiet Hours, or Category Filter)
+ */
+export function getNotificationSuppressionState(now = new Date(), slotData = null) {
+  // 1. Check Weekend Mute
+  const day = now.getDay(); // 0 is Sunday, 6 is Saturday
+  if (USER_SETTINGS.notifyMuteWeekends && (day === 0 || day === 6)) {
+    return { suppressed: true, reason: 'weekend', soundOnly: false };
+  }
+
+  // 2. Check Productive-Only Filter
+  if (USER_SETTINGS.notifyOnlyProductive && slotData && !isSlotProductive(slotData)) {
+    return { suppressed: true, reason: 'non_productive', soundOnly: false };
+  }
+
+  // 3. Check Active Hours Window (Quiet Hours)
+  if (USER_SETTINGS.notifyActiveWindowEnabled !== false) {
+    const currentHour = now.getHours();
+    const startHour = USER_SETTINGS.notifyStartHour !== undefined ? parseInt(USER_SETTINGS.notifyStartHour, 10) : 8;
+    const endHour = USER_SETTINGS.notifyEndHour !== undefined ? parseInt(USER_SETTINGS.notifyEndHour, 10) : 22;
+
+    let inActiveWindow = false;
+    if (startHour <= endHour) {
+      // Normal daytime range: e.g. 8 to 22 (08:00 AM to 10:00 PM)
+      inActiveWindow = (currentHour >= startHour && currentHour < endHour);
+    } else {
+      // Overnight range: e.g. 20 to 6 (08:00 PM to 06:00 AM)
+      inActiveWindow = (currentHour >= startHour || currentHour < endHour);
+    }
+
+    if (!inActiveWindow) {
+      const mode = USER_SETTINGS.notifyQuietHoursMode || 'full';
+      return {
+        suppressed: true,
+        reason: 'quiet_hours',
+        soundOnly: mode === 'sound_only'
+      };
+    }
+  }
+
+  return { suppressed: false, reason: null, soundOnly: false };
+}
+
+/**
+ * Returns true if the app is currently in quiet hours or weekend mute
+ */
+export function isQuietHoursActive(now = new Date()) {
+  const check = getNotificationSuppressionState(now, null);
+  return check.suppressed && (check.reason === 'quiet_hours' || check.reason === 'weekend');
 }
 
 /**
@@ -303,7 +369,7 @@ export function checkScheduleAlerts() {
         // Trigger if current time is within lead-time window prior to slot start
         if (currentTimeTotalSecs >= leadTriggerSecs && currentTimeTotalSecs < slotStartSecs && !firedAlerts.has(alertKey)) {
           firedAlerts.add(alertKey);
-          triggerLeadTimeAlert(slotKey, slotStartTimeKey, taskName, leadMinutes);
+          triggerLeadTimeAlert(slotKey, slotStartTimeKey, taskName, leadMinutes, slotData);
         }
       }
 
@@ -312,7 +378,7 @@ export function checkScheduleAlerts() {
         const startAlertKey = `start_${slotKey}`;
         if (currentTimeTotalSecs >= slotStartSecs && currentTimeTotalSecs < slotStartSecs + 300 && !firedAlerts.has(startAlertKey)) {
           firedAlerts.add(startAlertKey);
-          triggerSlotStartAlert(slotKey, slotStartTimeKey, taskName, slotData?.category);
+          triggerSlotStartAlert(slotKey, slotStartTimeKey, taskName, slotData?.category, slotData);
         }
       }
 
@@ -321,7 +387,7 @@ export function checkScheduleAlerts() {
         const endAlertKey = `end_${slotKey}`;
         if (currentTimeTotalSecs >= slotEndSecs && currentTimeTotalSecs < slotEndSecs + 300 && !firedAlerts.has(endAlertKey)) {
           firedAlerts.add(endAlertKey);
-          triggerSlotWrapUpAlert(slotKey, slotStartTimeKey, taskName);
+          triggerSlotWrapUpAlert(slotKey, slotStartTimeKey, taskName, slotData);
         }
       }
     }
@@ -331,8 +397,13 @@ export function checkScheduleAlerts() {
 /**
  * Trigger proactive lead-time reminder
  */
-function triggerLeadTimeAlert(slotKey, timeStr, taskName, leadMins) {
-  if (USER_SETTINGS.notificationSound) {
+function triggerLeadTimeAlert(slotKey, timeStr, taskName, leadMins, slotData = null) {
+  const suppression = getNotificationSuppressionState(new Date(), slotData);
+  if (suppression.suppressed && !suppression.soundOnly) {
+    return;
+  }
+
+  if (USER_SETTINGS.notificationSound && !suppression.soundOnly) {
     playNotificationSound(USER_SETTINGS.notificationTone, USER_SETTINGS.notificationVolume);
   }
 
@@ -346,8 +417,13 @@ function triggerLeadTimeAlert(slotKey, timeStr, taskName, leadMins) {
 /**
  * Trigger block start alarm
  */
-function triggerSlotStartAlert(slotKey, timeStr, taskName, category = 'General') {
-  if (USER_SETTINGS.notificationSound) {
+function triggerSlotStartAlert(slotKey, timeStr, taskName, category = 'General', slotData = null) {
+  const suppression = getNotificationSuppressionState(new Date(), slotData);
+  if (suppression.suppressed && !suppression.soundOnly) {
+    return;
+  }
+
+  if (USER_SETTINGS.notificationSound && !suppression.soundOnly) {
     playNotificationSound(USER_SETTINGS.notificationTone, USER_SETTINGS.notificationVolume);
   }
 
@@ -361,8 +437,13 @@ function triggerSlotStartAlert(slotKey, timeStr, taskName, category = 'General')
 /**
  * Trigger slot wrap-up reminder
  */
-function triggerSlotWrapUpAlert(slotKey, timeStr, taskName) {
-  if (USER_SETTINGS.notificationSound) {
+function triggerSlotWrapUpAlert(slotKey, timeStr, taskName, slotData = null) {
+  const suppression = getNotificationSuppressionState(new Date(), slotData);
+  if (suppression.suppressed && !suppression.soundOnly) {
+    return;
+  }
+
+  if (USER_SETTINGS.notificationSound && !suppression.soundOnly) {
     playNotificationSound(USER_SETTINGS.notificationTone, Math.max(30, (USER_SETTINGS.notificationVolume || 70) * 0.8));
   }
 
@@ -387,6 +468,7 @@ export function initNotificationEngine() {
   // Run immediately, then every 20 seconds
   checkScheduleAlerts();
   heartbeatTimer = setInterval(() => {
+    updateNotificationBellUI();
     checkScheduleAlerts();
   }, 20000);
 

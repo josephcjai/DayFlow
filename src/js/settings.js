@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.28';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi, markCategoryPendingSave, clearCategoryPendingSave } from './state.js?v=2.9.28';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.28';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.28';
-import { showToast, escapeHtml, generateUUID } from './utils.js?v=2.9.28';
+import { generateTimeSlots } from './grid.js?v=2.9.29';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi, markCategoryPendingSave, clearCategoryPendingSave } from './state.js?v=2.9.29';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.29';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.29';
+import { showToast, escapeHtml, generateUUID } from './utils.js?v=2.9.29';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -72,6 +72,12 @@ export const DEFAULT_SETTINGS = {
   notificationTone: 'chime', // 'chime', 'bell', 'ping', 'marimba'
   notifyLeadMinutes: 2, // 0, 1, 2, 5
   notifySlotEnd: true,
+  notifyActiveWindowEnabled: true,
+  notifyStartHour: 8,
+  notifyEndHour: 22,
+  notifyQuietHoursMode: 'full', // 'full' (complete silence) | 'sound_only' (silent toasts)
+  notifyMuteWeekends: false,
+  notifyOnlyProductive: false,
   dayTemplates: DEFAULT_DAY_TEMPLATES,
   productiveCategories: ['Work', 'Learning']
 };
@@ -261,6 +267,18 @@ export function initSettingsUI(domElements, renderAllCallback) {
   const notifLeadTimeSelect = document.getElementById('settingsNotifLeadTime');
   const notifSlotEndToggle = document.getElementById('settingsNotifSlotEnd');
 
+  // Notification Active Window & Quiet Hours Controls
+  const notifActiveWindowToggle = document.getElementById('settingsNotifActiveWindowEnabled');
+  const notifActiveWindowContainer = document.getElementById('notifActiveWindowContainer');
+  const notifStartHourSelect = document.getElementById('settingsNotifStartHour');
+  const notifEndHourSelect = document.getElementById('settingsNotifEndHour');
+  const notifQuietHoursSummaryBadge = document.getElementById('notifQuietHoursSummaryBadge');
+  const notifQuietHoursSummaryText = document.getElementById('notifQuietHoursSummaryText');
+  const notifQuietModeSelect = document.getElementById('settingsNotifQuietMode');
+  const notifMuteWeekendsToggle = document.getElementById('settingsNotifMuteWeekends');
+  const notifOnlyProductiveToggle = document.getElementById('settingsNotifOnlyProductive');
+  const notifPresetButtons = document.querySelectorAll('.notif-preset-pill');
+
   const exportBtn = document.getElementById('exportBackupBtn');
   const resetBtn = document.getElementById('resetSettingsBtn');
   const saveBtn = document.getElementById('saveSettingsBtn');
@@ -295,6 +313,43 @@ export function initSettingsUI(domElements, renderAllCallback) {
     }
   };
 
+  const updateActiveHoursSummaryUI = () => {
+    const isEnabled = notifActiveWindowToggle ? notifActiveWindowToggle.checked : true;
+    const start = notifStartHourSelect ? parseInt(notifStartHourSelect.value, 10) : (USER_SETTINGS.notifyStartHour ?? 8);
+    const end = notifEndHourSelect ? parseInt(notifEndHourSelect.value, 10) : (USER_SETTINGS.notifyEndHour ?? 22);
+
+    if (notifActiveWindowContainer) {
+      notifActiveWindowContainer.style.opacity = isEnabled ? '1' : '0.55';
+      notifActiveWindowContainer.style.pointerEvents = isEnabled ? 'auto' : 'none';
+    }
+
+    if (notifQuietHoursSummaryText) {
+      if (!isEnabled) {
+        notifQuietHoursSummaryText.textContent = '⏰ Notifications active 24/7 (Quiet hours disabled)';
+      } else if (start === 0 && end >= 23) {
+        notifQuietHoursSummaryText.textContent = '⏰ Notifications active 24/7 (All day and night)';
+      } else {
+        const formatTime = (h) => {
+          const hour = parseInt(h, 10) % 24;
+          const ampm = hour >= 12 ? 'PM' : 'AM';
+          const h12 = hour % 12 === 0 ? 12 : hour % 12;
+          return `${String(h12).padStart(2, '0')}:00 ${ampm}`;
+        };
+        const startStr = formatTime(start);
+        const endStr = formatTime(end);
+        notifQuietHoursSummaryText.textContent = `Quiet Hours: ${endStr} – ${startStr} (Muted while you sleep)`;
+      }
+    }
+
+    // Update active preset button highlight
+    notifPresetButtons.forEach(btn => {
+      const pStart = parseInt(btn.dataset.start, 10);
+      const pEnd = parseInt(btn.dataset.end, 10);
+      const isActive = isEnabled && pStart === start && pEnd === end;
+      btn.classList.toggle('active', isActive);
+    });
+  };
+
   // Populate UI values from loaded settings
   const syncInputsToState = () => {
     if (startHourInput) {
@@ -323,7 +378,17 @@ export function initSettingsUI(domElements, renderAllCallback) {
     if (notifToneSelect) notifToneSelect.value = USER_SETTINGS.notificationTone || 'chime';
     if (notifLeadTimeSelect) notifLeadTimeSelect.value = USER_SETTINGS.notifyLeadMinutes !== undefined ? String(USER_SETTINGS.notifyLeadMinutes) : '2';
     if (notifSlotEndToggle) notifSlotEndToggle.checked = USER_SETTINGS.notifySlotEnd !== false;
+
+    // Notification schedule & quiet hours sync
+    if (notifActiveWindowToggle) notifActiveWindowToggle.checked = USER_SETTINGS.notifyActiveWindowEnabled !== false;
+    if (notifStartHourSelect) notifStartHourSelect.value = String(USER_SETTINGS.notifyStartHour !== undefined ? USER_SETTINGS.notifyStartHour : 8);
+    if (notifEndHourSelect) notifEndHourSelect.value = String(USER_SETTINGS.notifyEndHour !== undefined ? USER_SETTINGS.notifyEndHour : 22);
+    if (notifQuietModeSelect) notifQuietModeSelect.value = USER_SETTINGS.notifyQuietHoursMode || 'full';
+    if (notifMuteWeekendsToggle) notifMuteWeekendsToggle.checked = !!USER_SETTINGS.notifyMuteWeekends;
+    if (notifOnlyProductiveToggle) notifOnlyProductiveToggle.checked = !!USER_SETTINGS.notifyOnlyProductive;
+
     updatePermissionBadgeUI();
+    updateActiveHoursSummaryUI();
 
     // Theme cards active state
     themeCards.forEach(card => {
@@ -392,6 +457,29 @@ export function initSettingsUI(domElements, renderAllCallback) {
     });
   }
 
+  // Active hours & quiet hours listeners
+  if (notifActiveWindowToggle) {
+    notifActiveWindowToggle.addEventListener('change', updateActiveHoursSummaryUI);
+  }
+  if (notifStartHourSelect) {
+    notifStartHourSelect.addEventListener('change', updateActiveHoursSummaryUI);
+  }
+  if (notifEndHourSelect) {
+    notifEndHourSelect.addEventListener('change', updateActiveHoursSummaryUI);
+  }
+  notifPresetButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pStart = parseInt(btn.dataset.start, 10);
+      const pEnd = parseInt(btn.dataset.end, 10);
+      if (notifActiveWindowToggle && !notifActiveWindowToggle.checked) {
+        notifActiveWindowToggle.checked = true;
+      }
+      if (notifStartHourSelect) notifStartHourSelect.value = String(pStart);
+      if (notifEndHourSelect) notifEndHourSelect.value = String(pEnd);
+      updateActiveHoursSummaryUI();
+    });
+  });
+
   // Window preset buttons
   windowPresets.forEach(pill => {
     pill.addEventListener('click', () => {
@@ -455,6 +543,12 @@ export function initSettingsUI(domElements, renderAllCallback) {
         notificationTone: notifToneSelect?.value || 'chime',
         notifyLeadMinutes: parseInt(notifLeadTimeSelect?.value, 10) || 0,
         notifySlotEnd: !!notifSlotEndToggle?.checked,
+        notifyActiveWindowEnabled: notifActiveWindowToggle ? !!notifActiveWindowToggle.checked : true,
+        notifyStartHour: notifStartHourSelect ? parseInt(notifStartHourSelect.value, 10) : 8,
+        notifyEndHour: notifEndHourSelect ? parseInt(notifEndHourSelect.value, 10) : 22,
+        notifyQuietHoursMode: notifQuietModeSelect?.value || 'full',
+        notifyMuteWeekends: !!notifMuteWeekendsToggle?.checked,
+        notifyOnlyProductive: !!notifOnlyProductiveToggle?.checked,
         productiveCategories: USER_SETTINGS.productiveCategories || ['Work', 'Learning']
       };
 

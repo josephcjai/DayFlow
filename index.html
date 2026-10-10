@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/css/styles.css?v=2.9.28">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.9.29">
   <!-- Google Identity Services (Sign in with Google) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -938,6 +938,136 @@
                       </label>
                     </label>
                     <span class="field-hint" style="margin-top: 0.35rem;">Reminds you to mark the block Done or log actual executed time</span>
+                  </div>
+                </div>
+
+                <!-- Active Hours & Quiet Mode (Do Not Disturb) Section -->
+                <div class="notif-quiet-hours-section" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                  <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 0.75rem;">
+                    <div>
+                      <strong style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                        <span>🌙</span> Active Hours & Quiet Window (Do Not Disturb)
+                      </strong>
+                      <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Silence alarms and notifications during the night or while sleeping.</p>
+                    </div>
+                    <label class="switch-toggle" style="margin-left: 1rem;">
+                      <input type="checkbox" id="settingsNotifActiveWindowEnabled" checked>
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+
+                  <div id="notifActiveWindowContainer" style="display: flex; flex-direction: column; gap: 0.85rem; background: rgba(255, 255, 255, 0.02); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 0.35rem;">
+                    <!-- 1-Click Quick Presets -->
+                    <div>
+                      <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.35rem; display: block;">Quick Presets:</label>
+                      <div class="notif-preset-pills" style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                        <button type="button" class="notif-preset-pill active" data-start="8" data-end="22">☀️ Standard Day (8 AM – 10 PM)</button>
+                        <button type="button" class="notif-preset-pill" data-start="9" data-end="18">💼 Work Hours (9 AM – 6 PM)</button>
+                        <button type="button" class="notif-preset-pill" data-start="7" data-end="23">🦉 Extended (7 AM – 11 PM)</button>
+                        <button type="button" class="notif-preset-pill" data-start="0" data-end="24">⏰ 24/7 Always Active</button>
+                      </div>
+                    </div>
+
+                    <!-- Time Selectors -->
+                    <div class="form-row-2" style="gap: 0.75rem;">
+                      <div class="form-group">
+                        <label for="settingsNotifStartHour" style="font-size: 0.8rem;">Active From (Morning / Wakeup)</label>
+                        <select id="settingsNotifStartHour" class="select-input">
+                          <option value="0">12:00 AM (00:00)</option>
+                          <option value="1">01:00 AM (01:00)</option>
+                          <option value="2">02:00 AM (02:00)</option>
+                          <option value="3">03:00 AM (03:00)</option>
+                          <option value="4">04:00 AM (04:00)</option>
+                          <option value="5">05:00 AM (05:00)</option>
+                          <option value="6">06:00 AM (06:00)</option>
+                          <option value="7">07:00 AM (07:00)</option>
+                          <option value="8" selected>08:00 AM (08:00)</option>
+                          <option value="9">09:00 AM (09:00)</option>
+                          <option value="10">10:00 AM (10:00)</option>
+                          <option value="11">11:00 AM (11:00)</option>
+                          <option value="12">12:00 PM (12:00)</option>
+                          <option value="13">01:00 PM (13:00)</option>
+                          <option value="14">02:00 PM (14:00)</option>
+                          <option value="15">03:00 PM (15:00)</option>
+                          <option value="16">04:00 PM (16:00)</option>
+                          <option value="17">05:00 PM (17:00)</option>
+                          <option value="18">06:00 PM (18:00)</option>
+                          <option value="19">07:00 PM (19:00)</option>
+                          <option value="20">08:00 PM (20:00)</option>
+                          <option value="21">09:00 PM (21:00)</option>
+                          <option value="22">10:00 PM (22:00)</option>
+                          <option value="23">11:00 PM (23:00)</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label for="settingsNotifEndHour" style="font-size: 0.8rem;">Active Until (Night / Sleep)</label>
+                        <select id="settingsNotifEndHour" class="select-input">
+                          <option value="0">12:00 AM (00:00)</option>
+                          <option value="1">01:00 AM (01:00)</option>
+                          <option value="2">02:00 AM (02:00)</option>
+                          <option value="3">03:00 AM (03:00)</option>
+                          <option value="4">04:00 AM (04:00)</option>
+                          <option value="5">05:00 AM (05:00)</option>
+                          <option value="6">06:00 AM (06:00)</option>
+                          <option value="7">07:00 AM (07:00)</option>
+                          <option value="8">08:00 AM (08:00)</option>
+                          <option value="9">09:00 AM (09:00)</option>
+                          <option value="10">10:00 AM (10:00)</option>
+                          <option value="11">11:00 AM (11:00)</option>
+                          <option value="12">12:00 PM (12:00)</option>
+                          <option value="13">01:00 PM (13:00)</option>
+                          <option value="14">02:00 PM (14:00)</option>
+                          <option value="15">03:00 PM (15:00)</option>
+                          <option value="16">04:00 PM (16:00)</option>
+                          <option value="17">05:00 PM (17:00)</option>
+                          <option value="18">06:00 PM (18:00)</option>
+                          <option value="19">07:00 PM (19:00)</option>
+                          <option value="20">08:00 PM (20:00)</option>
+                          <option value="21">09:00 PM (21:00)</option>
+                          <option value="22" selected>10:00 PM (22:00)</option>
+                          <option value="23">11:00 PM (23:00)</option>
+                          <option value="24">12:00 AM (Midnight, End of Day)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- Quiet Hours Status / Preview Badge -->
+                    <div id="notifQuietHoursSummaryBadge" style="display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); padding: 0.4rem 0.75rem; border-radius: var(--radius-sm);">
+                      <span>🌙</span> <span id="notifQuietHoursSummaryText">Quiet Hours: 10:00 PM – 08:00 AM (Muted while you sleep)</span>
+                    </div>
+
+                    <!-- Quiet Hours Behavior Mode -->
+                    <div class="form-group" style="margin-top: 0.25rem;">
+                      <label for="settingsNotifQuietMode" style="font-size: 0.8rem;">Quiet Hours Behavior</label>
+                      <select id="settingsNotifQuietMode" class="select-input">
+                        <option value="full" selected>🔇 Full Silence (Mute audio chimes and block all popups/toasts)</option>
+                        <option value="sound_only">🔕 Sound Muted Only (Silence audio chimes, but show silent visual banners)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Weekend Silence Toggle -->
+                  <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color); margin-top: 0.5rem;">
+                    <div>
+                      <strong style="font-size: 0.9rem; color: var(--text-primary);">🏖️ Weekend Silence</strong>
+                      <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Automatically mute all alarms on Saturday and Sunday.</p>
+                    </div>
+                    <label class="switch-toggle" style="margin-left: 1rem;">
+                      <input type="checkbox" id="settingsNotifMuteWeekends">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+
+                  <!-- Productive-Only Tasks Filter -->
+                  <div class="setting-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0;">
+                    <div>
+                      <strong style="font-size: 0.9rem; color: var(--text-primary);">⚡ Productive Tasks Only</strong>
+                      <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem;">Only trigger alerts for High-Impact / Productive tasks (suppresses alarms for meals, chores, or leisure).</p>
+                    </div>
+                    <label class="switch-toggle" style="margin-left: 1rem;">
+                      <input type="checkbox" id="settingsNotifOnlyProductive">
+                      <span class="slider round"></span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1953,6 +2083,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/js/app.js?v=2.9.28"></script>
+  <script type="module" src="src/js/app.js?v=2.9.29"></script>
 </body>
 </html>
