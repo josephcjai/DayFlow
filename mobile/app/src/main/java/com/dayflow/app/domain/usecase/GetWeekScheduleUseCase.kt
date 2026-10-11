@@ -24,6 +24,7 @@ class GetWeekScheduleUseCase @Inject constructor(
                     actualDuration = entity.actualDuration,
                     status = SlotStatus.fromString(entity.status),
                     notes = entity.notes,
+                    isProductive = entity.isProductive,
                     isSyncPending = entity.isSyncPending
                 )
             }

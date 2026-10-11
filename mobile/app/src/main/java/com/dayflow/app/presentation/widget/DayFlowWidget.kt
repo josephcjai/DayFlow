@@ -141,11 +141,12 @@ class DayFlowWidget : GlanceAppWidget() {
                                     maxLines = 1
                                 )
                                 Spacer(modifier = GlanceModifier.height(2.dp))
+                                val isProdSlot = slotEntity.isProductive ?: (slotEntity.category.equals("Work", ignoreCase = true) || slotEntity.category.equals("Learning", ignoreCase = true))
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "${slotEntity.category} • 30m",
+                                        text = "${if (isProdSlot) "⚡ " else ""}${slotEntity.category} • 30m",
                                         style = TextStyle(
                                             color = primaryCyan,
                                             fontSize = 11.sp

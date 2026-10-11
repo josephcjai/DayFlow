@@ -15,6 +15,7 @@ data class ScheduleSlotEntity(
     val actualDuration: Int = 0,
     val status: String = "Pending", // "Pending", "Done", "Partial", "Missed"
     val notes: String? = null,
+    val isProductive: Boolean? = null,
     val updatedAt: Long = System.currentTimeMillis(),
     val isSyncPending: Boolean = false
 )

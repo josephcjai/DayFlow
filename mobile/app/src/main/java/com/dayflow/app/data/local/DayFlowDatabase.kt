@@ -11,7 +11,7 @@ import androidx.room.RoomDatabase
         WeeklyNotesEntity::class,
         MutationQueueEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class DayFlowDatabase : RoomDatabase() {

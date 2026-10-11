@@ -54,6 +54,7 @@ class SaveSlotUseCase @Inject constructor(
             actualDuration = slot.actualDuration,
             status = slot.status.displayName,
             notes = slot.notes,
+            isProductive = slot.isProductive,
             isSyncPending = true
         )
 

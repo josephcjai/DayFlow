@@ -41,6 +41,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -251,6 +252,28 @@ fun ScheduleTimelineScreen(
 
         Spacer(modifier = Modifier.height(4.dp))
 
+        val activeSlots = remember(daySlots) { daySlots.mapNotNull { it.slot } }
+        val grandPlannedMins = remember(activeSlots) { activeSlots.sumOf { it.plannedDuration } }
+        val grandActualMins = remember(activeSlots) { activeSlots.sumOf { it.actualDuration } }
+        val productiveActualMins = remember(activeSlots) {
+            activeSlots.filter { it.isProductiveSlot() }.sumOf { it.actualDuration }
+        }
+        val plannedHrs = String.format(Locale.US, "%.1f", grandPlannedMins / 60f)
+        val actualHrs = String.format(Locale.US, "%.1f", grandActualMins / 60f)
+        val productiveHrs = String.format(Locale.US, "%.1f", productiveActualMins / 60f)
+        val completionScore = if (grandPlannedMins > 0) ((grandActualMins.toFloat() / grandPlannedMins) * 100).toInt().coerceAtMost(100) else 0
+        val effectivenessScore = if (grandActualMins > 0) ((productiveActualMins.toFloat() / grandActualMins) * 100).toInt().coerceAtMost(100) else 0
+
+        if (grandPlannedMins > 0 || grandActualMins > 0) {
+            DailyEffectivenessCard(
+                plannedHrs = plannedHrs,
+                actualHrs = actualHrs,
+                productiveHrs = productiveHrs,
+                completionScore = completionScore,
+                effectivenessScore = effectivenessScore
+            )
+        }
+
         // 4. Pull-to-Refresh & 48-Slot Timeline List
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
@@ -391,6 +414,22 @@ fun TimelineSlotItem(
                                 fontWeight = FontWeight.Medium
                             )
 
+                            if (row.slot.isProductiveSlot()) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    color = Color(0xFFF59E0B).copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = "⚡ High Impact",
+                                        color = Color(0xFFF59E0B),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+
                             val durationToShow = if (row.slot.actualDuration > 0) row.slot.actualDuration else row.slot.plannedDuration
                             Text(
                                 text = "  •  ${durationToShow}m",
@@ -465,5 +504,85 @@ fun StatusChip(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
+    }
+}
+
+@Composable
+fun DailyEffectivenessCard(
+    plannedHrs: String,
+    actualHrs: String,
+    productiveHrs: String,
+    completionScore: Int,
+    effectivenessScore: Int
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        shape = RoundedCornerShape(14.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Daily Focus & Effectiveness",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+                Surface(
+                    color = Color(0xFFF59E0B).copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = "⚡ High Impact",
+                        color = Color(0xFFF59E0B),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Planned
+                Column {
+                    Text("Planned", fontSize = 11.sp, color = TextMuted)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("${plannedHrs}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+                // Actual
+                Column {
+                    Text("Actual", fontSize = 11.sp, color = TextMuted)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("${actualHrs}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+                // Completion
+                Column {
+                    Text("Score", fontSize = 11.sp, color = TextMuted)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("${completionScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DayFlowPrimary)
+                }
+                // Work Effectiveness
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Work Effectiveness", fontSize = 11.sp, color = Color(0xFFF59E0B))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("${effectivenessScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
+                    Text("${productiveHrs}h of ${actualHrs}h logged", fontSize = 10.sp, color = TextMuted)
+                }
+            }
+        }
     }
 }

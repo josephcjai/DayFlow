@@ -40,7 +40,18 @@ data class Slot(
     val actualDuration: Int = 0,
     val status: SlotStatus = SlotStatus.PENDING,
     val notes: String? = null,
+    val isProductive: Boolean? = null,
     val isSyncPending: Boolean = false
+) {
+    fun isProductiveSlot(): Boolean = isProductive ?: (category == Category.WORK || category == Category.LEARNING)
+}
+
+data class FocusAnalyticsSummary(
+    val plannedMinutes: Int,
+    val actualMinutes: Int,
+    val productiveMinutes: Int,
+    val completionPercentage: Int,
+    val effectivenessPercentage: Int
 )
 
 data class Habit(

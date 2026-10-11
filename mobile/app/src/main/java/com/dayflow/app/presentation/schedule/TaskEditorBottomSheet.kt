@@ -33,6 +33,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -92,6 +94,12 @@ fun TaskEditorBottomSheet(
     var plannedTask by remember { mutableStateOf(slot.plannedTask) }
     var actualTask by remember { mutableStateOf(if (slot.actualTask.isNotBlank()) slot.actualTask else slot.plannedTask) }
     var selectedCategory by remember { mutableStateOf(slot.category) }
+    var isProductive by remember {
+        mutableStateOf(slot.isProductive ?: (slot.category == Category.WORK || slot.category == Category.LEARNING))
+    }
+    var isProductiveUserEdited by remember {
+        mutableStateOf(slot.isProductive != null)
+    }
     var selectedStatus by remember { mutableStateOf(slot.status) }
     var actualDuration by remember { mutableIntStateOf(if (slot.actualDuration > 0) slot.actualDuration else slot.plannedDuration) }
     var notes by remember { mutableStateOf(slot.notes ?: "") }
@@ -274,7 +282,12 @@ fun TaskEditorBottomSheet(
                     val isSelected = selectedCategory == cat
                     val catColor = Color(android.graphics.Color.parseColor(cat.hexColor))
                     Surface(
-                        modifier = Modifier.clickable { selectedCategory = cat },
+                        modifier = Modifier.clickable {
+                            selectedCategory = cat
+                            if (!isProductiveUserEdited) {
+                                isProductive = (cat == Category.WORK || cat == Category.LEARNING)
+                            }
+                        },
                         color = if (isSelected) catColor.copy(alpha = 0.25f) else SurfaceElevated.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(10.dp),
                         border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, catColor) else null
@@ -297,6 +310,59 @@ fun TaskEditorBottomSheet(
                             )
                         }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 3.5. PRODUCTIVITY CLASSIFICATION
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = if (isProductive) Color(0xFFF59E0B).copy(alpha = 0.12f) else SurfaceElevated.copy(alpha = 0.5f),
+                border = if (isProductive) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f)) else null
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "⚡ Productive Focus Task",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isProductive) Color(0xFFF59E0B) else TextPrimary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (isProductiveUserEdited) {
+                                "Custom override: ${if (isProductive) "⚡ High Impact" else "Standard task"}"
+                            } else {
+                                "Category default (${selectedCategory.displayName}): ${if (isProductive) "⚡ High Impact" else "Standard task"}"
+                            },
+                            fontSize = 11.sp,
+                            color = TextMuted
+                        )
+                    }
+
+                    Switch(
+                        checked = isProductive,
+                        onCheckedChange = { checked ->
+                            isProductive = checked
+                            isProductiveUserEdited = true
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFFF59E0B),
+                            checkedTrackColor = Color(0xFFF59E0B).copy(alpha = 0.3f),
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = SurfaceElevated
+                        )
+                    )
                 }
             }
 
@@ -435,7 +501,8 @@ fun TaskEditorBottomSheet(
                         category = selectedCategory,
                         status = selectedStatus,
                         actualDuration = actualDuration,
-                        notes = notes.trim().ifEmpty { null }
+                        notes = notes.trim().ifEmpty { null },
+                        isProductive = isProductive
                     )
                     onSave(updatedSlot)
                 },

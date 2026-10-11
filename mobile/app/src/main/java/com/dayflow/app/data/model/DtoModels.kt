@@ -67,7 +67,8 @@ data class SlotDto(
     @SerialName("actual")
     val actualDuration: Int = 0,
     val status: String = "Pending",
-    val notes: String? = null
+    val notes: String? = null,
+    val isProductive: Boolean? = null
 )
 
 @Serializable
@@ -91,7 +92,8 @@ data class SaveSlotRequest(
     @SerialName("actual")
     val actualDuration: Int = 0,
     val status: String = "Pending",
-    val notes: String? = null
+    val notes: String? = null,
+    val isProductive: Boolean? = null
 )
 
 @Serializable

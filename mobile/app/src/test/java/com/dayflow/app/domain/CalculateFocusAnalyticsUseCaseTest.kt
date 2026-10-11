@@ -69,4 +69,44 @@ class CalculateFocusAnalyticsUseCaseTest {
         assertEquals(0, household.actualMinutes)
         assertEquals(0.0f, household.completionPercentage, 0.01f)
     }
+    @Test
+    fun testDailySummaryCalculationAndWorkEffectiveness() {
+        val slots = listOf(
+            Slot(
+                slotKey = "2026-09-28_09:00",
+                weekStart = "2026-09-28",
+                plannedTask = "Work Task",
+                category = Category.WORK, // Productive by default
+                plannedDuration = 30,
+                actualDuration = 30,
+                status = SlotStatus.DONE
+            ),
+            Slot(
+                slotKey = "2026-09-28_09:30",
+                weekStart = "2026-09-28",
+                plannedTask = "Household Task",
+                category = Category.HOUSEHOLD, // Non-productive by default
+                plannedDuration = 30,
+                actualDuration = 30,
+                status = SlotStatus.DONE
+            ),
+            Slot(
+                slotKey = "2026-09-28_10:00",
+                weekStart = "2026-09-28",
+                plannedTask = "Personal Admin (Overridden to Productive)",
+                category = Category.HOUSEHOLD,
+                plannedDuration = 30,
+                actualDuration = 30,
+                status = SlotStatus.DONE,
+                isProductive = true // Explicit override
+            )
+        )
+
+        val summary = useCase.calculateDailySummary(slots)
+        assertEquals(90, summary.plannedMinutes)
+        assertEquals(90, summary.actualMinutes)
+        assertEquals(60, summary.productiveMinutes) // Work (30m) + Overridden Household (30m)
+        assertEquals(100, summary.completionPercentage)
+        assertEquals(66, summary.effectivenessPercentage) // (60 / 90) * 100 = 66%
+    }
 }

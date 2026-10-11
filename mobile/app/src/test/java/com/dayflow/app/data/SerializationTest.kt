@@ -80,4 +80,22 @@ class SerializationTest {
         assertEquals("Architecture Planning", slot?.plannedTask)
         assertEquals("Done", slot?.status)
     }
+    @Test
+    fun testSlotDtoWithIsProductiveSerialization() {
+        val dto = SlotDto(
+            slotKey = "2026-09-28_11:00",
+            plannedTask = "Kotlin Coroutines Deep Dive",
+            actualTask = "Kotlin Coroutines Deep Dive",
+            category = "Learning",
+            plannedDuration = 30,
+            actualDuration = 30,
+            status = "Done",
+            isProductive = true
+        )
+        val jsonString = json.encodeToString(dto)
+        val decoded = json.decodeFromString<SlotDto>(jsonString)
+
+        assertEquals(true, decoded.isProductive)
+        assertEquals("Learning", decoded.category)
+    }
 }

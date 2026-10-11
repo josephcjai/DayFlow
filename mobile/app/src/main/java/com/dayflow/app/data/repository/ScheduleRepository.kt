@@ -57,6 +57,7 @@ class ScheduleRepositoryImpl @Inject constructor(
                         actualDuration = slotDto.actualDuration,
                         status = slotDto.status,
                         notes = slotDto.notes,
+                        isProductive = slotDto.isProductive,
                         isSyncPending = false
                     )
                 }
@@ -93,7 +94,8 @@ class ScheduleRepositoryImpl @Inject constructor(
             plannedDuration = slot.plannedDuration,
             actualDuration = slot.actualDuration,
             status = slot.status,
-            notes = slot.notes
+            notes = slot.notes,
+            isProductive = slot.isProductive
         )
 
         try {
