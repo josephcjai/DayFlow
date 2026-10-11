@@ -129,7 +129,7 @@ For fast operational reference during deployment, follow this sequence:
 | **3** | Fetch Tags | `git fetch --tags origin` | Latest tags fetched | `[ ]` |
 | **4** | Checkout Release | `git checkout v2.9.0` | `HEAD detached at v2.9.0` | `[ ]` |
 | **5** | Verify Clean Tree | `git status` | `nothing to commit, working tree clean` | `[ ]` |
-| **6** | Host Node Runtime Check | `node --version` | `v22.x.x` (upgrade via nvm if older) | `[ ]` |
+| **6** | Host Node Runtime Check | `node --version` | `v20.x.x` LTS or higher (keep host default; DO NOT change NVM) | `[ ]` |
 | **7** | **Execute DB Migration**<br>*(MUST precede API reload)* | `cd /var/www/dayflow/server && npm run migrate` | `✅ DayFlow schema migrations and indexes completed successfully!` | `[ ]` |
 | **8** | Verify Table in DB | `sudo -u postgres psql -d dayflow_db -c "\d user_categories"` | Columns present, rows seeded | `[ ]` |
 | **9** | Rebuild Server TypeScript | `npm run build` | Zero errors (`echo $?` -> `0`), `dist/server.js` generated | `[ ]` |
@@ -175,17 +175,15 @@ git status
 # Output MUST SHOW: HEAD detached at v2.9.0, nothing to commit, working tree clean
 ```
 
-### Step 5.3.1: Host Node.js Runtime Version Check
-DayFlow `v2.9.0` requires Node.js 22.x LTS on the host:
+### Step 5.3.1: Host Node.js Runtime Verification
+Verify the server Node.js runtime (Node.js 20.x LTS or higher is supported):
 ```bash
 node --version
-# Expected: v22.x.x
-
-# IF host reports v20.x or older:
-# nvm install 22
-# nvm use 22
-# nvm alias default 22
+# Expected: v20.x.x or higher (Current Lightsail production runtime is Node 20 LTS)
 ```
+
+> [!NOTE]
+> **Do NOT run `nvm alias default` or upgrade Node on the host.** DayFlow v2.9.0 runs natively on Node.js 20 LTS. Preserving the host Node.js version protects the coexisting HelpFinder4U application from any runtime disruptions.
 
 ### Step 5.4: Execute Database Schema Migration (CRITICAL STEP)
 > [!IMPORTANT]
