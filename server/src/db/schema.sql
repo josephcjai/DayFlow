@@ -91,6 +91,22 @@ CREATE TABLE IF NOT EXISTS user_day_templates (
     CONSTRAINT pk_user_day_templates PRIMARY KEY (user_id, id)
 );
 
+-- User Custom Task Categories
+CREATE TABLE IF NOT EXISTS user_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(50) NOT NULL,
+    icon VARCHAR(10) NOT NULL DEFAULT '📌',
+    color VARCHAR(30) NOT NULL DEFAULT '#64748b',
+    is_productive BOOLEAN NOT NULL DEFAULT false,
+    is_system BOOLEAN NOT NULL DEFAULT false,
+    is_archived BOOLEAN NOT NULL DEFAULT false,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_user_category_name UNIQUE(user_id, name)
+);
+
 -- Production Indexes
 CREATE INDEX IF NOT EXISTS idx_pwd_reset_token ON password_reset_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_pwd_reset_user ON password_reset_tokens(user_id);
@@ -100,4 +116,5 @@ CREATE INDEX IF NOT EXISTS idx_todo_items_week_id ON todo_items (week_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_slots_week ON schedule_slots (week_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_weeks_user ON schedule_weeks (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_day_templates_user ON user_day_templates (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_categories_user ON user_categories (user_id);
 

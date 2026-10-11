@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { memoryStore, executeQuery } from '../db/db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { isValidDateRange } from '../utils/dateValidation.js';
+import { isValidUuid } from '../utils/uuidValidation.js';
 import { sendError } from '../utils/errorHandler.js';
 
 const router = Router();
@@ -167,7 +168,21 @@ router.patch('/:id', async (req: AuthenticatedRequest, res) => {
       }
     });
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id));
+    const isUuid = isValidUuid(id);
+    if (!isUuid) {
+      let existsInMem = false;
+      Object.keys(memoryStore.scheduleWeeks).forEach(wKey => {
+        if (wKey.startsWith(`${userId}_`)) {
+          if ((memoryStore.scheduleWeeks[wKey].todos || []).some((t: any) => String(t.id) === String(id))) {
+            existsInMem = true;
+          }
+        }
+      });
+      if (!existsInMem) {
+        return res.status(400).json({ error: 'Invalid UUID format for todo id' });
+      }
+    }
+
     if (isUuid) {
       try {
         const fields: string[] = [];
@@ -260,18 +275,22 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
       }
     });
 
-    try {
-      const delRes = await executeQuery(
-        `DELETE FROM todo_items 
-         WHERE id = $1 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $2)`,
-        [id, userId]
-      );
-      if (delRes && typeof delRes.rowCount === 'number') {
-        deleted = delRes.rowCount > 0 || deleted;
+    if (isValidUuid(id)) {
+      try {
+        const delRes = await executeQuery(
+          `DELETE FROM todo_items 
+           WHERE id = $1 AND week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $2)`,
+          [id, userId]
+        );
+        if (delRes && typeof delRes.rowCount === 'number') {
+          deleted = delRes.rowCount > 0 || deleted;
+        }
+      } catch (e: any) {
+        if (process.env.NODE_ENV === 'production') throw e;
+        console.warn('PostgreSQL todo delete fallback to memory store');
       }
-    } catch (e: any) {
-      if (process.env.NODE_ENV === 'production') throw e;
-      console.warn('PostgreSQL todo delete fallback to memory store');
+    } else if (!deleted) {
+      return res.status(400).json({ error: 'Invalid UUID format for todo id' });
     }
 
     if (!deleted) {

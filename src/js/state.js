@@ -2,7 +2,18 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.22';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.29';
+import { isValidUuid } from './utils.js?v=2.9.29';
+
+export const DEFAULT_CATEGORIES = [
+  { id: 'cat_work', name: 'Work', icon: '💼', color: '#3b82f6', isProductive: true, isSystem: false, isArchived: false, sortOrder: 0 },
+  { id: 'cat_learning', name: 'Learning', icon: '📚', color: '#8b5cf6', isProductive: true, isSystem: false, isArchived: false, sortOrder: 1 },
+  { id: 'cat_health', name: 'Health', icon: '🏃', color: '#f59e0b', isProductive: false, isSystem: false, isArchived: false, sortOrder: 2 },
+  { id: 'cat_household', name: 'Household', icon: '🧹', color: '#10b981', isProductive: false, isSystem: false, isArchived: false, sortOrder: 3 },
+  { id: 'cat_family', name: 'Family', icon: '👨‍👩‍👧', color: '#ec4899', isProductive: false, isSystem: false, isArchived: false, sortOrder: 4 },
+  { id: 'cat_travel', name: 'Travel', icon: '✈️', color: '#06b6d4', isProductive: false, isSystem: false, isArchived: false, sortOrder: 5 },
+  { id: 'cat_general', name: 'General', icon: '📌', color: '#64748b', isProductive: false, isSystem: true, isArchived: false, sortOrder: 6 }
+];
 
 export const STATE = {
   currentWeekStart: getMonday(new Date()),
@@ -24,8 +35,354 @@ export const STATE = {
   failedNotesWeekKeys: new Set(),
   notesInFlightWeekKey: null,
   pendingSlotSaves: {},
-  selectedSlotKeys: new Set()
+  selectedSlotKeys: new Set(),
+  categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES))
 };
+
+if (typeof window !== 'undefined') {
+  window.__DAYFLOW_STATE__ = STATE;
+}
+
+export function loadCategoriesFromStorage() {
+  try {
+    const key = getUserStorageKey('dayflow_categories');
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        STATE.categories = mergeCategoriesWithPending(parsed);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load categories from storage:', e);
+  }
+  STATE.categories = mergeCategoriesWithPending(JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)));
+}
+
+export function resetStateCategoriesToDefault() {
+  STATE.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+}
+
+export function saveCategoriesToStorage() {
+  try {
+    const key = getUserStorageKey('dayflow_categories');
+    localStorage.setItem(key, JSON.stringify(STATE.categories));
+  } catch (e) {
+    console.warn('Failed to save categories to storage:', e);
+  }
+}
+
+export function getActiveCategories() {
+  if (!STATE.categories || !Array.isArray(STATE.categories) || STATE.categories.length === 0) {
+    return DEFAULT_CATEGORIES.filter(c => !c.isArchived);
+  }
+  return STATE.categories.filter(c => !c.isArchived);
+}
+
+export function getAllCategories() {
+  if (!STATE.categories || !Array.isArray(STATE.categories) || STATE.categories.length === 0) {
+    return DEFAULT_CATEGORIES;
+  }
+  return STATE.categories;
+}
+
+export function getCategoryByName(catName) {
+  if (!catName) return null;
+  const list = STATE.categories && STATE.categories.length > 0 ? STATE.categories : DEFAULT_CATEGORIES;
+  return list.find(c => c.name.toLowerCase() === catName.toLowerCase()) || null;
+}
+
+export function getCategoryColor(catName) {
+  if (!catName) return '#64748b';
+  const cat = getCategoryByName(catName);
+  if (cat && cat.color) return cat.color;
+  const legacyMap = {
+    'learning': '#8b5cf6',
+    'work': '#3b82f6',
+    'household': '#10b981',
+    'family': '#ec4899',
+    'health': '#f59e0b',
+    'travel': '#06b6d4',
+    'general': '#64748b'
+  };
+  return legacyMap[catName.toLowerCase()] || '#64748b';
+}
+
+export function getCategoryIcon(catName) {
+  if (!catName) return '📌';
+  const cat = getCategoryByName(catName);
+  if (cat && cat.icon) return cat.icon;
+  const legacyMap = {
+    'learning': '📚',
+    'work': '💼',
+    'household': '🧹',
+    'family': '👨‍👩‍👧',
+    'health': '🏃',
+    'travel': '✈️',
+    'general': '📌'
+  };
+  return legacyMap[catName.toLowerCase()] || '📌';
+}
+
+export function isCategoryProductive(catName) {
+  if (!catName) return false;
+  const cat = getCategoryByName(catName);
+  if (cat && typeof cat.isProductive === 'boolean') return cat.isProductive;
+  return ['work', 'learning'].includes(catName.toLowerCase());
+}
+
+export function cascadeCategoryRenameLocally(oldName, newName) {
+  if (!oldName || !newName || oldName === newName) return;
+  // Update all weeks in STATE.scheduleData
+  Object.values(STATE.scheduleData).forEach(week => {
+    if (week && week.slots) {
+      Object.values(week.slots).forEach(slot => {
+        if (slot && slot.category && slot.category.toLowerCase() === oldName.toLowerCase()) {
+          slot.category = newName;
+        }
+      });
+    }
+    if (week && week.todos && Array.isArray(week.todos)) {
+      week.todos.forEach(todo => {
+        if (todo && todo.category && todo.category.toLowerCase() === oldName.toLowerCase()) {
+          todo.category = newName;
+        }
+      });
+    }
+  });
+  saveStateToStorage();
+}
+
+export function getPendingCategoriesStorageKey() {
+  return getUserStorageKey('dayflow_pending_categories');
+}
+
+export function loadPendingCategories() {
+  try {
+    const raw = localStorage.getItem(getPendingCategoriesStorageKey());
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        saves: (parsed && typeof parsed.saves === 'object' && parsed.saves) ? parsed.saves : {}
+      };
+    }
+  } catch (e) {}
+  return { saves: {} };
+}
+
+export function savePendingCategoriesToStorage(pending) {
+  try {
+    const key = getPendingCategoriesStorageKey();
+    const hasSaves = pending && pending.saves && Object.keys(pending.saves).length > 0;
+    if (hasSaves) {
+      localStorage.setItem(key, JSON.stringify(pending));
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch (e) {}
+}
+
+export function markCategoryPendingSave(category, isNew = false, originalName = null) {
+  if (!category || !category.id) return;
+  const pending = loadPendingCategories();
+  const existingPending = pending.saves[category.id] || {};
+  pending.saves[category.id] = {
+    ...category,
+    isNew: isNew || existingPending.isNew || false,
+    _originalName: originalName || existingPending._originalName || null,
+    timestamp: Date.now()
+  };
+  savePendingCategoriesToStorage(pending);
+}
+
+export function clearCategoryPendingSave(id) {
+  if (!id) return;
+  const pending = loadPendingCategories();
+  if (pending.saves && pending.saves[id]) {
+    delete pending.saves[id];
+    savePendingCategoriesToStorage(pending);
+  }
+}
+
+export function mergeCategoriesWithPending(serverCategories) {
+  if (!Array.isArray(serverCategories)) return serverCategories;
+  const pending = loadPendingCategories();
+  if (!pending || !pending.saves || Object.keys(pending.saves).length === 0) {
+    return serverCategories;
+  }
+  const merged = serverCategories.map(c => ({ ...c }));
+  for (const [saveId, p] of Object.entries(pending.saves)) {
+    let idx = merged.findIndex(c => c.id === p.id || c.id === saveId);
+    if (idx === -1 && p._originalName) {
+      idx = merged.findIndex(c => c.name.toLowerCase() === p._originalName.toLowerCase());
+    }
+    if (idx === -1 && p.name) {
+      idx = merged.findIndex(c => c.name.toLowerCase() === p.name.toLowerCase());
+    }
+
+    if (idx >= 0) {
+      merged[idx] = {
+        ...merged[idx],
+        name: p.name !== undefined ? p.name : merged[idx].name,
+        icon: p.icon !== undefined ? p.icon : merged[idx].icon,
+        color: p.color !== undefined ? p.color : merged[idx].color,
+        isProductive: typeof p.isProductive === 'boolean' ? p.isProductive : merged[idx].isProductive,
+        isArchived: typeof p.isArchived === 'boolean' ? p.isArchived : merged[idx].isArchived,
+        sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : merged[idx].sortOrder
+      };
+    } else {
+      merged.push({
+        id: p.id || saveId,
+        name: p.name,
+        icon: p.icon || '📌',
+        color: p.color || '#64748b',
+        isProductive: Boolean(p.isProductive),
+        isSystem: false,
+        isArchived: Boolean(p.isArchived),
+        sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : merged.length
+      });
+    }
+  }
+  return merged;
+}
+
+// In-flight synchronization mutex and re-run flag to prevent overlapping fetch/overwrite races (Finding 46 hardening)
+let categoriesSyncInFlight = null;
+let categoriesSyncPendingRerun = false;
+
+export async function syncCategoriesWithApi(onCategoriesSyncedCallback = null) {
+  if (isDemoMode()) return;
+  const token = localStorage.getItem('dayflow_token');
+  if (!token) return;
+
+  if (categoriesSyncInFlight) {
+    categoriesSyncPendingRerun = true;
+    return categoriesSyncInFlight;
+  }
+
+  categoriesSyncInFlight = (async () => {
+    try {
+      do {
+        categoriesSyncPendingRerun = false;
+        await _doSyncCategories();
+      } while (categoriesSyncPendingRerun);
+    } finally {
+      categoriesSyncInFlight = null;
+    }
+  })();
+
+  const res = await categoriesSyncInFlight;
+  if (typeof onCategoriesSyncedCallback === 'function') {
+    onCategoriesSyncedCallback(STATE.categories);
+  }
+  return res;
+}
+
+async function _doSyncCategories() {
+  try {
+    let serverCategories = await ApiClient.getCategories(true);
+    if (!serverCategories || !Array.isArray(serverCategories)) return;
+
+    const pending = loadPendingCategories();
+    if (pending && pending.saves && Object.keys(pending.saves).length > 0) {
+      for (const [saveId, p] of Object.entries(pending.saves)) {
+        try {
+          if (p.isNew || !isValidUuid(p.id)) {
+            // New category created offline (or with temp client ID)
+            const existingServer = serverCategories.find(c => c.name.toLowerCase() === p.name.toLowerCase());
+            if (existingServer) {
+              clearCategoryPendingSave(saveId);
+              const localCat = (STATE.categories || []).find(c => c.id === saveId || c.name.toLowerCase() === p.name.toLowerCase());
+              if (localCat) localCat.id = existingServer.id;
+              if (p.isArchived) {
+                await ApiClient.deleteCategory(existingServer.id);
+              }
+            } else {
+              try {
+                const res = await ApiClient.createCategory({
+                  name: p.name,
+                  icon: p.icon,
+                  color: p.color,
+                  isProductive: p.isProductive,
+                  sortOrder: p.sortOrder
+                });
+                if (res && res.id) {
+                  clearCategoryPendingSave(saveId);
+                  const localCat = (STATE.categories || []).find(c => c.id === saveId || c.name.toLowerCase() === p.name.toLowerCase());
+                  if (localCat) localCat.id = res.id;
+                  if (p.isArchived) {
+                    await ApiClient.deleteCategory(res.id);
+                  }
+                }
+              } catch (createErr) {
+                if (createErr && createErr.message && createErr.message.includes('already exists')) {
+                  clearCategoryPendingSave(saveId);
+                } else {
+                  throw createErr;
+                }
+              }
+            }
+          } else {
+            // Existing category updated offline
+            if (p.isArchived) {
+              await ApiClient.deleteCategory(p.id);
+              clearCategoryPendingSave(saveId);
+            } else {
+              try {
+                const res = await ApiClient.updateCategory(p.id, {
+                  name: p.name,
+                  icon: p.icon,
+                  color: p.color,
+                  isProductive: p.isProductive,
+                  sortOrder: p.sortOrder,
+                  isArchived: false
+                });
+                if (res) {
+                  clearCategoryPendingSave(saveId);
+                }
+              } catch (updateErr) {
+                if (updateErr && updateErr.message && updateErr.message.includes('not found')) {
+                  const createRes = await ApiClient.createCategory({
+                    name: p.name,
+                    icon: p.icon,
+                    color: p.color,
+                    isProductive: p.isProductive,
+                    sortOrder: p.sortOrder
+                  });
+                  if (createRes && createRes.id) {
+                    clearCategoryPendingSave(saveId);
+                    const localCat = (STATE.categories || []).find(c => c.id === saveId || c.name.toLowerCase() === p.name.toLowerCase());
+                    if (localCat) localCat.id = createRes.id;
+                  }
+                } else {
+                  throw updateErr;
+                }
+              }
+            }
+          }
+        } catch (retryErr) {
+          console.warn('Retry sync category failed, will retry next sync:', saveId, retryErr);
+        }
+      }
+
+      // Re-fetch server list after successful retries to get canonical server state
+      try {
+        const fresh = await ApiClient.getCategories(true);
+        if (fresh && Array.isArray(fresh)) {
+          serverCategories = fresh;
+        }
+      } catch (e) {}
+    }
+
+    const mergedCategories = mergeCategoriesWithPending(serverCategories);
+    STATE.categories = mergedCategories;
+    saveCategoriesToStorage();
+  } catch (e) {
+    console.warn('Failed to sync categories with API:', e);
+  }
+}
+
 
 export function getSelectedSlotKeys() {
   if (!STATE.selectedSlotKeys) STATE.selectedSlotKeys = new Set();
@@ -381,6 +738,8 @@ export function loadStateFromStorage() {
         }
       } catch (e) {}
     }
+
+    loadCategoriesFromStorage();
   } catch (e) {
     console.error('Failed to load DayFlow state:', e);
   }
@@ -391,6 +750,7 @@ export function saveStateToStorage() {
     const key = getUserStorageKey();
     localStorage.setItem(key, JSON.stringify(STATE.scheduleData));
     savePendingSlotsToStorage();
+    saveCategoriesToStorage();
   } catch (e) {
     console.error('Failed to save DayFlow state:', e);
   }
@@ -418,12 +778,18 @@ export async function syncWeekDataWithApi(onRender) {
   const weekKey = getWeekKey(STATE.currentWeekStart);
   const weekData = getCurrentWeekData();
 
-  // Run all 3 fetches concurrently to shrink the network latency window (Addresses Finding 06)
-  const [apiSlots, apiHabits, apiTodosNotes] = await Promise.all([
+  // Run all fetches concurrently to shrink the network latency window
+  const [apiSlots, apiHabits, apiTodosNotes, apiCategories] = await Promise.all([
     ApiClient.fetchWeekSchedule(weekKey),
     ApiClient.fetchHabits(weekKey),
-    ApiClient.fetchTodosAndNotes(weekKey)
+    ApiClient.fetchTodosAndNotes(weekKey),
+    ApiClient.getCategories(true)
   ]);
+
+  if (apiCategories !== null && Array.isArray(apiCategories) && apiCategories.length > 0) {
+    STATE.categories = mergeCategoriesWithPending(apiCategories);
+    saveCategoriesToStorage();
+  }
 
   if (apiSlots !== null && typeof apiSlots === 'object') {
     // Merge server slots, but preserve any local slots that have pending unsaved edits (Finding 41)
@@ -440,6 +806,7 @@ export async function syncWeekDataWithApi(onRender) {
   if (apiHabits !== null && Array.isArray(apiHabits)) {
     weekData.habits = apiHabits;
   }
+
 
   if (apiTodosNotes !== null && typeof apiTodosNotes === 'object') {
     if (apiTodosNotes.todos) weekData.todos = apiTodosNotes.todos;

@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { memoryStore, executeQuery } from '../db/db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { isValidDateRange } from '../utils/dateValidation.js';
+import { isValidUuid } from '../utils/uuidValidation.js';
 import { sendError } from '../utils/errorHandler.js';
 
 const router = Router();
@@ -115,14 +116,18 @@ router.delete('/:id', async (req: AuthenticatedRequest, res) => {
       }
     });
 
-    try {
-      const delRes = await executeQuery('DELETE FROM habit_logs WHERE id = $1 AND user_id = $2', [id, userId]);
-      if (delRes && typeof delRes.rowCount === 'number') {
-        deleted = delRes.rowCount > 0 || deleted;
+    if (isValidUuid(id)) {
+      try {
+        const delRes = await executeQuery('DELETE FROM habit_logs WHERE id = $1 AND user_id = $2', [id, userId]);
+        if (delRes && typeof delRes.rowCount === 'number') {
+          deleted = delRes.rowCount > 0 || deleted;
+        }
+      } catch (e: any) {
+        if (process.env.NODE_ENV === 'production') throw e;
+        console.warn('PostgreSQL habit delete fallback');
       }
-    } catch (e: any) {
-      if (process.env.NODE_ENV === 'production') throw e;
-      console.warn('PostgreSQL habit delete fallback');
+    } else if (!deleted) {
+      return res.status(400).json({ error: 'Invalid UUID format for habit log id' });
     }
 
     if (!deleted) {

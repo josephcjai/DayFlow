@@ -1,0 +1,386 @@
+# DayFlow v2.8.0 — Production Deployment Runbook
+## Work Effectiveness Metric, Productive Task Classification, and 2-Column Settings Layout Rollout
+
+| Property | Details |
+|---|---|
+| **Target Server** | AWS Lightsail Instance (`13.200.154.214`) |
+| **Operating System** | Ubuntu 24.04 LTS (User: `ubuntu`) |
+| **Domain** | `https://dayflowlive.com` and `https://www.dayflowlive.com` |
+| **Coexisting Application** | **HelpFinder4U** (`hf-web`, `hf-api`, `helpfinder_db`) — **DO NOT TOUCH** |
+| **Current Production Version** | `v2.7.0` (Commit `a094f6b`) |
+| **Target Release Version** | **`v2.8.0`** |
+| **Target Git Tag & Commit** | **`v2.8.0`** (Commit `7b4dd012fc5808df23463b603d32ec71c2a32b39`) on branch `main` |
+| **Deployment Type** | In-place zero-downtime upgrade (Additive DB Migration + API Rebuild + PM2 Graceful Reload + Cache Invalidation) |
+| **Database Migration** | **YES (CRITICAL ORDERING: Step 5.4 MUST run before Step 5.6 API reload)** |
+| **QA Verification Status** | ✅ **PASSED & CERTIFIED (2026-10-06)** — 155 API + 109 E2E tests, 14/14 prod-mode tests |
+| **Estimated Maintenance Window** | 5 – 10 minutes (Zero expected user downtime) |
+| **Audience** | DevOps Engineers / Deployment Team / Site Reliability Engineers |
+
+---
+
+## 1. Release Overview & Architecture Impact
+
+### What's New in `v2.8.0`:
+1. **Work Effectiveness KPI Metric:**
+   - Focus Analytics displays live Work Effectiveness percentage:
+     $$\text{Work Effectiveness} = \left(\frac{\text{Productive Actual Logged Minutes}}{\text{Total Actual Logged Minutes}}\right) \times 100\%$$
+   - Displays 0% when no actual time is logged (guarded against `NaN`).
+2. **Category-Level Productive Defaults & High Impact Badges:**
+   - User Settings allows configuring which categories count as productive (`Work` and `Learning` default to productive).
+   - High Impact categories show an active "⚡ High Impact" badge in analytics.
+3. **Per-Slot Productive Classification (`schedule_slots.is_productive`):**
+   - Individual task override checkbox ("⚡ Mark as Productive Task") in the Task Editor modal.
+   - Bulk action toggle ("⚡ Mark / Unmark Productive") in the floating multi-selection bar.
+   - API upsert preserves existing stored value on omitted/non-boolean fields using `COALESCE` semantics (Finding 45 fix), preventing data loss from partial updates.
+4. **Settings Page Reorganization:**
+   - Reorganized into 4 balanced thematic sections:
+     - Section A: Timeline & Appearance
+     - Section B: Gamification, Goals & Effectiveness
+     - Section C: Notifications & Sound
+     - Section D: Reusable Day Templates & Cloud Sync
+   - Responsive 2-column layout for wide desktop displays.
+5. **Static Asset Cache Busting:**
+   - Asset version parameter bumped to `?v=2.9.23` across `index.html` and all JavaScript modules (42 references aligned: 2 in `index.html`, 40 across modules).
+
+### Database Impact & Migration Ordering:
+- **New Column:** `schedule_slots.is_productive BOOLEAN`
+- **Migration Script:** `server/src/db/migrate.ts` executes `ALTER TABLE schedule_slots ADD COLUMN IF NOT EXISTS is_productive BOOLEAN;`.
+- **CRITICAL EXECUTION ORDER:** The database migration (`npm run migrate`) **MUST RUN BEFORE** rebuilding and reloading `dayflow-api`.
+  - *Why:* The `v2.8.0` API queries `s.is_productive` in `GET /api/schedule/week/:weekStart`. If the API boots before the column exists, queries fail with `{"error":"column s.is_productive does not exist"}`.
+  - *Risk:* Brief metadata-level table lock (milliseconds) on `schedule_slots` and re-run migration statements; instantaneous metadata-only operation without full-table rewrites.
+- **Rollback Safety:** If code is reverted to `v2.7.0` or `v2.6.0`, the `is_productive` column remains safely dormant in PostgreSQL without impact.
+
+---
+
+## 2. Pre-Deployment Tag & Repository Verification
+
+The certified release tag `v2.8.0` resolves to commit `7b4dd012fc5808df23463b603d32ec71c2a32b39` on GitHub:
+
+```bash
+# Verify tag resolves to expected certified commit
+git rev-parse "v2.8.0^{commit}"
+# Expected: 7b4dd012fc5808df23463b603d32ec71c2a32b39
+
+# Inspect release commit summary
+git show v2.8.0 --stat
+```
+
+### QA Retest Verification Certificate:
+- **Test Date:** 2026-10-06
+- **Release Commit:** `7b4dd012fc5808df23463b603d32ec71c2a32b39`
+- **Finding 45 (Omitted field preservation):** Verified live (`COALESCE` probe sequences: `true` → omitted → `true`; `false` → omitted → `false`; `null` → cleared).
+- **Regression Suite:** 155 API + 109 E2E tests passed across two consecutive runs, 0 retries.
+- **Production Mode:** 14/14 passed under `NODE_ENV=production`.
+- **Verdict:** Certified production-ready for promotion.
+
+---
+
+## 3. Critical Multi-App Coexistence Safety Rules
+
+> [!CAUTION]
+> **CRITICAL PRODUCTION SAFETY RULES FOR DEPLOYMENT TEAM:**
+> 1. **DO NOT restart PostgreSQL service:** Never run `sudo systemctl restart postgresql`. PostgreSQL is shared with the production **HelpFinder4U** application.
+> 2. **DO NOT touch HelpFinder directories or PM2 processes:** Do not modify anything under `/var/www/helpfinder` or `/etc/nginx/sites-available/helpfinder*`.
+> 3. **DO NOT run `pm2 restart all`:** Only reload the DayFlow process specifically: `pm2 reload dayflow-api --update-env`.
+> 4. **DO NOT reboot the server:** A server reboot will cause downtime for all hosted applications.
+
+---
+
+## 4. Pre-Deployment Health Check & Baseline Recording
+
+### Step 4.1: Connect to Server via SSH
+```bash
+chmod 400 LightsailDefaultKey-ap-south-1.pem
+ssh -i LightsailDefaultKey-ap-south-1.pem ubuntu@13.200.154.214
+```
+
+### Step 4.2: Record Pre-Deployment Health Baselines
+```bash
+# 1. Inspect PM2 processes and record restart counts
+pm2 status
+
+# Expected baseline:
+# - hf-web       (online)
+# - hf-api       (online)
+# - dayflow-api  (online, port 5000)
+
+# 2. Check Nginx web server status
+sudo systemctl status nginx --no-pager
+
+# 3. Test current live DayFlow site response
+curl -I https://dayflowlive.com/api/health
+```
+
+---
+
+## 5. Step-by-Step Deployment Procedure
+
+### Step 5.1: Navigate to DayFlow Application Directory
+```bash
+cd /var/www/dayflow
+```
+
+### Step 5.2: Record Rollback Reference
+```bash
+git log -1 --oneline
+# Expected output: a094f6b (tag v2.7.0)
+```
+
+---
+
+### Step 5.3: Fetch Latest Remote Tags & Checkout `v2.8.0`
+```bash
+# Fetch latest tags and commits from GitHub origin
+git fetch --tags origin
+
+# Option A (Standard): Checkout the certified v2.8.0 production release tag
+git checkout v2.8.0
+
+# Option B (Immutable Commit): Alternatively checkout the verified commit hash directly
+# git checkout $(git rev-parse "v2.8.0^{commit}")
+```
+
+Verify that the working tree is cleanly on `v2.8.0`:
+```bash
+git describe --tags
+# Output MUST BE: v2.8.0
+
+git status
+# Output MUST SHOW: HEAD detached at v2.8.0, nothing to commit, working tree clean
+```
+
+---
+
+### Step 5.3.1: Host Node.js Runtime Version Check (Node 22 LTS Recommendation)
+Verify that the host environment running PM2 has Node.js 22 LTS installed:
+
+```bash
+node --version
+# Expected: v22.x.x (minimum v20.x.x)
+
+# If upgrading host Node version via NVM:
+# nvm install 22 && nvm use 22 && nvm alias default 22
+# pm2 update
+```
+
+---
+
+### Step 5.4: Execute Database Migration (MUST RUN BEFORE API RELOAD)
+
+**Step 5.4.1: Pre-Migration Database Snapshot (Standard Best Practice)**
+```bash
+mkdir -p ~/backups
+pg_dump -Fc -d dayflow_db > ~/backups/dayflow_db_pre_v2.8.0_$(date +%Y%m%d_%H%M).dump
+# Verify backup integrity
+pg_restore --list ~/backups/dayflow_db_pre_v2.8.0_*.dump | head -n 5
+```
+
+**Step 5.4.2: Execute Schema Migration**
+Run the migration script to ensure the `schedule_slots.is_productive` column exists:
+
+```bash
+cd /var/www/dayflow/server
+
+# Execute schema migration
+npm run migrate
+```
+
+**Expected output:**
+```text
+🔄 Running DayFlow PostgreSQL schema migrations...
+✅ DayFlow schema migrations and indexes completed successfully!
+```
+
+Verify column creation directly in PostgreSQL:
+```bash
+sudo -u postgres psql -d dayflow_db -c "\d schedule_slots"
+```
+*(Verify that `is_productive | boolean` appears in the table column list).*
+
+---
+
+### Step 5.5: Build Server TypeScript Application
+Compile the updated TypeScript source code into production JavaScript in `dist/`:
+
+```bash
+cd /var/www/dayflow/server
+
+# Compile TypeScript
+npm run build
+```
+
+Verify build success:
+```bash
+echo $?
+# Must output: 0
+
+ls -la dist/server.js dist/routes/scheduleRoutes.js
+```
+
+---
+
+### Step 5.6: Zero-Downtime Reload of PM2 API Service
+Gracefully reload the `dayflow-api` process without dropping active HTTP connections:
+
+```bash
+# Reload ONLY dayflow-api (DO NOT USE pm2 restart all)
+pm2 reload dayflow-api --update-env
+
+# Verify process status
+pm2 status dayflow-api
+```
+
+Check startup logs:
+```bash
+pm2 logs dayflow-api --lines 25 --nostream
+```
+**Verify log lines include:**
+- `🚀 DayFlow Express REST API running on http://localhost:5000`
+- `✅ Connected directly to PostgreSQL Database ('dayflow_db' on localhost:5432)!`
+
+---
+
+### Step 5.7: Reload Nginx Web Server
+Reload Nginx to flush any cached static asset file descriptors:
+
+```bash
+# 1. Test Nginx configuration syntax
+sudo nginx -t
+# Must report: syntax is ok, test is successful
+
+# 2. Gracefully reload Nginx
+sudo systemctl reload nginx
+```
+
+---
+
+## 6. Post-Deployment Verification & Smoke Tests
+
+### 6.1 Automated Command-Line Verification
+```bash
+# 1. Verify index.html serves v=2.9.23 cache-busting version strings
+curl -s https://dayflowlive.com/index.html | grep -E "styles.css\?v=|app.js\?v="
+# Expected output:
+#   <link rel="stylesheet" href="src/css/styles.css?v=2.9.23">
+#   <script type="module" src="src/js/app.js?v=2.9.23"></script>
+
+# 2. Verify API Root Endpoint reports version 2.8.0
+curl -s https://dayflowlive.com/api/
+# Expected: {"name":"DayFlow REST API Server","version":"2.8.0","status":"online",...}
+
+# 3. Verify Health Endpoint reports version 2.8.0 and database connected
+curl -s https://dayflowlive.com/api/health
+# Expected: {"status":"online","database":"connected","service":"DayFlow API Server","version":"2.8.0",...}
+
+# 4. Verify /api/templates is active and protected by JWT auth
+curl -s -o /dev/null -w "%{http_code}\n" https://dayflowlive.com/api/templates
+# Expected: 401
+
+# 5. Verify Swagger UI remains disabled in production (Finding 39)
+curl -s -o /dev/null -w "%{http_code}\n" https://dayflowlive.com/docs
+# Expected: 404
+
+# 6. Verify HelpFinder4U processes are unaffected
+pm2 status hf-api
+pm2 status hf-web
+```
+
+---
+
+### 6.2 Browser Smoke Test Checklist
+Open `https://dayflowlive.com` in a browser:
+
+1. **Asset Version & Badge:**
+   - Hard refresh (`Ctrl+F5` / `Cmd+Shift+R`).
+   - Header badge confirms **`v2.8.0 Web`**.
+   - Network tab shows `app.js?v=2.9.23` returning HTTP 200.
+2. **Work Effectiveness KPI:**
+   - Open Focus Analytics view.
+   - Verify **Work Effectiveness** card displays percentage (e.g. `0%` or active percentage, not `NaN`).
+3. **Productive Task Override in Modal:**
+   - Open any schedule slot modal: confirm "⚡ Mark as Productive Task" checkbox is visible.
+   - Toggle checkbox and save: reload and confirm custom choice persists.
+4. **Settings 2-Column Layout:**
+   - Open Settings (`⚙️`).
+   - Confirm layout displays 4 organized sections arranged in 2 balanced columns on desktop.
+   - Verify Category Productive Classification pills function and persist.
+
+---
+
+## 7. Rollback Procedure (Emergency Fallback)
+
+If any critical issue arises during deployment, execute this immediate rollback procedure:
+
+```bash
+# 1. Navigate to application root
+cd /var/www/dayflow
+
+# 2. Checkout previous production release tag v2.7.0
+git checkout v2.7.0
+
+# 3. Rebuild API bundle for v2.7.0
+cd /var/www/dayflow/server
+npm run build
+
+# 4. Gracefully reload PM2 process
+pm2 reload dayflow-api --update-env
+
+# 5. Reload Nginx
+sudo systemctl reload nginx
+
+# 6. Verify rollback
+curl -s https://dayflowlive.com/api/health | grep '"version":"2.7.0"'
+```
+
+> [!NOTE]
+> **Database Rollback Safety:**
+> The `schedule_slots.is_productive` column is purely additive. If code is rolled back to `v2.7.0` (or `v2.6.0`), the column remains in PostgreSQL safely dormant. Previous versions ignore the column completely without throwing errors.
+
+---
+
+## 8. Deployment Sign-Off Template
+
+```text
+================================================================================
+DAYFLOW PRODUCTION DEPLOYMENT SIGN-OFF: RELEASE v2.8.0
+================================================================================
+Deployment Date:     YYYY-MM-DD
+Deployed By:         [Engineer Name]
+Target Environment:  AWS Lightsail (13.200.154.214) / dayflowlive.com
+Target Release Tag:  v2.8.0
+Target Commit SHA:   7b4dd012fc5808df23463b603d32ec71c2a32b39
+Pre-Deploy Status:   All services healthy (HelpFinder4U & DayFlow online)
+Git Checkout Tag:    v2.8.0 confirmed (git describe --tags -> v2.8.0)
+Commit SHA:          Confirmed via git rev-parse "v2.8.0^{commit}"
+DB Migration:        npm run migrate passed (schedule_slots.is_productive verified)
+API Build Status:    tsc build successful (dayflow-server@2.8.0)
+PM2 Reload:          dayflow-api reloaded, 0 errors, online
+Nginx Reload:        sudo nginx -t passed, systemctl reload nginx completed
+Asset Verification:  styles.css?v=2.9.23 & app.js?v=2.9.23 confirmed live (42 references)
+API Health Check:    GET /api/health -> version: 2.8.0, database: connected
+Templates Route:     GET /api/templates -> 401 Unauthorized (JWT protected)
+Swagger Check:       /docs returns 404 in production mode
+HelpFinder Health:   HelpFinder4U hf-web and hf-api verified 100% untouched
+Final Status:        [ SUCCESS / ROLLED BACK ]
+================================================================================
+```
+
+---
+
+## 9. Operational Notes & v2.9.0 Maintenance Backlog (from QA Review)
+
+The QA team identified the following non-blocking maintenance items to schedule for the next release (`v2.9.0`):
+
+1. **Dependency Hygiene (`proxy-addr` transitive advisory):**
+   - `npm audit` reports an advisory on `proxy-addr` (IP spoofing via IPv4-mapped IPv6 trust subnets), pulled in transitively via Express.
+   - **Production Impact Assessment:** Zero practical exposure. The server configures `app.set('trust proxy', 1)` (hop count), which bypasses the subnet matching logic where the vulnerability resides.
+   - **Action Item:** Upgrade Express / dependencies to pull `proxy-addr >= 2.0.8` during the `v2.9.0` sprint.
+
+2. **Docker Node Runtime Alignment:**
+   - Some Google Auth dependencies declare `engines: node >= 22`, while the production server image runs Node 20 LTS.
+   - The application runs cleanly and passes all regression suites under Node 20, but runtime image upgrade to Node 22 LTS will be evaluated in `v2.9.0`.
+
+3. **Client-Side Temporary ID / UUID Sanitization (from Deploy Record §6):**
+   - In offline/intermittent scenarios, `Date.now()` numeric timestamp IDs can reach UUID columns if initial creation fails and is subsequently updated, triggering PostgreSQL syntax `500` errors.
+   - **Action Item:** Switch client-side temporary IDs to `crypto.randomUUID()` and validate UUID syntax on backend routes returning `400 Bad Request` instead of unhandled `500`.
+

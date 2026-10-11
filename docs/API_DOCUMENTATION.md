@@ -1,6 +1,6 @@
 # DayFlow REST API Documentation
 
-**Version:** 2.7.0  
+**Version:** 2.8.0  
 **Base URL (Local):** `http://localhost:5000/api`  
 **Base URL (Production HTTPS):** `https://<your_domain>/api`  
 **Authentication Method:** JSON Web Token (`Authorization: Bearer <token>`)
@@ -279,11 +279,14 @@ All date parameters across the API (`weekStart`, `dueDate`, `slotKey` date prefi
         "status": "Done",
         "planned": 30,
         "actual": 30,
-        "notes": "Healthy meal"
+        "notes": "Healthy meal",
+        "isProductive": false
       }
     }
   }
   ```
+- **Field Details:**
+  - `isProductive` (boolean, optional): Explicit productive classification (`true` or `false`). When omitted/null, the slot inherits the productive classification configured for its category (by default, `Work` and `Learning` are productive).
 
 ---
 
@@ -302,14 +305,29 @@ All date parameters across the API (`weekStart`, `dueDate`, `slotKey` date prefi
     "status": "Done",
     "planned": 30,
     "actual": 30,
-    "notes": "Meal log"
+    "notes": "Meal log",
+    "isProductive": false
   }
   ```
+- **Field Details:**
+  - `isProductive` (boolean, optional): Explicitly flags the slot as productive (`true`) or non-productive (`false`).
+  - **Preservation on Omission (`COALESCE` semantics):** If `isProductive` is omitted from the request body or provided as a non-boolean (e.g. `undefined`, string), the server preserves the previously stored value, protecting against data loss during partial updates.
+  - `clearProductive` (boolean, optional): Set to `true` (or pass `isProductive: null`) to explicitly remove the slot-level override and revert the slot to its category default.
 - **Success Response (200 OK):**
   ```json
   {
     "message": "Slot saved successfully",
-    "slotKey": "2026-08-10_13:00"
+    "slotKey": "2026-08-10_13:00",
+    "slot": {
+      "plannedTask": "Lunch & Rest",
+      "actualTask": "Lunch & Rest",
+      "category": "Health",
+      "planned": 30,
+      "actual": 30,
+      "status": "Done",
+      "notes": "Meal log",
+      "isProductive": false
+    }
   }
   ```
 
@@ -714,4 +732,161 @@ Reusable routines for 30-minute timeblocking with cloud persistence in PostgreSQ
 - **Error Responses:**
   - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
   - `404 Not Found`: `{ "error": "Template not found" }`
+
+---
+
+## 7. Custom Task Categories Endpoints (`/api/categories`)
+
+### 7.1 Get User Categories
+
+- **URL:** `GET /api/categories`
+- **Auth Required:** Yes
+- **Query Parameters:**
+  - `includeArchived` *(optional, boolean)*: Set to `true` to include soft-deleted / archived categories. Defaults to `false`.
+- **Success Response (200 OK):**
+  ```json
+  {
+    "categories": [
+      {
+        "id": "c1a2b3c4-1111-2222-3333-444455556666",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#3b82f6",
+        "isProductive": true,
+        "isSystem": false,
+        "isArchived": false,
+        "sortOrder": 0
+      },
+      {
+        "id": "d2e3f4a5-2222-3333-4444-555566667777",
+        "name": "General",
+        "icon": "📌",
+        "color": "#64748b",
+        "isProductive": false,
+        "isSystem": true,
+        "isArchived": false,
+        "sortOrder": 6
+      }
+    ]
+  }
+  ```
+- **Error Responses:**
+  - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
+
+---
+
+### 7.2 Create Custom Category
+
+- **URL:** `POST /api/categories`
+- **Auth Required:** Yes
+- **Request Body:**
+  ```json
+  {
+    "name": "Health & Fitness",
+    "icon": "🏃",
+    "color": "#10b981",
+    "isProductive": false,
+    "sortOrder": 7
+  }
+  ```
+- **Field Constraints & Rules:**
+  - `name` *(required, string)*: Max 50 characters, trimmed. Must be unique per user (case-insensitive).
+  - If a category with the same name was previously archived, it will be automatically restored and updated.
+  - `icon` *(optional, string)*: Max 10 characters (defaults to `📌`).
+  - `color` *(optional, string)*: Max 30 characters (defaults to `#64748b`).
+  - `isProductive` *(optional, boolean)*: Defaults to `false`.
+  - `sortOrder` *(optional, integer)*: Defaults to `0`.
+- **Success Response (201 Created):**
+  ```json
+  {
+    "message": "Category created successfully",
+    "category": {
+      "id": "f5a6b7c8-3333-4444-5555-666677778888",
+      "name": "Health & Fitness",
+      "icon": "🏃",
+      "color": "#10b981",
+      "isProductive": false,
+      "isSystem": false,
+      "isArchived": false,
+      "sortOrder": 7
+    }
+  }
+  ```
+- **Error Responses:**
+  - `400 Bad Request`: `{ "error": "Category name is required" }`
+  - `400 Bad Request`: `{ "error": "Category name cannot exceed 50 characters" }`
+  - `400 Bad Request`: `{ "error": "A category named \"Health & Fitness\" already exists" }`
+  - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
+
+---
+
+### 7.3 Update Custom Category
+
+- **URL:** `PUT /api/categories/:id`
+- **Auth Required:** Yes
+- **URL Parameters:** `id` (Category UUID). Must be a valid UUID; returns `400` if malformed.
+- **Request Body:**
+  ```json
+  {
+    "name": "Deep Work",
+    "icon": "⚡",
+    "color": "#6366f1",
+    "isProductive": true,
+    "sortOrder": 1,
+    "isArchived": false
+  }
+  ```
+- **Field Constraints & Protection Rules:**
+  - `id`: Validated unconditionally. Malformed UUIDs immediately return `400 Bad Request`.
+  - System default category ("General") **CANNOT be renamed**. Attempting to rename returns `400 Bad Request`: `{ "error": "Cannot rename the system default category \"General\"" }`.
+  - System default category ("General") **CANNOT be archived** via `PUT` (`isArchived: true`). Attempting to archive returns `400 Bad Request`: `{ "error": "Cannot delete the system default category \"General\"" }`.
+  - Renaming a category cascades the new name to all existing `schedule_slots` and `todo_items` in PostgreSQL that referenced the old name.
+- **Success Response (200 OK):**
+  ```json
+  {
+    "message": "Category updated successfully",
+    "category": {
+      "id": "c1a2b3c4-1111-2222-3333-444455556666",
+      "name": "Deep Work",
+      "icon": "⚡",
+      "color": "#6366f1",
+      "isProductive": true,
+      "isSystem": false,
+      "isArchived": false,
+      "sortOrder": 1
+    }
+  }
+  ```
+- **Error Responses:**
+  - `400 Bad Request`: `{ "error": "Invalid UUID format for category id" }`
+  - `400 Bad Request`: `{ "error": "Category name cannot be empty" }`
+  - `400 Bad Request`: `{ "error": "Category name cannot exceed 50 characters" }`
+  - `400 Bad Request`: `{ "error": "A category named \"Deep Work\" already exists" }`
+  - `400 Bad Request`: `{ "error": "Cannot rename the system default category \"General\"" }`
+  - `400 Bad Request`: `{ "error": "Cannot delete the system default category \"General\"" }`
+  - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
+  - `404 Not Found`: `{ "error": "Category not found" }`
+
+---
+
+### 7.4 Archive Custom Category (Soft Delete)
+
+- **URL:** `DELETE /api/categories/:id`
+- **Auth Required:** Yes
+- **URL Parameters:** `id` (Category UUID). Must be a valid UUID; returns `400` if malformed.
+- **Behavior:** Performs a soft delete by updating `is_archived = true` in PostgreSQL. Existing tasks, habits, and history continue to reference the category name without data loss.
+- **Protection Rules:**
+  - The system default category ("General") **CANNOT be archived or deleted**. Attempting to delete returns `400 Bad Request`: `{ "error": "Cannot delete the system default category \"General\"" }`.
+- **Success Response (200 OK):**
+  ```json
+  {
+    "message": "Category archived successfully",
+    "id": "c1a2b3c4-1111-2222-3333-444455556666"
+  }
+  ```
+- **Error Responses:**
+  - `400 Bad Request`: `{ "error": "Invalid UUID format for category id" }`
+  - `400 Bad Request`: `{ "error": "Cannot delete the system default category \"General\"" }`
+  - `401 Unauthorized`: `{ "error": "Unauthorized access" }`
+  - `404 Not Found`: `{ "error": "Category not found" }`
 
