@@ -4,6 +4,9 @@
   "description": "DayFlow Node.js Express REST API & PostgreSQL Backend",
   "main": "dist/server.js",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "predev": "node ../scripts/freePorts.cjs 5000",
     "build": "tsc",
