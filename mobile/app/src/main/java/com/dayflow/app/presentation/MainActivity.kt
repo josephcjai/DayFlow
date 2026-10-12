@@ -74,6 +74,9 @@ import com.dayflow.app.presentation.theme.TextPrimary
 import com.dayflow.app.presentation.theme.TextSecondary
 import com.dayflow.app.presentation.todos.TodosScreen
 import com.dayflow.app.presentation.todos.TodosViewModel
+import com.dayflow.app.presentation.settings.SettingsBottomSheet
+import com.dayflow.app.presentation.settings.SettingsViewModel
+import androidx.compose.material.icons.filled.Settings
 import dagger.hilt.android.AndroidEntryPoint
 import android.Manifest
 import android.content.pm.PackageManager
@@ -164,6 +167,8 @@ fun DashboardScreen(
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     var selectedNavIndex by remember { mutableIntStateOf(0) } // 0 = Schedule, 1 = Habits, 2 = Todos
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    var showSettingsSheet by remember { mutableStateOf(false) }
 
     val hasBiometrics = remember { BiometricHelper.isBiometricAvailable(context) }
     var isUnlocked by rememberSaveable { mutableStateOf(!hasBiometrics) }
@@ -242,6 +247,22 @@ fun DashboardScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            modifier = Modifier.clickable { showSettingsSheet = true },
+                            color = SurfaceElevated,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, TextMuted.copy(alpha = 0.3f))
+                        ) {
+                            Box(modifier = Modifier.padding(6.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Settings",
+                                    tint = DayFlowPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column(
                             horizontalAlignment = Alignment.End,
                             modifier = Modifier.padding(end = 10.dp)
@@ -515,5 +536,12 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    if (showSettingsSheet) {
+        SettingsBottomSheet(
+            viewModel = settingsViewModel,
+            onDismiss = { showSettingsSheet = false }
+        )
     }
 }
