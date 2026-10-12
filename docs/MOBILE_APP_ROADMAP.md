@@ -14,7 +14,7 @@
 - [ ] **Milestone 1: Android Foundation & Offline Data Engine** (In Progress)
 - [ ] **Milestone 2: Android Core UX (30-Min Schedule Grid, Time-Lock, Task Modal)**
 - [ ] **Milestone 3: Habits, Todo Checklist, & Background WorkManager Sync**
-- [ ] **Milestone 4: Native Android Capabilities (Glance Widget, Transition Alerts, Biometrics)**
+- [x] **Milestone 4: Native Android Capabilities (Glance Widget, Transition Alerts, Biometrics)**
 - [ ] **Milestone 5: QA Testing, Store Signing & Android Production Release**
 - [ ] **Milestone 6: macOS Desktop Client (Compose Multiplatform / Swift)**
 
@@ -93,10 +93,12 @@
 - [ ] **Test Gate 6:** User testing of airplane mode changes syncing to server upon reconnecting.
 
 ### Phase 7: Mobile-Native Integrations
-- [ ] Jetpack Glance Home Screen Widget showing current 30-min slot + 1-tap "Done" button.
-- [ ] Transition alert notifications scheduled 5 minutes before slot completion.
-- [ ] Haptic feedback tuning for common interactions.
-- [ ] **Test Gate 7:** User testing of widget and notification behavior on device/emulator.
+- [x] Jetpack Glance Home Screen Widget showing current 30-min slot + 1-tap "Done" button.
+- [x] Transition alert notifications scheduled 5 minutes before slot completion.
+- [x] Haptic feedback tuning for common interactions.
+- [x] Advanced notification suppression engine (Quiet Hours, Active Window 08:00–22:00, Weekend Mute, Productive-Only filter aligned with Web v2.9.0).
+- [x] Dynamic user category engine with Room DB (v3), system-protected General category, and offline mutation sync.
+- [x] **Test Gate 7:** User testing of widget, notifications, and category behavior on emulator. (COMPLETED & VERIFIED)
 
 ### Phase 8: Production Release & Store Preparation
 - [ ] End-to-end testing against live production backend (`https://dayflowlive.com/api`).
