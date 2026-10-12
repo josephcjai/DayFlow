@@ -2,7 +2,9 @@
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dayflow.app.data.repository.CategoryRepository
 import com.dayflow.app.data.repository.ScheduleRepository
+import com.dayflow.app.domain.model.CategoryItem
 import com.dayflow.app.data.sync.SyncManager
 import com.dayflow.app.data.sync.SyncStatus
 import com.dayflow.app.domain.model.Category
@@ -60,8 +62,16 @@ class ScheduleViewModel @Inject constructor(
     private val deleteSlotUseCase: DeleteSlotUseCase,
     private val scheduleRepository: ScheduleRepository,
     private val syncManager: SyncManager,
+    private val categoryRepository: CategoryRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    val categories: StateFlow<List<CategoryItem>> = categoryRepository.getCategories()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = CategoryItem.DEFAULTS
+        )
 
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()

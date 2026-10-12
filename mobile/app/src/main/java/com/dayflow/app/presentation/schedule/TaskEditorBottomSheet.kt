@@ -1,4 +1,4 @@
-﻿package com.dayflow.app.presentation.schedule
+package com.dayflow.app.presentation.schedule
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dayflow.app.domain.model.Category
+import com.dayflow.app.domain.model.CategoryItem
 import com.dayflow.app.domain.model.Slot
 import com.dayflow.app.domain.model.SlotStatus
 import com.dayflow.app.domain.util.DateTimeUtils
@@ -72,6 +73,7 @@ import java.time.LocalDateTime
 fun TaskEditorBottomSheet(
     slot: Slot,
     isNewSlot: Boolean,
+    categories: List<CategoryItem> = emptyList(),
     errorMessage: String? = null,
     onSave: (Slot) -> Unit,
     onDelete: (String) -> Unit,
@@ -93,9 +95,19 @@ fun TaskEditorBottomSheet(
 
     var plannedTask by remember { mutableStateOf(slot.plannedTask) }
     var actualTask by remember { mutableStateOf(if (slot.actualTask.isNotBlank()) slot.actualTask else slot.plannedTask) }
-    var selectedCategory by remember { mutableStateOf(slot.category) }
+    val effectiveCategories = remember(categories) {
+        if (categories.isNotEmpty()) categories else CategoryItem.DEFAULTS
+    }
+
+    var selectedCategoryName by remember {
+        mutableStateOf(slot.categoryName.ifBlank { slot.category.displayName })
+    }
+    val currentCategoryItem = remember(selectedCategoryName, effectiveCategories) {
+        effectiveCategories.firstOrNull { it.name.equals(selectedCategoryName, ignoreCase = true) }
+            ?: effectiveCategories.firstOrNull()
+    }
     var isProductive by remember {
-        mutableStateOf(slot.isProductive ?: slot.category.defaultProductive)
+        mutableStateOf(slot.isProductive ?: (currentCategoryItem?.isProductive ?: slot.category.defaultProductive))
     }
     var isProductiveUserEdited by remember {
         mutableStateOf(slot.isProductive != null)
@@ -278,14 +290,14 @@ fun TaskEditorBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Category.entries.forEach { cat ->
-                    val isSelected = selectedCategory == cat
-                    val catColor = Color(android.graphics.Color.parseColor(cat.hexColor))
+                effectiveCategories.forEach { cat ->
+                    val isSelected = selectedCategoryName.equals(cat.name, ignoreCase = true)
+                    val catColor = try { Color(android.graphics.Color.parseColor(cat.hexColor)) } catch (e: Exception) { Color(0xFF64748B) }
                     Surface(
                         modifier = Modifier.clickable {
-                            selectedCategory = cat
+                            selectedCategoryName = cat.name
                             if (!isProductiveUserEdited) {
-                                isProductive = cat.defaultProductive
+                                isProductive = cat.isProductive
                             }
                         },
                         color = if (isSelected) catColor.copy(alpha = 0.25f) else SurfaceElevated.copy(alpha = 0.5f),
@@ -302,7 +314,7 @@ fun TaskEditorBottomSheet(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = cat.displayName,
+                                text = cat.name,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) catColor else TextSecondary
@@ -342,7 +354,7 @@ fun TaskEditorBottomSheet(
                             text = if (isProductiveUserEdited) {
                                 "Custom override: ${if (isProductive) "⚡ High Impact" else "Standard task"}"
                             } else {
-                                "Category default (${selectedCategory.displayName}): ${if (isProductive) "⚡ High Impact" else "Standard task"}"
+                                "Category default (${currentCategoryItem?.name ?: selectedCategoryName}): ${if (isProductive) "⚡ High Impact" else "Standard task"}"
                             },
                             fontSize = 11.sp,
                             color = TextMuted
@@ -494,10 +506,12 @@ fun TaskEditorBottomSheet(
                     }
                     val resolvedActual = actualTask.trim().ifBlank { resolvedPlanned }
 
+                    val resolvedCategory = Category.fromString(selectedCategoryName)
                     val updatedSlot = slot.copy(
                         plannedTask = resolvedPlanned,
                         actualTask = resolvedActual,
-                        category = selectedCategory,
+                        category = resolvedCategory,
+                        categoryName = selectedCategoryName,
                         status = selectedStatus,
                         actualDuration = actualDuration,
                         notes = notes.trim().ifEmpty { null },

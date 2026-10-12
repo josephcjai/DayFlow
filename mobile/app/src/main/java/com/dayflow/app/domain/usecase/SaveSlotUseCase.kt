@@ -49,7 +49,7 @@ class SaveSlotUseCase @Inject constructor(
             weekStart = correctWeekStart,
             plannedTask = resolvedPlannedTask,
             actualTask = resolvedActualTask,
-            category = slot.category.displayName,
+            category = slot.categoryName.ifBlank { slot.category.displayName },
             plannedDuration = slot.plannedDuration,
             actualDuration = slot.actualDuration,
             status = slot.status.displayName,

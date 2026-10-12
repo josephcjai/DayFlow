@@ -20,6 +20,7 @@ class GetWeekScheduleUseCase @Inject constructor(
                     plannedTask = entity.plannedTask,
                     actualTask = entity.actualTask,
                     category = Category.fromString(entity.category),
+                    categoryName = entity.category,
                     plannedDuration = entity.plannedDuration,
                     actualDuration = entity.actualDuration,
                     status = SlotStatus.fromString(entity.status),

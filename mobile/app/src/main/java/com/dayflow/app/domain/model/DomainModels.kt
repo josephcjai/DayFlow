@@ -1,4 +1,4 @@
-﻿package com.dayflow.app.domain.model
+package com.dayflow.app.domain.model
 
 enum class Category(
     val displayName: String,
@@ -71,6 +71,7 @@ data class Slot(
     val plannedTask: String,
     val actualTask: String = "",
     val category: Category = Category.WORK,
+    val categoryName: String = category.displayName,
     val plannedDuration: Int = 30,
     val actualDuration: Int = 0,
     val status: SlotStatus = SlotStatus.PENDING,

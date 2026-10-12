@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dayflow.app.data.sync.SyncStatus
+import com.dayflow.app.domain.model.CategoryItem
 import com.dayflow.app.domain.model.Slot
 import com.dayflow.app.domain.model.SlotStatus
 import com.dayflow.app.presentation.theme.BackgroundDark
@@ -76,6 +77,7 @@ fun ScheduleTimelineScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val daySlots by viewModel.daySlots.collectAsState()
+    val categories by viewModel.categories.collectAsState()
 
     val monthYearTitle = uiState.selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
 
@@ -288,6 +290,7 @@ fun ScheduleTimelineScreen(
                 items(daySlots, key = { it.slotKey }) { row ->
                     TimelineSlotItem(
                         row = row,
+                        categories = categories,
                         onSlotClick = { viewModel.openSlotEditor(row.slotKey, row.slot) },
                         onStatusClick = { slot -> viewModel.quickToggleStatus(slot) }
                     )
@@ -306,6 +309,7 @@ fun ScheduleTimelineScreen(
         TaskEditorBottomSheet(
             slot = slot,
             isNewSlot = uiState.isEditingNewSlot,
+            categories = categories,
             errorMessage = uiState.errorMessage,
             onSave = { updatedSlot -> viewModel.saveSlot(updatedSlot) },
             onDelete = { key -> viewModel.deleteSlot(key) },
@@ -317,15 +321,25 @@ fun ScheduleTimelineScreen(
 @Composable
 fun TimelineSlotItem(
     row: SlotRowUiModel,
+    categories: List<CategoryItem> = emptyList(),
     onSlotClick: () -> Unit,
     onStatusClick: (Slot) -> Unit
 ) {
     val hasTask = row.slot != null && (row.slot.plannedTask.isNotBlank() || row.slot.actualTask.isNotBlank())
+    val matchedCat = remember(row.slot?.categoryName, categories) {
+        categories.firstOrNull { it.name.equals(row.slot?.categoryName, ignoreCase = true) }
+    }
     val categoryColor = if (hasTask) {
-        Color(android.graphics.Color.parseColor(row.slot!!.category.hexColor))
+        if (matchedCat != null) {
+            try { Color(android.graphics.Color.parseColor(matchedCat.hexColor)) } catch (e: Exception) { Color(0xFF64748B) }
+        } else {
+            try { Color(android.graphics.Color.parseColor(row.slot!!.category.hexColor)) } catch (e: Exception) { Color(0xFF64748B) }
+        }
     } else {
         Color.Transparent
     }
+    val categoryIcon = matchedCat?.icon ?: row.slot?.category?.icon ?: "📌"
+    val categoryDisplayName = matchedCat?.name ?: row.slot?.categoryName ?: row.slot?.category?.displayName ?: "General"
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -408,7 +422,7 @@ fun TimelineSlotItem(
                             modifier = Modifier.padding(top = 4.dp)
                         ) {
                             Text(
-                                text = "${row.slot.category.icon} ${row.slot.category.displayName}",
+                                text = "$categoryIcon $categoryDisplayName",
                                 fontSize = 11.sp,
                                 color = categoryColor,
                                 fontWeight = FontWeight.Medium
