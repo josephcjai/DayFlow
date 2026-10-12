@@ -1,6 +1,8 @@
 package com.dayflow.app.data.remote
 
 import com.dayflow.app.data.model.AuthResponse
+import com.dayflow.app.data.model.CategoriesResponse
+import com.dayflow.app.data.model.CategoryDto
 import com.dayflow.app.data.model.CreateTodoRequest
 import com.dayflow.app.data.model.DeleteSlotRequest
 import com.dayflow.app.data.model.ForgotPasswordRequest
@@ -89,6 +91,19 @@ interface DayFlowApiService {
 
     @POST("todos/notes")
     suspend fun saveNotes(@Body request: SaveNotesRequest): Response<MessageResponse>
+
+    // ==========================================
+    // 5. Category Endpoints (v2.9.0 Parity)
+    // ==========================================
+
+    @GET("categories")
+    suspend fun getCategories(): Response<CategoriesResponse>
+
+    @POST("categories")
+    suspend fun createCategory(@Body request: CategoryDto): Response<CategoryDto>
+
+    @DELETE("categories/{id}")
+    suspend fun deleteCategory(@Path("id") id: String): Response<Unit>
 
     companion object {
         const val PROD_BASE_URL = "https://dayflowlive.com/api/"

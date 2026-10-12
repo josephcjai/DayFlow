@@ -62,3 +62,17 @@ data class MutationQueueEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val retryCount: Int = 0
 )
+
+@Entity(tableName = "user_categories")
+data class CategoryEntity(
+    @PrimaryKey
+    val id: String,
+    val name: String,
+    val icon: String = "📌",
+    val color: String = "#64748b",
+    val isProductive: Boolean = false,
+    val isSystem: Boolean = false,
+    val isArchived: Boolean = false,
+    val sortOrder: Int = 0,
+    val isSyncPending: Boolean = false
+)

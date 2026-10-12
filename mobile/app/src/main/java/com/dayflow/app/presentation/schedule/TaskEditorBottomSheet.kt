@@ -95,7 +95,7 @@ fun TaskEditorBottomSheet(
     var actualTask by remember { mutableStateOf(if (slot.actualTask.isNotBlank()) slot.actualTask else slot.plannedTask) }
     var selectedCategory by remember { mutableStateOf(slot.category) }
     var isProductive by remember {
-        mutableStateOf(slot.isProductive ?: (slot.category == Category.WORK || slot.category == Category.LEARNING))
+        mutableStateOf(slot.isProductive ?: slot.category.defaultProductive)
     }
     var isProductiveUserEdited by remember {
         mutableStateOf(slot.isProductive != null)
@@ -285,7 +285,7 @@ fun TaskEditorBottomSheet(
                         modifier = Modifier.clickable {
                             selectedCategory = cat
                             if (!isProductiveUserEdited) {
-                                isProductive = (cat == Category.WORK || cat == Category.LEARNING)
+                                isProductive = cat.defaultProductive
                             }
                         },
                         color = if (isSelected) catColor.copy(alpha = 0.25f) else SurfaceElevated.copy(alpha = 0.5f),
@@ -296,10 +296,9 @@ fun TaskEditorBottomSheet(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(catColor, CircleShape)
+                            Text(
+                                text = cat.icon,
+                                fontSize = 13.sp
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(

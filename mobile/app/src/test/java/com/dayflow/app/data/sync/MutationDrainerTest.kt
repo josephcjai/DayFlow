@@ -3,6 +3,8 @@ package com.dayflow.app.data.sync
 import com.dayflow.app.data.local.MutationQueueDao
 import com.dayflow.app.data.local.MutationQueueEntity
 import com.dayflow.app.data.model.AuthResponse
+import com.dayflow.app.data.model.CategoriesResponse
+import com.dayflow.app.data.model.CategoryDto
 import com.dayflow.app.data.model.CreateTodoRequest
 import com.dayflow.app.data.model.DeleteSlotRequest
 import com.dayflow.app.data.model.ForgotPasswordRequest
@@ -138,6 +140,24 @@ class MutationDrainerTest {
         assertTrue(result is DrainResult.NetworkError)
         assertEquals(1, fakeDao.getAllPendingMutations().size)
     }
+    @Test
+    fun testDrainCategoryMutationProcessesSuccessfully() = runBlocking {
+        val cat = CategoryDto(id = "c1", name = "Test Cat", color = "#ff0000", icon = "🎯")
+        fakeDao.enqueue(
+            MutationQueueEntity(
+                id = 10,
+                endpoint = "categories",
+                httpMethod = "POST",
+                payloadJson = json.encodeToString(cat)
+            )
+        )
+
+        val result = drainer.drain()
+
+        assertTrue(result is DrainResult.Success)
+        assertEquals(1, (result as DrainResult.Success).processedCount)
+        assertTrue(fakeDao.getAllPendingMutations().isEmpty())
+    }
 }
 
 class FakeMutationQueueDao : MutationQueueDao {
@@ -267,5 +287,17 @@ class FakeDayFlowApiService : DayFlowApiService {
     override suspend fun saveNotes(request: SaveNotesRequest): Response<MessageResponse> {
         if (shouldThrowNetworkError) throw IOException("Network error")
         return Response.success(MessageResponse("Saved"))
+    }
+
+    override suspend fun getCategories(): Response<CategoriesResponse> = TODO()
+
+    override suspend fun createCategory(request: CategoryDto): Response<CategoryDto> {
+        if (shouldThrowNetworkError) throw IOException("Network error")
+        return Response.success(request)
+    }
+
+    override suspend fun deleteCategory(id: String): Response<Unit> {
+        if (shouldThrowNetworkError) throw IOException("Network error")
+        return Response.success(Unit)
     }
 }

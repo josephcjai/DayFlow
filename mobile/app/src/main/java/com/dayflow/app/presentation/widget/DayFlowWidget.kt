@@ -34,6 +34,7 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.dayflow.app.data.local.ScheduleSlotDao
 import com.dayflow.app.data.local.ScheduleSlotEntity
+import com.dayflow.app.domain.model.Category
 import com.dayflow.app.data.repository.ScheduleRepository
 import com.dayflow.app.data.sync.SyncManager
 import com.dayflow.app.domain.util.DateTimeUtils
@@ -141,12 +142,13 @@ class DayFlowWidget : GlanceAppWidget() {
                                     maxLines = 1
                                 )
                                 Spacer(modifier = GlanceModifier.height(2.dp))
-                                val isProdSlot = slotEntity.isProductive ?: (slotEntity.category.equals("Work", ignoreCase = true) || slotEntity.category.equals("Learning", ignoreCase = true))
+                                val cat = Category.fromString(slotEntity.category)
+                                val isProdSlot = slotEntity.isProductive ?: cat.defaultProductive
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "${if (isProdSlot) "⚡ " else ""}${slotEntity.category} • 30m",
+                                        text = "${if (isProdSlot) "⚡ " else ""}${cat.icon} ${cat.displayName} • 30m",
                                         style = TextStyle(
                                             color = primaryCyan,
                                             fontSize = 11.sp

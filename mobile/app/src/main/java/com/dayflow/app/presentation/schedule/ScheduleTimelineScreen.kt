@@ -408,7 +408,7 @@ fun TimelineSlotItem(
                             modifier = Modifier.padding(top = 4.dp)
                         ) {
                             Text(
-                                text = row.slot.category.displayName,
+                                text = "${row.slot.category.icon} ${row.slot.category.displayName}",
                                 fontSize = 11.sp,
                                 color = categoryColor,
                                 fontWeight = FontWeight.Medium

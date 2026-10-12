@@ -93,7 +93,8 @@ data class SaveSlotRequest(
     val actualDuration: Int = 0,
     val status: String = "Pending",
     val notes: String? = null,
-    val isProductive: Boolean? = null
+    val isProductive: Boolean? = null,
+    val clearProductive: Boolean? = null
 )
 
 @Serializable
@@ -186,4 +187,25 @@ data class WeekTodosResponse(
     val weekStart: String,
     val todos: List<TodoItemDto> = emptyList(),
     val notes: String? = null
+)
+
+// ==========================================
+// 5. Category Models (v2.9.0 Parity)
+// ==========================================
+
+@Serializable
+data class CategoryDto(
+    val id: String = "",
+    val name: String,
+    val icon: String = "📌",
+    val color: String = "#64748b",
+    val isProductive: Boolean = false,
+    val isSystem: Boolean = false,
+    val isArchived: Boolean = false,
+    val sortOrder: Int = 0
+)
+
+@Serializable
+data class CategoriesResponse(
+    val categories: List<CategoryDto> = emptyList()
 )

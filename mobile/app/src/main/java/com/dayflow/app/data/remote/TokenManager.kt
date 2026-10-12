@@ -68,7 +68,73 @@ open class TokenManager @Inject constructor(
         return prefs.getBoolean(KEY_IS_DEMO, false)
     }
 
+
+    // Notification & Suppression Preferences (v2.9.0 Alignment)
+    open fun isNotificationsEnabled(): Boolean {
+        return prefs.getBoolean(KEY_NOTIF_ENABLED, true)
+    }
+
+    open fun setNotificationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_NOTIF_ENABLED, enabled).apply()
+    }
+
+    open fun isActiveWindowEnabled(): Boolean {
+        return prefs.getBoolean(KEY_NOTIF_ACTIVE_WINDOW, true)
+    }
+
+    open fun setActiveWindowEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_NOTIF_ACTIVE_WINDOW, enabled).apply()
+    }
+
+    open fun getNotifyStartHour(): Int {
+        return prefs.getInt(KEY_NOTIF_START_HOUR, 8)
+    }
+
+    open fun setNotifyStartHour(hour: Int) {
+        prefs.edit().putInt(KEY_NOTIF_START_HOUR, hour).apply()
+    }
+
+    open fun getNotifyEndHour(): Int {
+        return prefs.getInt(KEY_NOTIF_END_HOUR, 22)
+    }
+
+    open fun setNotifyEndHour(hour: Int) {
+        prefs.edit().putInt(KEY_NOTIF_END_HOUR, hour).apply()
+    }
+
+    open fun isMuteWeekends(): Boolean {
+        return prefs.getBoolean(KEY_NOTIF_MUTE_WEEKENDS, false)
+    }
+
+    open fun setMuteWeekends(mute: Boolean) {
+        prefs.edit().putBoolean(KEY_NOTIF_MUTE_WEEKENDS, mute).apply()
+    }
+
+    open fun isOnlyProductive(): Boolean {
+        return prefs.getBoolean(KEY_NOTIF_ONLY_PRODUCTIVE, false)
+    }
+
+    open fun setOnlyProductive(onlyProductive: Boolean) {
+        prefs.edit().putBoolean(KEY_NOTIF_ONLY_PRODUCTIVE, onlyProductive).apply()
+    }
+
+    open fun getQuietHoursMode(): String {
+        return prefs.getString(KEY_NOTIF_QUIET_MODE, "full") ?: "full"
+    }
+
+    open fun setQuietHoursMode(mode: String) {
+        prefs.edit().putString(KEY_NOTIF_QUIET_MODE, mode).apply()
+    }
+
     companion object {
+        private const val KEY_NOTIF_ENABLED = "notif_enabled"
+        private const val KEY_NOTIF_ACTIVE_WINDOW = "notif_active_window"
+        private const val KEY_NOTIF_START_HOUR = "notif_start_hour"
+        private const val KEY_NOTIF_END_HOUR = "notif_end_hour"
+        private const val KEY_NOTIF_MUTE_WEEKENDS = "notif_mute_weekends"
+        private const val KEY_NOTIF_ONLY_PRODUCTIVE = "notif_only_productive"
+        private const val KEY_NOTIF_QUIET_MODE = "notif_quiet_mode"
+
         private const val PREFS_FILENAME = "encrypted_dayflow_prefs"
         private const val FALLBACK_PREFS = "dayflow_dev_prefs"
         private const val KEY_TOKEN = "jwt_token"

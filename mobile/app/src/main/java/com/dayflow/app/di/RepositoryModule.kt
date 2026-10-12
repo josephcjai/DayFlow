@@ -8,6 +8,8 @@ import com.dayflow.app.data.repository.ScheduleRepository
 import com.dayflow.app.data.repository.ScheduleRepositoryImpl
 import com.dayflow.app.data.repository.TodoRepository
 import com.dayflow.app.data.repository.TodoRepositoryImpl
+import com.dayflow.app.data.repository.CategoryRepository
+import com.dayflow.app.data.repository.CategoryRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -33,4 +35,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTodoRepository(impl: TodoRepositoryImpl): TodoRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCategoryRepository(impl: CategoryRepositoryImpl): CategoryRepository
 }

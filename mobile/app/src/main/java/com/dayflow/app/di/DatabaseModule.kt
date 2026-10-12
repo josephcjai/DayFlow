@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.dayflow.app.data.local.DayFlowDatabase
 import com.dayflow.app.data.local.HabitLogDao
+import com.dayflow.app.data.local.CategoryDao
 import com.dayflow.app.data.local.MutationQueueDao
 import com.dayflow.app.data.local.ScheduleSlotDao
 import com.dayflow.app.data.local.TodoDao
@@ -52,5 +53,9 @@ object DatabaseModule {
     @Provides
     fun provideMutationQueueDao(database: DayFlowDatabase): MutationQueueDao {
         return database.mutationQueueDao()
+    }
+    @Provides
+    fun provideCategoryDao(database: DayFlowDatabase): CategoryDao {
+        return database.categoryDao()
     }
 }

@@ -90,3 +90,27 @@ interface MutationQueueDao {
     @Query("DELETE FROM mutation_queue")
     suspend fun clearQueue()
 }
+
+@Dao
+interface CategoryDao {
+    @Query("SELECT * FROM user_categories WHERE isArchived = 0 ORDER BY sortOrder ASC")
+    fun getActiveCategories(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM user_categories WHERE isArchived = 0 ORDER BY sortOrder ASC")
+    suspend fun getActiveCategoriesSync(): List<CategoryEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCategories(categories: List<CategoryEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCategory(category: CategoryEntity)
+
+    @Query("UPDATE user_categories SET isArchived = 1, isSyncPending = :isSyncPending WHERE id = :id")
+    suspend fun archiveCategory(id: String, isSyncPending: Boolean = false)
+
+    @Query("DELETE FROM user_categories WHERE id = :id")
+    suspend fun deleteCategory(id: String)
+
+    @Query("DELETE FROM user_categories")
+    suspend fun clearCategories()
+}

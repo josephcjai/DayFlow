@@ -3,6 +3,7 @@ package com.dayflow.app.data.sync
 import android.util.Log
 import com.dayflow.app.data.local.MutationQueueDao
 import com.dayflow.app.data.local.MutationQueueEntity
+import com.dayflow.app.data.model.CategoryDto
 import com.dayflow.app.data.model.CreateTodoRequest
 import com.dayflow.app.data.model.DeleteSlotRequest
 import com.dayflow.app.data.model.LogHabitRequest
@@ -122,6 +123,18 @@ class MutationDrainer @Inject constructor(
                 val resp = apiService.deleteTodo(todoId)
                 resp.isSuccessful || resp.code() in 400..499
             }
+            // Category mutations
+            endpoint == "categories" && method == "POST" -> {
+                val req = json.decodeFromString<CategoryDto>(payload)
+                val resp = apiService.createCategory(req)
+                resp.isSuccessful || resp.code() in 400..499
+            }
+            endpoint.startsWith("categories/") && method == "DELETE" -> {
+                val catId = endpoint.removePrefix("categories/")
+                val resp = apiService.deleteCategory(catId)
+                resp.isSuccessful || resp.code() in 400..499
+            }
+
             endpoint == "todos/notes" && method == "POST" -> {
                 val req = json.decodeFromString<SaveNotesRequest>(payload)
                 val resp = apiService.saveNotes(req)

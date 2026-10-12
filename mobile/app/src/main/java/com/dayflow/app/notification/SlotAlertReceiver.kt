@@ -11,13 +11,18 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.glance.appwidget.updateAll
 import com.dayflow.app.R
+import com.dayflow.app.data.local.ScheduleSlotDao
 import com.dayflow.app.data.remote.TokenManager
+import com.dayflow.app.domain.model.Category
 import com.dayflow.app.presentation.MainActivity
 import com.dayflow.app.presentation.widget.DayFlowWidget
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -26,13 +31,16 @@ class SlotAlertReceiver : BroadcastReceiver() {
     @Inject
     lateinit var tokenManager: TokenManager
 
+    @Inject
+    lateinit var slotDao: ScheduleSlotDao
+
     override fun onReceive(context: Context, intent: Intent) {
         Log.d(TAG, "Received broadcast action: ${intent.action}")
 
-        // Reschedule next reminder cycle
+        // 1. Reschedule next reminder cycle
         SlotNotificationScheduler.scheduleNextReminder(context)
 
-        // Always trigger widget refresh on slot boundary
+        // 2. Always trigger widget refresh on slot boundary
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 DayFlowWidget().updateAll(context)
@@ -41,14 +49,69 @@ class SlotAlertReceiver : BroadcastReceiver() {
             }
         }
 
-        // Only show notification if user is logged in
-        if (tokenManager.getToken() == null) {
+        // 3. User login validation
+        if (tokenManager.getToken() == null && !tokenManager.isDemoMode()) {
             Log.d(TAG, "No logged in user; skipping notification")
             return
         }
 
-        createNotificationChannel(context)
-        showSlotTransitionNotification(context)
+        if (!tokenManager.isNotificationsEnabled()) {
+            Log.d(TAG, "Notifications globally disabled by user")
+            return
+        }
+
+        val now = LocalDateTime.now()
+
+        // 4. Weekend Mute Check
+        val dayOfWeek = now.dayOfWeek
+        if (tokenManager.isMuteWeekends() && (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY)) {
+            Log.d(TAG, "Notification suppressed: Weekend Mute active ($dayOfWeek)")
+            return
+        }
+
+        // 5. Active Hours Window (Quiet Hours) Check
+        if (tokenManager.isActiveWindowEnabled()) {
+            val currentHour = now.hour
+            val startHour = tokenManager.getNotifyStartHour()
+            val endHour = tokenManager.getNotifyEndHour()
+
+            val inActiveWindow = if (startHour <= endHour) {
+                currentHour in startHour until endHour
+            } else {
+                currentHour >= startHour || currentHour < endHour
+            }
+
+            if (!inActiveWindow) {
+                Log.d(TAG, "Notification suppressed: Quiet Hours active (currentHour=$currentHour, window=$startHour-$endHour)")
+                return
+            }
+        }
+
+        // 6. Productive-Only Filter Check
+        CoroutineScope(Dispatchers.IO).launch {
+            if (tokenManager.isOnlyProductive()) {
+                // Find upcoming slot key (target :00 or :30 boundary in ~5 mins)
+                val minute = now.minute
+                val targetTime = when {
+                    minute < 30 -> now.withMinute(30).withSecond(0).withNano(0)
+                    else -> now.plusHours(1).withMinute(0).withSecond(0).withNano(0)
+                }
+                val slotKey = targetTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm"))
+                val slot = slotDao.getSlotByKey(slotKey)
+
+                val isProductive = slot?.isProductive ?: slot?.let {
+                    Category.fromString(it.category).defaultProductive
+                } ?: true
+
+                if (!isProductive) {
+                    Log.d(TAG, "Notification suppressed: Productive-only filter active for slot $slotKey (productive=$isProductive)")
+                    return@launch
+                }
+            }
+
+            createNotificationChannel(context)
+            showSlotTransitionNotification(context)
+        }
     }
 
     private fun createNotificationChannel(context: Context) {
