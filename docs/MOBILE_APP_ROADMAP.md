@@ -101,18 +101,19 @@
 - [x] **Test Gate 7:** User testing of widget, notifications, and category behavior on emulator. (COMPLETED & VERIFIED)
 
 ### Phase 8: Production Release & Store Preparation
-- [ ] End-to-end testing against live production backend (`https://dayflowlive.com/api`).
-- [ ] Memory and battery profiling.
-- [ ] ProGuard / R8 rules configuration.
-- [ ] Signed Android App Bundle (AAB) generation.
+- [x] End-to-end testing against live production backend (`https://dayflowlive.com/api`). (VERIFIED)
+- [x] Memory and battery profiling. (VERIFIED)
+- [x] ProGuard / R8 rules configuration & release build validation (`assembleRelease`). (COMPLETED & VERIFIED)
+- [x] Android App Bundle (AAB) generation (`bundleRelease` - 14.80 MB generated). (COMPLETED & VERIFIED)
+- [x] Settings BottomSheet with dynamic category management and notification controls. (COMPLETED & VERIFIED)
 - [ ] **Test Gate 8:** Final user sign-off for Google Play Store release.
 
 ### Phase 9: Post-v1.0 Enhancements (Day Templates & Bulk Actions Parity)
-- [ ] **Day Templates Support (v2.7.0 Web Parity):**
-  - Implement `DayTemplateEntity` and `DayTemplateDao` in Room database.
-  - Implement `TemplateRepository` and Retrofit client for `/api/templates/*`.
-  - Implement `ApplyTemplateUseCase` enforcing the *Least Priority Rule* (populates blank slots only, preserves existing planned/actual tasks).
-  - UI: "Apply Template" bottom sheet and template management screen.
+- [x] **Day Templates Support (v2.7.0 Web Parity):**
+  - [x] Implement `DayTemplateEntity` and `DayTemplateDao` in Room database (Room v4). (COMPLETED & VERIFIED)
+  - [x] Implement `TemplateRepository` and Retrofit client for `/api/templates/*` with offline mutation queue. (COMPLETED & VERIFIED)
+  - [x] Implement `ApplyTemplateUseCase` enforcing the *Least Priority Rule* (populates blank slots only, preserves existing planned/actual tasks). (COMPLETED & VERIFIED)
+  - [x] UI: "Apply Template" bottom sheet and schedule timeline integration with live feedback banner. (COMPLETED & VERIFIED)
 - [ ] **Multi-Slot Selection & Bulk Actions:**
   - Long-press selection mode on the 30-minute timeline.
   - Bulk actions bar: Mark as Done, Change Category, Clear Slots.

@@ -114,3 +114,27 @@ interface CategoryDao {
     @Query("DELETE FROM user_categories")
     suspend fun clearCategories()
 }
+
+@Dao
+interface DayTemplateDao {
+    @Query("SELECT * FROM user_day_templates")
+    fun getAllTemplates(): Flow<List<DayTemplateEntity>>
+
+    @Query("SELECT * FROM user_day_templates")
+    suspend fun getAllTemplatesSync(): List<DayTemplateEntity>
+
+    @Query("SELECT * FROM user_day_templates WHERE id = :id")
+    suspend fun getTemplateById(id: String): DayTemplateEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertTemplate(template: DayTemplateEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertTemplates(templates: List<DayTemplateEntity>)
+
+    @Query("DELETE FROM user_day_templates WHERE id = :id")
+    suspend fun deleteTemplate(id: String)
+
+    @Query("DELETE FROM user_day_templates")
+    suspend fun clearTemplates()
+}

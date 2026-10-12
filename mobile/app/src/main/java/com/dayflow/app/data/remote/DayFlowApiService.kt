@@ -3,6 +3,8 @@ package com.dayflow.app.data.remote
 import com.dayflow.app.data.model.AuthResponse
 import com.dayflow.app.data.model.CategoriesResponse
 import com.dayflow.app.data.model.CategoryDto
+import com.dayflow.app.data.model.DayTemplateDto
+import com.dayflow.app.data.model.TemplatesResponse
 import com.dayflow.app.data.model.CreateTodoRequest
 import com.dayflow.app.data.model.DeleteSlotRequest
 import com.dayflow.app.data.model.ForgotPasswordRequest
@@ -104,6 +106,19 @@ interface DayFlowApiService {
 
     @DELETE("categories/{id}")
     suspend fun deleteCategory(@Path("id") id: String): Response<Unit>
+
+    // ==========================================
+    // 6. Day Template Endpoints (v2.7.0 Web Parity)
+    // ==========================================
+
+    @GET("templates")
+    suspend fun getTemplates(): Response<TemplatesResponse>
+
+    @POST("templates")
+    suspend fun createTemplate(@Body request: DayTemplateDto): Response<DayTemplateDto>
+
+    @DELETE("templates/{id}")
+    suspend fun deleteTemplate(@Path("id") id: String): Response<Unit>
 
     companion object {
         const val PROD_BASE_URL = "https://dayflowlive.com/api/"

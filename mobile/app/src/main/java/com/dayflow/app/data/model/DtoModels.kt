@@ -209,3 +209,30 @@ data class CategoryDto(
 data class CategoriesResponse(
     val categories: List<CategoryDto> = emptyList()
 )
+
+// ==========================================
+// 6. Day Template Models (v2.7.0 Web Parity)
+// ==========================================
+
+@Serializable
+data class TemplateSlotDto(
+    val title: String = "",
+    val plannedTask: String = "",
+    val category: String = "Work",
+    val planned: Int = 30
+)
+
+@Serializable
+data class DayTemplateDto(
+    val id: String = "",
+    val name: String,
+    val description: String = "",
+    val slots: Map<String, TemplateSlotDto> = emptyMap(),
+    val isDefault: Boolean = false,
+    val createdAt: String? = null
+)
+
+@Serializable
+data class TemplatesResponse(
+    val templates: List<DayTemplateDto> = emptyList()
+)

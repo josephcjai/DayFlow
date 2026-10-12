@@ -2,6 +2,9 @@
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dayflow.app.data.repository.TemplateRepository
+import com.dayflow.app.domain.model.DayTemplate
+import com.dayflow.app.domain.usecase.ApplyTemplateUseCase
 import com.dayflow.app.data.repository.CategoryRepository
 import com.dayflow.app.data.repository.ScheduleRepository
 import com.dayflow.app.domain.model.CategoryItem
@@ -51,7 +54,9 @@ data class ScheduleUiState(
     val editingSlotKey: String? = null,
     val errorMessage: String? = null,
     val isRefreshing: Boolean = false,
-    val syncStatus: SyncStatus = SyncStatus.IDLE
+    val syncStatus: SyncStatus = SyncStatus.IDLE,
+    val isTemplateSheetOpen: Boolean = false,
+    val templateFeedbackMessage: String? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -63,6 +68,8 @@ class ScheduleViewModel @Inject constructor(
     private val scheduleRepository: ScheduleRepository,
     private val syncManager: SyncManager,
     private val categoryRepository: CategoryRepository,
+    private val templateRepository: TemplateRepository,
+    private val applyTemplateUseCase: ApplyTemplateUseCase,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -71,6 +78,13 @@ class ScheduleViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = CategoryItem.DEFAULTS
+        )
+
+    val templates: StateFlow<List<DayTemplate>> = templateRepository.getTemplates()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
         )
 
     private val _uiState = MutableStateFlow(ScheduleUiState())
@@ -113,6 +127,9 @@ class ScheduleViewModel @Inject constructor(
     )
 
     init {
+        viewModelScope.launch {
+            templateRepository.seedDefaultTemplates()
+        }
         viewModelScope.launch {
             syncManager.syncStatus.collect { status ->
                 _uiState.update { it.copy(syncStatus = status) }
@@ -238,9 +255,46 @@ class ScheduleViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true) }
             syncManager.syncNow()
+            templateRepository.refreshTemplates()
             scheduleRepository.refreshWeekSchedule(_uiState.value.weekStart)
             _uiState.update { it.copy(isRefreshing = false) }
         }
+    }
+
+    fun openTemplateSheet() {
+        _uiState.update { it.copy(isTemplateSheetOpen = true, templateFeedbackMessage = null) }
+    }
+
+    fun closeTemplateSheet() {
+        _uiState.update { it.copy(isTemplateSheetOpen = false) }
+    }
+
+    fun applyTemplate(template: DayTemplate) {
+        viewModelScope.launch {
+            val result = applyTemplateUseCase(_uiState.value.selectedDate, template)
+            result.fold(
+                onSuccess = { res ->
+                    val msg = "Applied ${res.appliedCount} slots" +
+                            if (res.preservedCount > 0) " (${res.preservedCount} preserved)" else ""
+                    _uiState.update {
+                        it.copy(
+                            isTemplateSheetOpen = false,
+                            templateFeedbackMessage = msg
+                        )
+                    }
+                    scheduleRepository.refreshWeekSchedule(_uiState.value.weekStart)
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(errorMessage = error.localizedMessage ?: "Failed to apply template")
+                    }
+                }
+            )
+        }
+    }
+
+    fun clearTemplateFeedback() {
+        _uiState.update { it.copy(templateFeedbackMessage = null) }
     }
     companion object {
         fun buildInitialDaySlots(selectedDate: LocalDate): List<SlotRowUiModel> {

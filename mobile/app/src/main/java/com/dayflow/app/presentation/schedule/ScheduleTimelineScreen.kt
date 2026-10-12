@@ -78,6 +78,7 @@ fun ScheduleTimelineScreen(
     val uiState by viewModel.uiState.collectAsState()
     val daySlots by viewModel.daySlots.collectAsState()
     val categories by viewModel.categories.collectAsState()
+    val templates by viewModel.templates.collectAsState()
 
     val monthYearTitle = uiState.selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
 
@@ -116,6 +117,20 @@ fun ScheduleTimelineScreen(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    modifier = Modifier.clickable { viewModel.openTemplateSheet() },
+                    color = Color(0xFF6366F1).copy(alpha = 0.20f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = "⚡ Template",
+                        color = Color(0xFF818CF8),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                    )
                 }
             }
 
@@ -184,6 +199,38 @@ fun ScheduleTimelineScreen(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isSelected) Color.White else TextPrimary
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2b. Template Feedback Banner
+        AnimatedVisibility(visible = uiState.templateFeedbackMessage != null) {
+            uiState.templateFeedbackMessage?.let { feedback ->
+                Surface(
+                    color = DayFlowPrimary.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clickable { viewModel.clearTemplateFeedback() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "✓ $feedback",
+                            color = DayFlowPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Dismiss",
+                            color = TextMuted,
+                            fontSize = 11.sp
                         )
                     }
                 }
@@ -302,6 +349,16 @@ fun ScheduleTimelineScreen(
                 }
             }
         }
+    }
+
+    // Apply Template BottomSheet
+    if (uiState.isTemplateSheetOpen) {
+        ApplyTemplateBottomSheet(
+            selectedDate = uiState.selectedDate,
+            templates = templates,
+            onApplyTemplate = { tmpl -> viewModel.applyTemplate(tmpl) },
+            onDismiss = { viewModel.closeTemplateSheet() }
+        )
     }
 
     // Task Editor Modal BottomSheet

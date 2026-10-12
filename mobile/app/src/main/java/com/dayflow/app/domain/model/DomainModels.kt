@@ -115,3 +115,77 @@ data class FocusCategorySummary(
     val actualMinutes: Int,
     val completionPercentage: Float
 )
+
+// ==========================================
+// 6. Day Template Models (v2.7.0 Web Parity)
+// ==========================================
+
+data class TemplateSlot(
+    val time: String,
+    val title: String,
+    val plannedTask: String,
+    val category: String = "Work",
+    val planned: Int = 30
+)
+
+data class DayTemplate(
+    val id: String,
+    val name: String,
+    val description: String = "",
+    val slots: Map<String, TemplateSlot> = emptyMap(),
+    val isDefault: Boolean = false
+) {
+    val totalSlots: Int get() = slots.size
+}
+
+data class ApplyTemplateResult(
+    val appliedCount: Int,
+    val preservedCount: Int,
+    val templateName: String
+)
+
+object DefaultDayTemplates {
+    val WORKDAY = DayTemplate(
+        id = "tmpl_workday",
+        name = "Productive Workday",
+        description = "Standard deep focus schedule with morning standup, deep work, and afternoon development",
+        slots = mapOf(
+            "09:00" to TemplateSlot("09:00", "Morning Standup & Priorities", "Morning Standup & Priorities", "Work"),
+            "09:30" to TemplateSlot("09:30", "Deep Work: Core Priorities", "Deep Work: Core Priorities", "Work"),
+            "10:00" to TemplateSlot("10:00", "Deep Work: Core Priorities", "Deep Work: Core Priorities", "Work"),
+            "10:30" to TemplateSlot("10:30", "Deep Work: Core Priorities", "Deep Work: Core Priorities", "Work"),
+            "11:00" to TemplateSlot("11:00", "Deep Work: Core Priorities", "Deep Work: Core Priorities", "Work"),
+            "11:30" to TemplateSlot("11:30", "Team Sync & Code Reviews", "Team Sync & Code Reviews", "Work"),
+            "12:00" to TemplateSlot("12:00", "Lunch & Recharge Walk", "Lunch & Recharge Walk", "Health"),
+            "12:30" to TemplateSlot("12:30", "Lunch & Recharge Walk", "Lunch & Recharge Walk", "Health"),
+            "13:00" to TemplateSlot("13:00", "Email & Admin Catch-up", "Email & Admin Catch-up", "Work"),
+            "13:30" to TemplateSlot("13:30", "Task Breakdown & Planning", "Task Breakdown & Planning", "Work"),
+            "14:00" to TemplateSlot("14:00", "Architecture & Feature Development", "Architecture & Feature Development", "Work"),
+            "14:30" to TemplateSlot("14:30", "Architecture & Feature Development", "Architecture & Feature Development", "Work"),
+            "15:00" to TemplateSlot("15:00", "Architecture & Feature Development", "Architecture & Feature Development", "Work"),
+            "15:30" to TemplateSlot("15:30", "Architecture & Feature Development", "Architecture & Feature Development", "Work"),
+            "16:00" to TemplateSlot("16:00", "Architecture & System Review", "Architecture & System Review", "Work"),
+            "16:30" to TemplateSlot("16:30", "Daily Wrap-up & Tomorrow Prep", "Daily Wrap-up & Tomorrow Prep", "Work")
+        ),
+        isDefault = true
+    )
+
+    val WEEKEND = DayTemplate(
+        id = "tmpl_weekend",
+        name = "Weekend Reset & Leisure",
+        description = "Relaxed weekend schedule balancing health, personal learning, and family time",
+        slots = mapOf(
+            "09:00" to TemplateSlot("09:00", "Morning Workout", "Morning Workout", "Health"),
+            "09:30" to TemplateSlot("09:30", "Healthy Breakfast", "Healthy Breakfast", "Health"),
+            "10:30" to TemplateSlot("10:30", "Personal Learning & Tech Reading", "Personal Learning & Tech Reading", "Learning"),
+            "11:00" to TemplateSlot("11:00", "Personal Learning & Tech Reading", "Personal Learning & Tech Reading", "Learning"),
+            "13:00" to TemplateSlot("13:00", "Household Organization", "Household Organization", "Household"),
+            "13:30" to TemplateSlot("13:30", "Household Errands", "Household Errands", "Household"),
+            "16:00" to TemplateSlot("16:00", "Family Time & Recreation", "Family Time & Recreation", "Family"),
+            "16:30" to TemplateSlot("16:30", "Family Time & Recreation", "Family Time & Recreation", "Family")
+        ),
+        isDefault = true
+    )
+
+    val ALL = listOf(WORKDAY, WEEKEND)
+}

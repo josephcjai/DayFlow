@@ -3,6 +3,8 @@ package com.dayflow.app.data.sync
 import com.dayflow.app.data.local.MutationQueueDao
 import com.dayflow.app.data.local.MutationQueueEntity
 import com.dayflow.app.data.model.AuthResponse
+import com.dayflow.app.data.model.DayTemplateDto
+import com.dayflow.app.data.model.TemplatesResponse
 import com.dayflow.app.data.model.CategoriesResponse
 import com.dayflow.app.data.model.CategoryDto
 import com.dayflow.app.data.model.CreateTodoRequest
@@ -297,6 +299,17 @@ class FakeDayFlowApiService : DayFlowApiService {
     }
 
     override suspend fun deleteCategory(id: String): Response<Unit> {
+        if (shouldThrowNetworkError) throw IOException("Network error")
+        return Response.success(Unit)
+    }
+    override suspend fun getTemplates(): Response<TemplatesResponse> = TODO()
+
+    override suspend fun createTemplate(request: DayTemplateDto): Response<DayTemplateDto> {
+        if (shouldThrowNetworkError) throw IOException("Network error")
+        return Response.success(request)
+    }
+
+    override suspend fun deleteTemplate(id: String): Response<Unit> {
         if (shouldThrowNetworkError) throw IOException("Network error")
         return Response.success(Unit)
     }

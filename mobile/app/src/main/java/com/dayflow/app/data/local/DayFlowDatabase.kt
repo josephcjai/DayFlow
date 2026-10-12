@@ -10,9 +10,10 @@ import androidx.room.RoomDatabase
         TodoEntity::class,
         WeeklyNotesEntity::class,
         MutationQueueEntity::class,
-        CategoryEntity::class
+        CategoryEntity::class,
+        DayTemplateEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class DayFlowDatabase : RoomDatabase() {
@@ -22,6 +23,7 @@ abstract class DayFlowDatabase : RoomDatabase() {
     abstract fun weeklyNotesDao(): WeeklyNotesDao
     abstract fun mutationQueueDao(): MutationQueueDao
     abstract fun categoryDao(): CategoryDao
+    abstract fun dayTemplateDao(): DayTemplateDao
 
     companion object {
         const val DATABASE_NAME = "dayflow_database"

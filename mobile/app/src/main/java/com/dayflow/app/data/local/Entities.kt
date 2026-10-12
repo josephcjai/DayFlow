@@ -76,3 +76,14 @@ data class CategoryEntity(
     val sortOrder: Int = 0,
     val isSyncPending: Boolean = false
 )
+
+@Entity(tableName = "user_day_templates")
+data class DayTemplateEntity(
+    @PrimaryKey
+    val id: String,
+    val name: String,
+    val description: String = "",
+    val slotsJson: String = "{}",
+    val isDefault: Boolean = false,
+    val isSyncPending: Boolean = false
+)
