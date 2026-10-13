@@ -24,6 +24,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Lock
@@ -87,14 +99,63 @@ fun ScheduleTimelineScreen(
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
-        // 1. Week Navigation Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        // 1. Week Navigation Header or Contextual Selection Header
+        if (uiState.isSelectionMode) {
+            Surface(
+                color = SurfaceElevated,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { viewModel.clearSelection() },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cancel",
+                                tint = TextPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "${uiState.selectedSlotKeys.size} selected",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                    }
+
+                    TextButton(
+                        onClick = { viewModel.selectAllCurrentDaySlots() }
+                    ) {
+                        Text(
+                            text = "Select All",
+                            color = DayFlowPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = monthYearTitle,
@@ -132,6 +193,23 @@ fun ScheduleTimelineScreen(
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    modifier = Modifier.clickable {
+                        val firstKey = daySlots.firstOrNull { it.slot != null }?.slotKey ?: daySlots.firstOrNull()?.slotKey ?: ""
+                        viewModel.enterSelectionMode(firstKey)
+                    },
+                    color = DayFlowPrimary.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = "☑ Select",
+                        color = DayFlowPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                    )
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -159,6 +237,7 @@ fun ScheduleTimelineScreen(
                     )
                 }
             }
+        }
         }
 
         // 2. Day Switcher Strip (Monday - Sunday)
@@ -323,32 +402,129 @@ fun ScheduleTimelineScreen(
             )
         }
 
-        // 4. Pull-to-Refresh & 48-Slot Timeline List
-        PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
-            onRefresh = { viewModel.refreshSchedule() },
-            modifier = Modifier.fillMaxSize()
-        ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
+        // 4. Pull-to-Refresh & 48-Slot Timeline List with Bulk Actions
+        Box(modifier = Modifier.fillMaxSize()) {
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { viewModel.refreshSchedule() },
+                modifier = Modifier.fillMaxSize()
             ) {
-                items(daySlots, key = { it.slotKey }) { row ->
-                    TimelineSlotItem(
-                        row = row,
-                        categories = categories,
-                        onSlotClick = { viewModel.openSlotEditor(row.slotKey, row.slot) },
-                        onStatusClick = { slot -> viewModel.quickToggleStatus(slot) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    items(daySlots, key = { it.slotKey }) { row ->
+                        TimelineSlotItem(
+                            row = row,
+                            categories = categories,
+                            isSelectionMode = uiState.isSelectionMode,
+                            isSelected = uiState.selectedSlotKeys.contains(row.slotKey),
+                            onSlotClick = {
+                                if (uiState.isSelectionMode) {
+                                    viewModel.toggleSlotSelection(row.slotKey)
+                                } else {
+                                    viewModel.openSlotEditor(row.slotKey, row.slot)
+                                }
+                            },
+                            onSlotLongClick = {
+                                viewModel.enterSelectionMode(row.slotKey)
+                            },
+                            onStatusClick = { slot -> viewModel.quickToggleStatus(slot) }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
 
-                item {
-                    Spacer(modifier = Modifier.height(64.dp))
+                    item {
+                        Spacer(modifier = Modifier.height(88.dp))
+                    }
+                }
+            }
+
+            // Floating Bulk Action Bar
+            androidx.compose.animation.AnimatedVisibility(
+                visible = uiState.isSelectionMode,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Surface(
+                    color = SurfaceElevated,
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.3f)),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { viewModel.bulkMarkAsDone() },
+                            colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary.copy(alpha = 0.15f)),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = DayFlowPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Done", color = DayFlowPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { viewModel.openBulkCategoryPicker() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B).copy(alpha = 0.15f)),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = Color(0xFFF59E0B),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Category", color = Color(0xFFF59E0B), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { viewModel.bulkClearSlots() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444).copy(alpha = 0.15f)),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Clear", color = Color(0xFFEF4444), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    // Bulk Category Picker BottomSheet
+    if (uiState.isCategoryPickerOpen) {
+        BulkCategoryPickerBottomSheet(
+            categories = categories,
+            selectedCount = uiState.selectedSlotKeys.size,
+            onCategorySelected = { cat -> viewModel.bulkAssignCategory(cat) },
+            onDismiss = { viewModel.closeBulkCategoryPicker() }
+        )
     }
 
     // Apply Template BottomSheet
@@ -375,11 +551,15 @@ fun ScheduleTimelineScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TimelineSlotItem(
     row: SlotRowUiModel,
     categories: List<CategoryItem> = emptyList(),
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     onSlotClick: () -> Unit,
+    onSlotLongClick: () -> Unit = {},
     onStatusClick: (Slot) -> Unit
 ) {
     val hasTask = row.slot != null && (row.slot.plannedTask.isNotBlank() || row.slot.actualTask.isNotBlank())
@@ -424,12 +604,17 @@ fun TimelineSlotItem(
         Card(
             modifier = Modifier
                 .weight(1f)
-                .clickable { onSlotClick() },
+                .combinedClickable(
+                    onClick = onSlotClick,
+                    onLongClick = onSlotLongClick
+                ),
             colors = CardDefaults.cardColors(
-                containerColor = if (row.isCurrentSlot) SurfaceElevated else SurfaceDark
+                containerColor = if (isSelected) DayFlowPrimary.copy(alpha = 0.18f) else if (row.isCurrentSlot) SurfaceElevated else SurfaceDark
             ),
             shape = RoundedCornerShape(12.dp),
-            border = if (row.isCurrentSlot) androidx.compose.foundation.BorderStroke(1.5.dp, DayFlowPrimary) else null
+            border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, DayFlowPrimary)
+                     else if (row.isCurrentSlot) androidx.compose.foundation.BorderStroke(1.5.dp, DayFlowPrimary)
+                     else null
         ) {
             Row(
                 modifier = Modifier
@@ -438,6 +623,16 @@ fun TimelineSlotItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                if (isSelectionMode) {
+                    Icon(
+                        imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = if (isSelected) "Selected" else "Not selected",
+                        tint = if (isSelected) DayFlowPrimary else TextMuted,
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(20.dp)
+                    )
+                }
                 // Category color accent stripe
                 if (hasTask) {
                     Box(

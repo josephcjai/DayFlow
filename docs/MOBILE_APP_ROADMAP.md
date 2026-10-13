@@ -114,10 +114,13 @@
   - [x] Implement `TemplateRepository` and Retrofit client for `/api/templates/*` with offline mutation queue. (COMPLETED & VERIFIED)
   - [x] Implement `ApplyTemplateUseCase` enforcing the *Least Priority Rule* (populates blank slots only, preserves existing planned/actual tasks). (COMPLETED & VERIFIED)
   - [x] UI: "Apply Template" bottom sheet and schedule timeline integration with live feedback banner. (COMPLETED & VERIFIED)
-- [ ] **Multi-Slot Selection & Bulk Actions:**
-  - Long-press selection mode on the 30-minute timeline.
-  - Bulk actions bar: Mark as Done, Change Category, Clear Slots.
-- [ ] **Test Gate 9:** User verification of Day Templates and multi-slot bulk editing.
+- [x] **Multi-Slot Selection & Bulk Actions (v2.7.0 Web Parity):** (COMPLETED & VERIFIED)
+  - [x] Long-press selection mode and top 'Select' chip toggle on the 30-minute timeline.
+  - [x] Interactive contextual selection header ('✕ N selected', 'Select All').
+  - [x] Floating bulk actions bar: Mark as Done, Change Category, Clear Slots.
+  - [x] BulkCategoryPickerBottomSheet with live category assignment and dynamic stats recalculation.
+  - [x] Comprehensive unit test suite (BulkSlotActionsTest).
+- [x] **Test Gate 9:** User and emulator verification of Day Templates and multi-slot bulk editing. (COMPLETED & VERIFIED)
 
 ---
 

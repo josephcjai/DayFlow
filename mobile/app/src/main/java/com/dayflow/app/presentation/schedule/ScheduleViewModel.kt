@@ -56,7 +56,10 @@ data class ScheduleUiState(
     val isRefreshing: Boolean = false,
     val syncStatus: SyncStatus = SyncStatus.IDLE,
     val isTemplateSheetOpen: Boolean = false,
-    val templateFeedbackMessage: String? = null
+    val templateFeedbackMessage: String? = null,
+    val isSelectionMode: Boolean = false,
+    val selectedSlotKeys: Set<String> = emptySet(),
+    val isCategoryPickerOpen: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -295,6 +298,125 @@ class ScheduleViewModel @Inject constructor(
 
     fun clearTemplateFeedback() {
         _uiState.update { it.copy(templateFeedbackMessage = null) }
+    }
+
+    fun enterSelectionMode(slotKey: String) {
+        _uiState.update {
+            it.copy(
+                isSelectionMode = true,
+                selectedSlotKeys = setOf(slotKey)
+            )
+        }
+    }
+
+    fun toggleSlotSelection(slotKey: String) {
+        _uiState.update { state ->
+            val newSelection = if (state.selectedSlotKeys.contains(slotKey)) {
+                state.selectedSlotKeys - slotKey
+            } else {
+                state.selectedSlotKeys + slotKey
+            }
+            state.copy(
+                selectedSlotKeys = newSelection,
+                isSelectionMode = newSelection.isNotEmpty()
+            )
+        }
+    }
+
+    fun selectAllCurrentDaySlots() {
+        val dayKeys = DateTimeUtils.generateDaySlotKeys(_uiState.value.selectedDate).toSet()
+        _uiState.update {
+            it.copy(
+                isSelectionMode = true,
+                selectedSlotKeys = dayKeys
+            )
+        }
+    }
+
+    fun clearSelection() {
+        _uiState.update {
+            it.copy(
+                isSelectionMode = false,
+                selectedSlotKeys = emptySet(),
+                isCategoryPickerOpen = false
+            )
+        }
+    }
+
+    fun openBulkCategoryPicker() {
+        _uiState.update { it.copy(isCategoryPickerOpen = true) }
+    }
+
+    fun closeBulkCategoryPicker() {
+        _uiState.update { it.copy(isCategoryPickerOpen = false) }
+    }
+
+    fun bulkMarkAsDone() {
+        viewModelScope.launch {
+            val keys = _uiState.value.selectedSlotKeys.toList()
+            var updatedCount = 0
+            val currentSlots = daySlots.value.associate { it.slotKey to it.slot }
+
+            for (key in keys) {
+                val slot = currentSlots[key]
+                if (slot != null && (slot.plannedTask.isNotBlank() || slot.actualTask.isNotBlank())) {
+                    val updated = slot.copy(
+                        status = SlotStatus.DONE,
+                        actualDuration = if (slot.actualDuration == 0) slot.plannedDuration else slot.actualDuration
+                    )
+                    saveSlotUseCase(updated)
+                    updatedCount++
+                }
+            }
+
+            clearSelection()
+            _uiState.update {
+                it.copy(templateFeedbackMessage = "Marked $updatedCount slots as Done")
+            }
+        }
+    }
+
+    fun bulkAssignCategory(categoryItem: CategoryItem) {
+        viewModelScope.launch {
+            val keys = _uiState.value.selectedSlotKeys.toList()
+            var updatedCount = 0
+            val currentSlots = daySlots.value.associate { it.slotKey to it.slot }
+            val parsedCat = Category.fromString(categoryItem.name)
+
+            for (key in keys) {
+                val slot = currentSlots[key]
+                if (slot != null && (slot.plannedTask.isNotBlank() || slot.actualTask.isNotBlank())) {
+                    val updated = slot.copy(
+                        category = parsedCat,
+                        categoryName = categoryItem.name
+                    )
+                    saveSlotUseCase(updated)
+                    updatedCount++
+                }
+            }
+
+            clearSelection()
+            _uiState.update {
+                it.copy(templateFeedbackMessage = "Updated category to '${categoryItem.name}' for $updatedCount slots")
+            }
+        }
+    }
+
+    fun bulkClearSlots() {
+        viewModelScope.launch {
+            val keys = _uiState.value.selectedSlotKeys.toList()
+            var clearedCount = 0
+
+            for (key in keys) {
+                deleteSlotUseCase(key)
+                clearedCount++
+            }
+
+            clearSelection()
+            _uiState.update {
+                it.copy(templateFeedbackMessage = "Cleared $clearedCount slots")
+            }
+        }
     }
     companion object {
         fun buildInitialDaySlots(selectedDate: LocalDate): List<SlotRowUiModel> {
