@@ -60,6 +60,12 @@ interface TodoDao {
     @Query("UPDATE todo_items SET isCompleted = :isCompleted, isSyncPending = :isSyncPending WHERE id = :id")
     suspend fun updateCompletion(id: String, isCompleted: Boolean, isSyncPending: Boolean = true)
 
+    @Query("SELECT * FROM todo_items WHERE id = :id")
+    suspend fun getTodoById(id: String): TodoEntity?
+
+    @Query("UPDATE todo_items SET scheduledSlotKey = :slotKey, isSyncPending = :isSyncPending WHERE id = :id")
+    suspend fun updateScheduledSlot(id: String, slotKey: String?, isSyncPending: Boolean = true)
+
     @Query("DELETE FROM todo_items WHERE id = :id")
     suspend fun deleteTodo(id: String)
 

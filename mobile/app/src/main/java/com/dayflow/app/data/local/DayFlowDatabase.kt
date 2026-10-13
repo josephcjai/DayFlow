@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         CategoryEntity::class,
         DayTemplateEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class DayFlowDatabase : RoomDatabase() {

@@ -10,7 +10,7 @@
 
 This document serves as the **definitive, exhaustive tracking registry** for achieving 100% feature parity between DayFlow Web and DayFlow Mobile. Every feature in the Web codebase has been inventoried across all modules (`grid.js`, `notes.js`, `habits.js`, `analytics.js`, `settings.js`, `modal.js`, `notifications.js`).
 
-Mobile development has already established a production-grade foundation (Room v4 offline sync, Biometric security, 48-slot Golden Time-Lock schedule engine, dynamic category manager, Day Templates, multi-slot bulk actions). This registry catalogs all remaining capabilities required to achieve full parity.
+Mobile development has already established a production-grade foundation (Room v5 offline sync, Biometric security, 48-slot Golden Time-Lock schedule engine, dynamic category manager, Day Templates, multi-slot bulk actions, Task Copy/Paste/Duplicate, and Enhanced Weekly Todos with 1-Click Timeblocking).
 
 ---
 
@@ -25,8 +25,8 @@ Mobile development has already established a production-grade foundation (Room v
 | 1.3 | **Slot Status Workflow** | Pending, Done, Partial, Missed transitions | ✅ Implemented | Complete. |
 | 1.4 | **Custom Categories** | Dynamic colors, emojis, productive flag | ✅ Implemented | Complete with Room entity & sync. |
 | 1.5 | **Multi-Slot Selection** | Checkbox selection mode, floating bulk bar | ✅ Implemented | Complete. |
-| 1.6 | **Task Copy & Paste** | Single & bulk paste, Golden Time-Lock adaptation | 🟡 In Review | Implemented in ViewModel & BottomSheet; pending final verification & commit. |
-| 1.7 | **Duplicate Next Slot** | `Ctrl+D` instant clone to next 30-min block | 🟡 In Review | Added to BottomSheet; pending commit. |
+| 1.6 | **Task Copy & Paste** | Single & bulk paste, Golden Time-Lock adaptation | ✅ Implemented | Complete in ViewModel, UI bottomsheet & bulk bar. |
+| 1.7 | **Duplicate Next Slot** | `Ctrl+D` instant clone to next 30-min block | ✅ Implemented | Complete in `TaskEditorBottomSheet`. |
 | 1.8 | **Timeline Category Filter** | Dropdown/pill filter to view slots for specific category | ❌ Missing | Add horizontal category chip filter bar above timeline. |
 | 1.9 | **Dynamic "NOW" Indicator** | 10-sec ticker highlighting current active slot with "+ Log current task" prompt | ❌ Missing | Add live "📍 NOW" pulsing badge on current slot with quick-log prompt. |
 | 1.10 | **Configurable Timeline Window** | Start hour & End hour windowing (e.g. 06:00 to 22:00 vs 24h) | ❌ Missing | Settings option to filter displayed timeline hours. |
@@ -38,14 +38,14 @@ Mobile development has already established a production-grade foundation (Room v
 
 | # | Feature Name | Web App Implementation | Mobile Status | Work Required |
 |---|---|---|---|---|
-| 2.1 | **Weekly Todos Checklist** | Add, toggle done, delete, Room/API sync | ✅ Implemented | Basic checklist complete. |
-| 2.2 | **Priority Badges** | High (🔴), Medium (🟡), Low (🟢) with color chips | ❌ Missing | Add `priority` field to `TodoEntity` / `Todo`, selector in dialog, colored badges. |
-| 2.3 | **Focus Category Tagging** | Assign category to Todo with category color dot | ❌ Missing | Add `category` field to `Todo`, category picker in Todo dialog. |
-| 2.4 | **Dynamic Filter Pills** | Horizontal bar: `All` \| `High` \| `Medium` \| `Low` \| `Pending` \| `Done` | ❌ Missing | Add filter chips row above Todo list in `TodosScreen.kt`. |
-| 2.5 | **1-Click "Schedule to Grid"** | Timeblock todo directly to a timeline slot | ❌ Missing | "Schedule" action button on todo item opening timeblock dialog. |
-| 2.6 | **Slot Conflict Detection** | Warning dialog if target slot already has a planned/actual task | ❌ Missing | Conflict check in `ScheduleTodoUseCase`; prompt user to Overwrite or pick another slot. |
-| 2.7 | **Auto-Find Next Free Slot** | Button to automatically find the next unoccupied 30-min slot | ❌ Missing | Algorithm to scan timeline forward from preferred time and select first empty slot. |
-| 2.8 | **Cascade Deletion Options** | Prompt to "Clear scheduled slots" or "Keep slots" when deleting a scheduled Todo | ❌ Missing | Check linked slots on delete and prompt user. |
+| 2.1 | **Weekly Todos Checklist** | Add, toggle done, delete, Room/API sync | ✅ Implemented | Complete. |
+| 2.2 | **Priority Badges** | High (🔴), Medium (🟡), Low (🟢) with color chips | ✅ Implemented | Complete with `TodoPriority` enum and badges. |
+| 2.3 | **Focus Category Tagging** | Assign category to Todo with category color dot | ✅ Implemented | Complete with category selector and chips. |
+| 2.4 | **Dynamic Filter Pills** | Horizontal bar: `All` \| `High` \| `Medium` \| `Low` \| `Pending` \| `Done` | ✅ Implemented | Complete with live count badges and reactive filter flow. |
+| 2.5 | **1-Click "Schedule to Grid"** | Timeblock todo directly to a timeline slot | ✅ Implemented | Complete with `ScheduleTodoBottomSheet`. |
+| 2.6 | **Slot Conflict Detection** | Warning dialog if target slot already has a planned/actual task | ✅ Implemented | Complete with occupied warning and overwrite toggle. |
+| 2.7 | **Auto-Find Next Free Slot** | Button to automatically find the next unoccupied 30-min slot | ✅ Implemented | Complete in `ScheduleTodoToGridUseCase`. |
+| 2.8 | **Cascade Deletion Options** | Prompt to "Clear scheduled slots" or "Keep slots" when deleting a scheduled Todo | ✅ Implemented | Complete with confirmation modal in `TodosScreen.kt`. |
 
 ---
 
@@ -107,66 +107,26 @@ Mobile development has already established a production-grade foundation (Room v
 
 ---
 
-## 3. Sequenced Roadmap to 100% Full Parity
+## 3. Sequenced Roadmap Status
 
-To deliver all missing functionalities safely, predictably, and with zero regression, work is structured into the following phases:
-
-```mermaid
-graph TD
-    P10[Phase 10: Task Copy/Paste & Quick Actions] --> P11[Phase 11: Enhanced Todos & 1-Click Timeblocking]
-    P11 --> P12[Phase 12: Analytics Category Distribution & Trends]
-    P12 --> P13[Phase 13: Save Day as Template & Habit Presets]
-    P13 --> P14[Phase 14: Markdown Notes Scratchpad]
-    P14 --> P15[Phase 15: Data Export/Import, 12h/24h & Final Parity]
-```
-
-### Phase 10: Task Copy & Paste Parity (In Progress / Complete)
-- **10.1** Slot clipboard in `ScheduleViewModel`: single copy, paste, bulk paste, clear.
-- **10.2** Golden Time-Lock adaptation on paste (past retains actual task/status/duration; future resets to planned baseline, pending status, 0 duration).
-- **10.3** "Duplicate Next Slot" action (`Ctrl+D` equivalent) for 1-tap cloning.
-- **10.4** UI buttons: In `TaskEditorBottomSheet`, floating bulk action bar, and 1-tap `📥 Paste` on empty slot rows.
-- **10.5** Verification: Unit tests pass (`CopyPasteSlotActionsTest`) and emulator verified.
-
-### Phase 11: Enhanced Weekly Todos & 1-Click Timeblocking
-- **11.1** Schema & Entity Update: Add `priority` (`HIGH`, `MEDIUM`, `LOW`) and `category` to `TodoEntity` / `Todo`.
-- **11.2** Filter Bar: Horizontal filter pills (`All`, `High`, `Med`, `Low`, `Pending`, `Done`).
-- **11.3** 1-Click "Schedule to Grid": Dialog to pick target day and 30-min slot.
-- **11.4** Conflict Detection: Warning modal if slot is occupied, with "Auto-Find Next Free Slot" helper.
-- **11.5** Deletion Cascade: Option to clear or keep scheduled slots when todo is deleted.
-
-### Phase 12: Productivity Analytics & Visual Trends
-- **12.1** Category Distribution: Card displaying percentage and hours breakdown per category with color bars.
-- **12.2** 7-Day Consistency Trend: Bar chart visualizer showing daily productivity across the week.
-- **12.3** Day vs. Week KPI aggregation toggle.
-
-### Phase 13: "Save Day as Template" & Habit Presets Manager
-- **13.1** "Save Current Day as Template" bottom sheet: capture current planned slots, name template, and store in Room.
-- **13.2** Habit Presets Manager: Add, edit, archive habits, customize target points, and emoji picker.
-- **13.3** 7-Day Habit Consistency Matrix: Mon–Sun visual completion dots per habit.
-
-### Phase 14: Daily Notes & Markdown Scratchpad
-- **14.1** Room entity `NoteEntity` with weekKey and dateKey.
-- **14.2** Markdown scratchpad sheet with live rendered preview.
-- **14.3** Tabbed notes (Daily Notes vs Weekly Retrospective).
-
-### Phase 15: Settings, Data Backup & Account Security
-- **15.1** 12-Hour vs 24-Hour military time format toggle.
-- **15.2** JSON Data Export & Import via Android Storage Access Framework.
-- **15.3** Change Password dialog in Settings.
-- **15.4** Timeline windowing (custom start/end hour).
-- **15.5** Dynamic "NOW" pulsing indicator on current 30-minute slot.
+- **Phase 10 (Task Copy & Paste):** ✅ **Completed & Committed** (`3872d69`)
+- **Phase 11 (Enhanced Todos & 1-Click Timeblocking):** ✅ **Completed & Live Verified** (Unit tests passing, live tested on Pixel 6)
+- **Phase 12 (Productivity Analytics & Category Distribution):** ⏳ *Next in queue*
+- **Phase 13 (Save Day as Template & Habit Presets):** ⏳
+- **Phase 14 (Daily Notes & Markdown Scratchpad):** ⏳
+- **Phase 15 (Data Export/Import, 12h/24h & Final Parity):** ⏳
 
 ---
 
 ## 4. Parity Status Dashboard
 
-| Functional Area | Total Web Features | Completed Mobile | In Progress | Missing | Parity % |
-|---|:---:|:---:|:---:|:---:|:---:|
-| **1. Schedule Timeline & Slot Actions** | 11 | 7 | 2 | 2 | **73%** |
-| **2. Todos & Timeblocking** | 8 | 1 | 0 | 7 | **12.5%** |
-| **3. Notes & Markdown** | 4 | 0 | 0 | 4 | **0%** |
-| **4. Habits Ledger & Gamification** | 6 | 1 | 0 | 5 | **17%** |
-| **5. Productivity Analytics** | 4 | 1 | 0 | 3 | **25%** |
-| **6. Day Templates** | 3 | 1 | 0 | 2 | **33%** |
-| **7. Settings, Backup & Security** | 6 | 2 | 0 | 4 | **33%** |
-| **TOTAL** | **42** | **12** | **2** | **28** | **33%** |
+| Functional Area | Total Web Features | Completed Mobile | Parity % |
+|---|:---:|:---:|:---:|
+| **1. Schedule Timeline & Slot Actions** | 11 | 7 | **64%** |
+| **2. Todos & Timeblocking** | 8 | 8 | **100%** 🎉 |
+| **3. Notes & Markdown** | 4 | 0 | **0%** |
+| **4. Habits Ledger & Gamification** | 6 | 1 | **17%** |
+| **5. Productivity Analytics** | 4 | 1 | **25%** |
+| **6. Day Templates** | 3 | 1 | **33%** |
+| **7. Settings, Backup & Security** | 6 | 2 | **33%** |
+| **TOTAL** | **42** | **20** | **48%** |

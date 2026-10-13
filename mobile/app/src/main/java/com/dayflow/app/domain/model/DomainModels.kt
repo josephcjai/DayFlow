@@ -101,11 +101,38 @@ data class Habit(
     val isSyncPending: Boolean = false
 )
 
+enum class TodoPriority(val displayName: String, val badgeLabel: String, val hexColor: String) {
+    HIGH("High", "High", "#EF4444"),
+    MEDIUM("Medium", "Med", "#F59E0B"),
+    LOW("Low", "Low", "#10B981");
+
+    companion object {
+        fun fromString(value: String): TodoPriority {
+            return entries.find {
+                it.name.equals(value, ignoreCase = true) ||
+                it.displayName.equals(value, ignoreCase = true)
+            } ?: MEDIUM
+        }
+    }
+}
+
+enum class TodoFilter(val label: String) {
+    ALL("All"),
+    HIGH("High"),
+    MEDIUM("Med"),
+    LOW("Low"),
+    PENDING("Pending"),
+    DONE("Done")
+}
+
 data class Todo(
     val id: String,
     val weekStart: String,
     val title: String,
     val isCompleted: Boolean = false,
+    val priority: String = "Medium",
+    val category: String = "General",
+    val scheduledSlotKey: String? = null,
     val isSyncPending: Boolean = false
 )
 

@@ -25,7 +25,8 @@ interface TodoRepository {
     fun getTodos(weekStart: String): Flow<List<TodoEntity>>
     fun getNotes(weekStart: String): Flow<String?>
     suspend fun refreshTodos(weekStart: String): Result<Unit>
-    suspend fun createTodo(weekStart: String, title: String): Result<TodoEntity>
+    suspend fun createTodo(weekStart: String, title: String, priority: String = "Medium", category: String = "General"): Result<TodoEntity>
+    suspend fun updateScheduledSlot(id: String, slotKey: String?): Result<Unit>
     suspend fun toggleTodo(id: String, isCompleted: Boolean): Result<Unit>
     suspend fun deleteTodo(id: String): Result<Unit>
     suspend fun saveNotes(weekStart: String, notes: String): Result<Unit>
@@ -63,6 +64,9 @@ class TodoRepositoryImpl @Inject constructor(
                         weekStart = weekStart,
                         title = it.title,
                         isCompleted = it.isCompleted,
+                        priority = it.priority.ifBlank { "Medium" },
+                        category = it.category.ifBlank { "General" },
+                        scheduledSlotKey = null,
                         isSyncPending = false
                     )
                 }
@@ -85,13 +89,21 @@ class TodoRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createTodo(weekStart: String, title: String): Result<TodoEntity> = withContext(Dispatchers.IO) {
+    override suspend fun createTodo(
+        weekStart: String,
+        title: String,
+        priority: String,
+        category: String
+    ): Result<TodoEntity> = withContext(Dispatchers.IO) {
         val tempId = UUID.randomUUID().toString()
         val todo = TodoEntity(
             id = tempId,
             weekStart = weekStart,
             title = title.trim(),
             isCompleted = false,
+            priority = priority,
+            category = category,
+            scheduledSlotKey = null,
             isSyncPending = true
         )
         todoDao.upsertTodo(todo)
@@ -119,6 +131,11 @@ class TodoRepositoryImpl @Inject constructor(
             enqueueMutation("todos/todo", "POST", json.encodeToString(request))
             Result.success(todo)
         }
+    }
+
+    override suspend fun updateScheduledSlot(id: String, slotKey: String?): Result<Unit> = withContext(Dispatchers.IO) {
+        todoDao.updateScheduledSlot(id, slotKey, isSyncPending = false)
+        Result.success(Unit)
     }
 
     override suspend fun toggleTodo(id: String, isCompleted: Boolean): Result<Unit> = withContext(Dispatchers.IO) {

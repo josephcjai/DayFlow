@@ -40,6 +40,9 @@ data class TodoEntity(
     val weekStart: String,
     val title: String,
     val isCompleted: Boolean = false,
+    val priority: String = "Medium",
+    val category: String = "General",
+    val scheduledSlotKey: String? = null,
     val isSyncPending: Boolean = false
 )
 
