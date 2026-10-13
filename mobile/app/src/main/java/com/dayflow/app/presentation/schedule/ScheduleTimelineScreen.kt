@@ -210,6 +210,30 @@ fun ScheduleTimelineScreen(
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                     )
                 }
+
+                if (uiState.clipboardSlot != null && !uiState.isSelectionMode) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        color = DayFlowPrimary.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(6.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.5f)),
+                        modifier = Modifier.clickable { viewModel.clearClipboard() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "📋 ${uiState.clipboardSlot?.plannedTask?.ifBlank { uiState.clipboardSlot?.actualTask }?.take(8) ?: "Task"}",
+                                color = DayFlowPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("✕", color = DayFlowPrimary, fontSize = 10.sp)
+                        }
+                    }
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -430,6 +454,9 @@ fun ScheduleTimelineScreen(
                             onSlotLongClick = {
                                 viewModel.enterSelectionMode(row.slotKey)
                             },
+                            onPasteDirect = if (uiState.clipboardSlot != null && !uiState.isSelectionMode && row.slot == null) {
+                                { viewModel.pasteToSlot(row.slotKey) }
+                            } else null,
                             onStatusClick = { slot -> viewModel.quickToggleStatus(slot) }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -464,6 +491,36 @@ fun ScheduleTimelineScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (uiState.selectedSlotKeys.size == 1) {
+                            val singleKey = uiState.selectedSlotKeys.first()
+                            val selectedSlot = daySlots.firstOrNull { it.slotKey == singleKey }?.slot
+                            if (selectedSlot != null && (selectedSlot.plannedTask.isNotBlank() || selectedSlot.actualTask.isNotBlank())) {
+                                Button(
+                                    onClick = { viewModel.copySlot(selectedSlot) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary.copy(alpha = 0.15f)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                                ) {
+                                    Text("📋", fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Copy", color = DayFlowPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        if (uiState.clipboardSlot != null) {
+                            Button(
+                                onClick = { viewModel.bulkPasteToSelectedSlots() },
+                                colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                            ) {
+                                Text("📥", fontSize = 12.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Paste", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
                         Button(
                             onClick = { viewModel.bulkMarkAsDone() },
                             colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary.copy(alpha = 0.15f)),
@@ -543,7 +600,14 @@ fun ScheduleTimelineScreen(
             slot = slot,
             isNewSlot = uiState.isEditingNewSlot,
             categories = categories,
+            clipboardSlot = uiState.clipboardSlot,
             errorMessage = uiState.errorMessage,
+            onCopy = { copied -> viewModel.copySlot(copied) },
+            onDuplicateToNext = { slotToDup ->
+                viewModel.saveSlot(slotToDup)
+                viewModel.duplicateToNextSlot(slotToDup)
+                viewModel.closeSlotEditor()
+            },
             onSave = { updatedSlot -> viewModel.saveSlot(updatedSlot) },
             onDelete = { key -> viewModel.deleteSlot(key) },
             onDismiss = { viewModel.closeSlotEditor() }
@@ -560,6 +624,7 @@ fun TimelineSlotItem(
     isSelected: Boolean = false,
     onSlotClick: () -> Unit,
     onSlotLongClick: () -> Unit = {},
+    onPasteDirect: (() -> Unit)? = null,
     onStatusClick: (Slot) -> Unit
 ) {
     val hasTask = row.slot != null && (row.slot.plannedTask.isNotBlank() || row.slot.actualTask.isNotBlank())
@@ -740,6 +805,27 @@ fun TimelineSlotItem(
                         status = row.slot.status,
                         onClick = { onStatusClick(row.slot) }
                     )
+                } else if (onPasteDirect != null) {
+                    Surface(
+                        color = DayFlowPrimary.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.4f)),
+                        modifier = Modifier.clickable { onPasteDirect() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("📥", fontSize = 11.sp)
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "Paste",
+                                color = DayFlowPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }

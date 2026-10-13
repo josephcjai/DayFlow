@@ -74,7 +74,10 @@ fun TaskEditorBottomSheet(
     slot: Slot,
     isNewSlot: Boolean,
     categories: List<CategoryItem> = emptyList(),
+    clipboardSlot: Slot? = null,
     errorMessage: String? = null,
+    onCopy: (Slot) -> Unit = {},
+    onDuplicateToNext: (Slot) -> Unit = {},
     onSave: (Slot) -> Unit,
     onDelete: (String) -> Unit,
     onDismiss: () -> Unit
@@ -166,7 +169,119 @@ fun TaskEditorBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Quick Utility Bar: Copy, Paste, Duplicate
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val hasTask = plannedTask.isNotBlank() || actualTask.isNotBlank()
+                Surface(
+                    color = if (hasTask) SurfaceElevated else SurfaceDark,
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (hasTask) DayFlowPrimary.copy(alpha = 0.4f) else TextMuted.copy(alpha = 0.2f)),
+                    modifier = Modifier.clickable(enabled = hasTask) {
+                        val currentSlotData = slot.copy(
+                            plannedTask = plannedTask,
+                            actualTask = actualTask,
+                            categoryName = selectedCategoryName,
+                            status = selectedStatus,
+                            actualDuration = actualDuration,
+                            notes = notes,
+                            isProductive = isProductive
+                        )
+                        onCopy(currentSlotData)
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("📋", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Copy",
+                            color = if (hasTask) TextPrimary else TextMuted,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                val canPaste = clipboardSlot != null
+                Surface(
+                    color = if (canPaste) DayFlowPrimary.copy(alpha = 0.15f) else SurfaceDark,
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (canPaste) DayFlowPrimary else TextMuted.copy(alpha = 0.2f)),
+                    modifier = Modifier.clickable(enabled = canPaste) {
+                        clipboardSlot?.let { clip ->
+                            val taskText = clip.plannedTask.ifBlank { clip.actualTask }
+                            plannedTask = taskText
+                            if (!isTimePassed) {
+                                actualTask = taskText
+                                selectedStatus = SlotStatus.PENDING
+                                actualDuration = 0
+                            } else {
+                                actualTask = clip.actualTask.ifBlank { clip.plannedTask }
+                                selectedStatus = clip.status
+                                actualDuration = if (clip.actualDuration > 0) clip.actualDuration else clip.plannedDuration
+                            }
+                            selectedCategoryName = clip.categoryName.ifBlank { clip.category.displayName }
+                            isProductive = clip.isProductive ?: currentCategoryItem?.isProductive ?: true
+                            notes = clip.notes ?: ""
+                        }
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("📥", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (clipboardSlot != null) "Paste (${clipboardSlot.plannedTask.ifBlank { clipboardSlot.actualTask }.take(8)})" else "Paste",
+                            color = if (canPaste) DayFlowPrimary else TextMuted,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Surface(
+                    color = if (hasTask) SurfaceElevated else SurfaceDark,
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (hasTask) Color(0xFFF59E0B).copy(alpha = 0.4f) else TextMuted.copy(alpha = 0.2f)),
+                    modifier = Modifier.clickable(enabled = hasTask) {
+                        val currentSlotData = slot.copy(
+                            plannedTask = plannedTask,
+                            actualTask = actualTask,
+                            categoryName = selectedCategoryName,
+                            status = selectedStatus,
+                            actualDuration = actualDuration,
+                            notes = notes,
+                            isProductive = isProductive
+                        )
+                        onDuplicateToNext(currentSlotData)
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("⏩", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Duplicate Next",
+                            color = if (hasTask) Color(0xFFF59E0B) else TextMuted,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Error Message (if any)
             AnimatedVisibility(visible = errorMessage != null) {

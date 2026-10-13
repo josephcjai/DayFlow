@@ -59,7 +59,8 @@ data class ScheduleUiState(
     val templateFeedbackMessage: String? = null,
     val isSelectionMode: Boolean = false,
     val selectedSlotKeys: Set<String> = emptySet(),
-    val isCategoryPickerOpen: Boolean = false
+    val isCategoryPickerOpen: Boolean = false,
+    val clipboardSlot: Slot? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -415,6 +416,109 @@ class ScheduleViewModel @Inject constructor(
             clearSelection()
             _uiState.update {
                 it.copy(templateFeedbackMessage = "Cleared $clearedCount slots")
+            }
+        }
+    }
+
+    fun copySlot(slot: Slot) {
+        val taskName = slot.plannedTask.ifBlank { slot.actualTask }.ifBlank { "Task" }
+        _uiState.update {
+            it.copy(
+                clipboardSlot = slot,
+                templateFeedbackMessage = "📋 Copied '$taskName'"
+            )
+        }
+    }
+
+    fun clearClipboard() {
+        _uiState.update { it.copy(clipboardSlot = null) }
+    }
+
+    fun pasteToSlot(targetSlotKey: String) {
+        val clipboard = _uiState.value.clipboardSlot ?: return
+        viewModelScope.launch {
+            val now = LocalDateTime.now()
+            val isPassed = DateTimeUtils.isSlotTimePassed(targetSlotKey, now)
+            val (date, time) = DateTimeUtils.parseSlotKey(targetSlotKey)
+            val weekStart = DateTimeUtils.getWeekKey(date)
+
+            val taskName = clipboard.plannedTask.ifBlank { clipboard.actualTask }
+            val newStatus = if (!isPassed) SlotStatus.PENDING else clipboard.status
+            val newActualDuration = if (!isPassed) 0 else if (clipboard.actualDuration > 0) clipboard.actualDuration else clipboard.plannedDuration
+            val newActualTask = if (!isPassed) "" else clipboard.actualTask.ifBlank { clipboard.plannedTask }
+
+            val updatedSlot = Slot(
+                slotKey = targetSlotKey,
+                weekStart = weekStart,
+                plannedTask = taskName,
+                actualTask = newActualTask,
+                category = clipboard.category,
+                categoryName = clipboard.categoryName,
+                isProductive = clipboard.isProductive,
+                status = newStatus,
+                plannedDuration = clipboard.plannedDuration,
+                actualDuration = newActualDuration,
+                notes = clipboard.notes
+            )
+
+            saveSlotUseCase(updatedSlot)
+            val timeLabel = String.format("%02d:%02d", time.hour, time.minute)
+            _uiState.update {
+                it.copy(templateFeedbackMessage = "📥 Pasted task into $timeLabel")
+            }
+        }
+    }
+
+    fun bulkPasteToSelectedSlots() {
+        val clipboard = _uiState.value.clipboardSlot ?: return
+        viewModelScope.launch {
+            val keys = _uiState.value.selectedSlotKeys.toList()
+            val now = LocalDateTime.now()
+            val taskName = clipboard.plannedTask.ifBlank { clipboard.actualTask }
+
+            for (targetSlotKey in keys) {
+                val (date, _) = DateTimeUtils.parseSlotKey(targetSlotKey)
+                val weekStart = DateTimeUtils.getWeekKey(date)
+                val isPassed = DateTimeUtils.isSlotTimePassed(targetSlotKey, now)
+                val newStatus = if (!isPassed) SlotStatus.PENDING else clipboard.status
+                val newActualDuration = if (!isPassed) 0 else if (clipboard.actualDuration > 0) clipboard.actualDuration else clipboard.plannedDuration
+                val newActualTask = if (!isPassed) "" else clipboard.actualTask.ifBlank { clipboard.plannedTask }
+
+                val updatedSlot = Slot(
+                    slotKey = targetSlotKey,
+                    weekStart = weekStart,
+                    plannedTask = taskName,
+                    actualTask = newActualTask,
+                    category = clipboard.category,
+                    categoryName = clipboard.categoryName,
+                    isProductive = clipboard.isProductive,
+                    status = newStatus,
+                    plannedDuration = clipboard.plannedDuration,
+                    actualDuration = newActualDuration,
+                    notes = clipboard.notes
+                )
+                saveSlotUseCase(updatedSlot)
+            }
+
+            val pastedCount = keys.size
+            clearSelection()
+            _uiState.update {
+                it.copy(templateFeedbackMessage = "📥 Pasted task into $pastedCount slots")
+            }
+        }
+    }
+
+    fun duplicateToNextSlot(slot: Slot) {
+        viewModelScope.launch {
+            val (date, time) = DateTimeUtils.parseSlotKey(slot.slotKey)
+            val nextTime = time.plusMinutes(30)
+            if (nextTime.isAfter(time)) {
+                val nextKey = DateTimeUtils.formatSlotKey(date, nextTime)
+                copySlot(slot)
+                pasteToSlot(nextKey)
+                _uiState.update {
+                    it.copy(templateFeedbackMessage = "📋 Duplicated to ${String.format("%02d:%02d", nextTime.hour, nextTime.minute)}")
+                }
             }
         }
     }
