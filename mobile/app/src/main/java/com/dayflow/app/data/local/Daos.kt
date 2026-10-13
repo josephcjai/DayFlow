@@ -12,6 +12,9 @@ interface ScheduleSlotDao {
     @Query("SELECT * FROM schedule_slots WHERE weekStart = :weekStart ORDER BY slotKey ASC")
     fun getSlotsForWeek(weekStart: String): Flow<List<ScheduleSlotEntity>>
 
+    @Query("SELECT * FROM schedule_slots ORDER BY slotKey ASC")
+    suspend fun getAllSlots(): List<ScheduleSlotEntity>
+
     @Query("SELECT * FROM schedule_slots WHERE slotKey = :slotKey LIMIT 1")
     suspend fun getSlotByKey(slotKey: String): ScheduleSlotEntity?
 
@@ -26,12 +29,18 @@ interface ScheduleSlotDao {
 
     @Query("DELETE FROM schedule_slots WHERE weekStart = :weekStart")
     suspend fun clearWeek(weekStart: String)
+
+    @Query("DELETE FROM schedule_slots")
+    suspend fun clearAllSlots()
 }
 
 @Dao
 interface HabitLogDao {
     @Query("SELECT * FROM habit_logs WHERE weekStart = :weekStart ORDER BY loggedAt DESC")
     fun getHabitsForWeek(weekStart: String): Flow<List<HabitLogEntity>>
+
+    @Query("SELECT * FROM habit_logs ORDER BY loggedAt DESC")
+    suspend fun getAllHabits(): List<HabitLogEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertHabit(habit: HabitLogEntity)
@@ -44,12 +53,18 @@ interface HabitLogDao {
 
     @Query("DELETE FROM habit_logs WHERE weekStart = :weekStart")
     suspend fun clearHabitsForWeek(weekStart: String)
+
+    @Query("DELETE FROM habit_logs")
+    suspend fun clearAllHabits()
 }
 
 @Dao
 interface TodoDao {
     @Query("SELECT * FROM todo_items WHERE weekStart = :weekStart ORDER BY isCompleted ASC")
     fun getTodosForWeek(weekStart: String): Flow<List<TodoEntity>>
+
+    @Query("SELECT * FROM todo_items")
+    suspend fun getAllTodos(): List<TodoEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertTodo(todo: TodoEntity)
@@ -71,6 +86,9 @@ interface TodoDao {
 
     @Query("DELETE FROM todo_items WHERE weekStart = :weekStart")
     suspend fun clearTodosForWeek(weekStart: String)
+
+    @Query("DELETE FROM todo_items")
+    suspend fun clearAllTodos()
 }
 
 @Dao
@@ -78,8 +96,17 @@ interface WeeklyNotesDao {
     @Query("SELECT * FROM weekly_notes WHERE weekStart = :weekStart LIMIT 1")
     fun getNotesForWeek(weekStart: String): Flow<WeeklyNotesEntity?>
 
+    @Query("SELECT * FROM weekly_notes")
+    suspend fun getAllNotes(): List<WeeklyNotesEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertNotes(notes: WeeklyNotesEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertNotesList(notes: List<WeeklyNotesEntity>)
+
+    @Query("DELETE FROM weekly_notes")
+    suspend fun clearAllNotes()
 }
 
 @Dao
@@ -104,6 +131,9 @@ interface CategoryDao {
 
     @Query("SELECT * FROM user_categories WHERE isArchived = 0 ORDER BY sortOrder ASC")
     suspend fun getActiveCategoriesSync(): List<CategoryEntity>
+
+    @Query("SELECT * FROM user_categories")
+    suspend fun getAllCategories(): List<CategoryEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCategories(categories: List<CategoryEntity>)

@@ -17,6 +17,7 @@ interface AuthRepository {
     suspend fun register(email: String, password: String, displayName: String): Result<UserDto>
     suspend fun getCurrentUser(): Result<UserDto>
     suspend fun forgotPassword(email: String): Result<String>
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<String>
     fun isLoggedIn(): Boolean
     fun isDemoMode(): Boolean
     fun enableDemoMode()
@@ -95,6 +96,31 @@ class AuthRepositoryImpl @Inject constructor(
                 Result.success(response.body()!!.user)
             } else {
                 Result.failure(Exception("Failed to fetch user profile"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun changePassword(
+        currentPassword: String,
+        newPassword: String
+    ): Result<String> = withContext(Dispatchers.IO) {
+        if (tokenManager.isDemoMode()) {
+            return@withContext Result.success("Password updated successfully (Demo Mode)")
+        }
+        try {
+            val response = apiService.changePassword(
+                com.dayflow.app.data.model.ChangePasswordRequest(
+                    currentPassword = currentPassword,
+                    newPassword = newPassword
+                )
+            )
+            if (response.isSuccessful) {
+                Result.success(response.body()?.message ?: "Password updated successfully!")
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to change password (${response.code()})"
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)

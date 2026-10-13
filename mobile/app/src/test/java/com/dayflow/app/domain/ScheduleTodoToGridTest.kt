@@ -260,6 +260,12 @@ class FakeScheduleSlotDao : ScheduleSlotDao {
     override suspend fun clearWeek(weekStart: String) {
         slots.entries.removeIf { it.value.weekStart == weekStart }
     }
+
+    override suspend fun getAllSlots(): List<ScheduleSlotEntity> = slots.values.toList()
+
+    override suspend fun clearAllSlots() {
+        slots.clear()
+    }
 }
 
 class FakeTodoDao : TodoDao {
@@ -293,6 +299,12 @@ class FakeTodoDao : TodoDao {
     override suspend fun clearTodosForWeek(weekStart: String) {
         todos.entries.removeIf { it.value.weekStart == weekStart }
     }
+
+    override suspend fun getAllTodos(): List<TodoEntity> = todos.values.toList()
+
+    override suspend fun clearAllTodos() {
+        todos.clear()
+    }
 }
 
 class FakeCategoryDao : CategoryDao {
@@ -313,6 +325,8 @@ class FakeCategoryDao : CategoryDao {
     override suspend fun archiveCategory(id: String, isSyncPending: Boolean) {
         categories.removeIf { it.id == id }
     }
+
+    override suspend fun getAllCategories(): List<CategoryEntity> = categories
 
     override suspend fun deleteCategory(id: String) {
         categories.removeIf { it.id == id }

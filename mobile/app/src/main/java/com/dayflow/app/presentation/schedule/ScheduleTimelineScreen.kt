@@ -738,7 +738,7 @@ fun TimelineSlotItem(
     ) {
         // Left Column: Time label
         Column(
-            modifier = Modifier.width(46.dp),
+            modifier = Modifier.width(62.dp),
             horizontalAlignment = Alignment.Start
         ) {
             Text(

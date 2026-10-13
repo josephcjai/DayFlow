@@ -180,7 +180,9 @@ private class CopyPasteFakeSlotDao : ScheduleSlotDao {
         slots.remove(slotKey)
     }
 
-    override suspend fun clearWeek(weekStart: String) {
+    override suspend fun getAllSlots(): List<ScheduleSlotEntity> = slots.values.toList()
+        override suspend fun clearAllSlots() { slots.clear() }
+        override suspend fun clearWeek(weekStart: String) {
         slots.values.removeIf { it.weekStart == weekStart }
     }
 }

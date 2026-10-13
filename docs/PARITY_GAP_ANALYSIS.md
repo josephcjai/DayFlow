@@ -27,7 +27,7 @@ Mobile development has already established a production-grade foundation (Room v
 | 1.5 | **Multi-Slot Selection** | Checkbox selection mode, floating bulk bar | ✅ Implemented | Complete. |
 | 1.6 | **Task Copy & Paste** | Single & bulk paste, Golden Time-Lock adaptation | ✅ Implemented | Complete in ViewModel, UI bottomsheet & bulk bar. |
 | 1.7 | **Duplicate Next Slot** | `Ctrl+D` instant clone to next 30-min block | ✅ Implemented | Complete in `TaskEditorBottomSheet`. |
-| 1.8 | **Timeline Category Filter** | Dropdown/pill filter to view slots for specific category | ❌ Missing | Add horizontal category chip filter bar above timeline. |
+| 1.8 | **Timeline Category Filter** | Dropdown/pill filter to view slots for specific category | ✅ Implemented | Complete in TimelineCategoryFilterBar and ScheduleViewModel. |
 | 1.9 | **Dynamic "NOW" Indicator** | 10-sec ticker highlighting current active slot with "+ Log current task" prompt | ❌ Missing | Add live "📍 NOW" pulsing badge on current slot with quick-log prompt. |
 | 1.10 | **Configurable Timeline Window** | Start hour & End hour windowing (e.g. 06:00 to 22:00 vs 24h) | ❌ Missing | Settings option to filter displayed timeline hours. |
 | 1.11 | **Undo Action Buffer** | Floating toast with 5-sec Undo after slot delete/bulk clear | ❌ Missing | In-memory undo stack for slot deletions. |
@@ -100,10 +100,10 @@ Mobile development has already established a production-grade foundation (Room v
 |---|---|---|---|---|
 | 7.1 | **Category Customization** | Create, edit color/emoji, productive toggle | ✅ Implemented | SettingsBottomSheet. |
 | 7.2 | **Notification Controls** | Quiet hours, active window, weekend mute | ✅ Implemented | SettingsBottomSheet. |
-| 7.3 | **12h vs 24h Time Format** | Toggle between 12-hour AM/PM and 24-hour military time | ❌ Missing | Setting in SettingsBottomSheet + dynamic slot labels. |
-| 7.4 | **1-Click JSON Data Export** | Export full schedule, habits, todos, and settings as JSON | ❌ Missing | "Export All Data (JSON)" using Android Storage Access Framework. |
-| 7.5 | **JSON Data Import / Restore** | Import previously exported JSON backup | ❌ Missing | JSON file picker & parser with validation. |
-| 7.6 | **Account Password Change** | Change password dialog communicating with auth endpoint | ❌ Missing | "Change Password" section in Settings. |
+| 7.3 | **12h vs 24h Time Format** | Toggle between 12-hour AM/PM and 24-hour military time | ✅ Implemented | SettingsBottomSheet toggle pills + reactive timeline formatting. |
+| 7.4 | **1-Click JSON Data Export** | Export full schedule, habits, todos, and settings as JSON | ✅ Implemented | BackupRepository JSON generator compatible with Web export schema + share sheet / clipboard. |
+| 7.5 | **JSON Data Import / Restore** | Import previously exported JSON backup | ✅ Implemented | RestoreBackupDialog with schema inspection, preview counts, wipe/merge toggle & Room transaction. |
+| 7.6 | **Account Password Change** | Change password dialog communicating with auth endpoint | ✅ Implemented | ChangePasswordDialog in Settings with API endpoint & demo fallback. |
 
 ---
 
@@ -113,8 +113,9 @@ Mobile development has already established a production-grade foundation (Room v
 - **Phase 11 (Enhanced Todos & 1-Click Timeblocking):** ✅ **Completed & Live Verified** (Unit tests passing, live tested on Pixel 6)
 - **Phase 12 (Productivity Analytics & Category Distribution):** ✅ **Completed & Committed** (`c626c7c`)
 - **Phase 13 (Save Day as Template & Habit Presets):** ✅ **Completed & Live Verified** (Templates Blueprint capture + Custom Habit Routines)
-- **Phase 14 (Daily Notes & Markdown Scratchpad):** ✅ **Completed & Live Verified** (Multi-sheet markdown notes, Compose renderer, live metrics & debounce persistence)
-- **Phase 15 (Data Export/Import, 12h/24h & Final Parity):** ⏳ *Next in queue*
+- **Phase 14 (Daily Notes & Markdown Scratchpad):** ✅ **Completed & Committed** (`1ffcc75`)
+- **Phase 15 (Data Export/Import, 12h/24h & Account Security):** ✅ **Completed & Live Verified** (Full JSON export/restore, 12h/24h reactive toggle, biometric lock & password update)
+- **Phase 16 (Habits Matrix, Gamification Targets & Points Breakdown):** ⏳ *In Progress*
 
 ---
 
@@ -122,11 +123,11 @@ Mobile development has already established a production-grade foundation (Room v
 
 | Functional Area | Total Web Features | Completed Mobile | Parity % |
 |---|:---:|:---:|:---:|
-| **1. Schedule Timeline & Slot Actions** | 11 | 7 | **64%** |
+| **1. Schedule Timeline & Slot Actions** | 11 | 8 | **73%** |
 | **2. Todos & Timeblocking** | 8 | 8 | **100%** 🎉 |
-| **3. Notes & Markdown** | 4 | 0 | **0%** |
-| **4. Habits Ledger & Gamification** | 6 | 1 | **17%** |
-| **5. Productivity Analytics** | 4 | 4 | **100%** |
-| **6. Day Templates** | 3 | 1 | **33%** |
-| **7. Settings, Backup & Security** | 6 | 2 | **33%** |
-| **TOTAL** | **42** | **24** | **57%** |
+| **3. Notes & Markdown** | 4 | 4 | **100%** 🎉 |
+| **4. Habits Ledger & Gamification** | 6 | 3 | **50%** |
+| **5. Productivity Analytics** | 4 | 4 | **100%** 🎉 |
+| **6. Day Templates** | 3 | 3 | **100%** 🎉 |
+| **7. Settings, Backup & Security** | 6 | 6 | **100%** 🎉 |
+| **TOTAL** | **42** | **36** | **86%** |

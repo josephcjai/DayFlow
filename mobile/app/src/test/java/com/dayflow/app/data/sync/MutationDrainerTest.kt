@@ -203,6 +203,7 @@ class FakeDayFlowApiService : DayFlowApiService {
     override suspend fun login(request: LoginRequest): Response<AuthResponse> = TODO()
     override suspend fun getCurrentUser(): Response<UserProfileResponse> = TODO()
     override suspend fun forgotPassword(request: ForgotPasswordRequest): Response<MessageResponse> = TODO()
+    override suspend fun changePassword(request: com.dayflow.app.data.model.ChangePasswordRequest): Response<MessageResponse> = TODO()
     override suspend fun getWeekSchedule(weekStart: String): Response<WeekScheduleResponse> = TODO()
 
     override suspend fun saveSlot(request: SaveSlotRequest): Response<SaveSlotResponse> {

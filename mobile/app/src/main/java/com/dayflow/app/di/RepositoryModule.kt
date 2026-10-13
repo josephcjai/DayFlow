@@ -12,6 +12,8 @@ import com.dayflow.app.data.repository.CategoryRepository
 import com.dayflow.app.data.repository.CategoryRepositoryImpl
 import com.dayflow.app.data.repository.TemplateRepository
 import com.dayflow.app.data.repository.TemplateRepositoryImpl
+import com.dayflow.app.data.repository.BackupRepository
+import com.dayflow.app.data.repository.BackupRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -45,4 +47,9 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTemplateRepository(impl: TemplateRepositoryImpl): TemplateRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBackupRepository(impl: BackupRepositoryImpl): BackupRepository
+
 }

@@ -19,6 +19,7 @@ import com.dayflow.app.domain.model.SlotStatus
 import com.dayflow.app.domain.usecase.DeleteSlotUseCase
 import com.dayflow.app.domain.usecase.GetWeekScheduleUseCase
 import com.dayflow.app.domain.usecase.SaveSlotUseCase
+import com.dayflow.app.data.remote.TokenManager
 import com.dayflow.app.domain.util.DateTimeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -81,6 +82,7 @@ class ScheduleViewModel @Inject constructor(
     private val templateRepository: TemplateRepository,
     private val applyTemplateUseCase: ApplyTemplateUseCase,
     private val calculateFocusAnalyticsUseCase: CalculateFocusAnalyticsUseCase,
+    private val tokenManager: TokenManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -140,15 +142,17 @@ class ScheduleViewModel @Inject constructor(
         initialValue = emptyMap()
     )
 
-    // 48-slot timeline for the currently selected date (with category filtering)
+    // 48-slot timeline for the currently selected date (with category filtering and 12h/24h time formatting)
     val daySlots: StateFlow<List<SlotRowUiModel>> = combine(
         _uiState,
-        weekSlotsFlow
-    ) { state, weekSlots ->
+        weekSlotsFlow,
+        tokenManager.timeFormatFlow
+    ) { state, weekSlots, timeFormat ->
         val slotsMap = weekSlots.associateBy { it.slotKey }
         val allDayKeys = DateTimeUtils.generateDaySlotKeys(state.selectedDate)
         val now = LocalDateTime.now()
         val isToday = state.selectedDate == LocalDate.now()
+        val is24h = timeFormat == "24h"
 
         val allRows = allDayKeys.map { key ->
             val (_, time) = DateTimeUtils.parseSlotKey(key)
@@ -158,8 +162,8 @@ class ScheduleViewModel @Inject constructor(
 
             SlotRowUiModel(
                 slotKey = key,
-                timeLabel = String.format("%02d:%02d", time.hour, time.minute),
-                endTimeLabel = String.format("%02d:%02d", endTime.hour, endTime.minute),
+                timeLabel = DateTimeUtils.formatTimeLabel(time, is24h),
+                endTimeLabel = DateTimeUtils.formatTimeLabel(endTime, is24h),
                 slot = slotsMap[key],
                 isTimePassed = isPassed,
                 isCurrentSlot = isCurrent
@@ -646,6 +650,15 @@ class ScheduleViewModel @Inject constructor(
             }
         }
     }
+
+    fun setTimeFormat(format: String) {
+        tokenManager.setTimeFormat(format)
+    }
+
+    fun getTimeFormat(): String {
+        return tokenManager.getTimeFormat()
+    }
+
     fun setCategoryFilter(category: String) {
         _uiState.update {
             it.copy(selectedCategoryFilter = if (it.selectedCategoryFilter.equals(category, ignoreCase = true) && category != "ALL") "ALL" else category)

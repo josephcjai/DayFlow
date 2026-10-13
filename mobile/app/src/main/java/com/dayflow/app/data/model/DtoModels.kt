@@ -43,6 +43,12 @@ data class UserProfileResponse(
 )
 
 @Serializable
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
+)
+
+@Serializable
 data class ForgotPasswordRequest(
     val email: String
 )

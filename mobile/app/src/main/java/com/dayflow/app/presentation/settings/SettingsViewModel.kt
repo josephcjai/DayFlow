@@ -3,6 +3,10 @@ package com.dayflow.app.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dayflow.app.data.remote.TokenManager
+import com.dayflow.app.data.repository.AuthRepository
+import com.dayflow.app.data.repository.BackupInspectionResult
+import com.dayflow.app.data.repository.BackupRepository
+import com.dayflow.app.data.repository.BackupRestoreResult
 import com.dayflow.app.data.repository.CategoryRepository
 import com.dayflow.app.domain.model.CategoryItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,15 +25,21 @@ data class SettingsUiState(
     val endHour: Int = 22,
     val muteWeekends: Boolean = false,
     val onlyProductive: Boolean = false,
+    val timeFormat: String = "12h",
+    val biometricsEnabled: Boolean = false,
     val categories: List<CategoryItem> = emptyList(),
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val statusMessage: String? = null,
+    val errorMessage: String? = null,
+    val backupInspection: BackupInspectionResult? = null
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val tokenManager: TokenManager,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val backupRepository: BackupRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -39,7 +49,9 @@ class SettingsViewModel @Inject constructor(
             startHour = tokenManager.getNotifyStartHour(),
             endHour = tokenManager.getNotifyEndHour(),
             muteWeekends = tokenManager.isMuteWeekends(),
-            onlyProductive = tokenManager.isOnlyProductive()
+            onlyProductive = tokenManager.isOnlyProductive(),
+            timeFormat = tokenManager.getTimeFormat(),
+            biometricsEnabled = tokenManager.isBiometricsEnabled()
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -54,6 +66,16 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             categoryRepository.refreshCategories()
         }
+    }
+
+    fun setTimeFormat(format: String) {
+        tokenManager.setTimeFormat(format)
+        _uiState.value = _uiState.value.copy(timeFormat = format)
+    }
+
+    fun setBiometricsEnabled(enabled: Boolean) {
+        tokenManager.setBiometricsEnabled(enabled)
+        _uiState.value = _uiState.value.copy(biometricsEnabled = enabled)
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
@@ -97,5 +119,66 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             categoryRepository.deleteCategory(id)
         }
+    }
+
+    suspend fun exportBackupJson(): String {
+        return backupRepository.exportBackupJson()
+    }
+
+    fun inspectBackup(jsonString: String) {
+        viewModelScope.launch {
+            val result = backupRepository.inspectBackupJson(jsonString)
+            _uiState.value = _uiState.value.copy(backupInspection = result)
+        }
+    }
+
+    fun clearBackupInspection() {
+        _uiState.value = _uiState.value.copy(backupInspection = null)
+    }
+
+    fun restoreBackup(
+        jsonString: String,
+        wipeExisting: Boolean,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            val result = backupRepository.restoreBackupJson(jsonString, wipeExisting)
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            if (result.isSuccess) {
+                val stats = result.getOrNull()!!
+                _uiState.value = _uiState.value.copy(
+                    timeFormat = tokenManager.getTimeFormat(),
+                    statusMessage = "Restored ${stats.slotCount} slots, ${stats.habitCount} habits, ${stats.todoCount} todos!"
+                )
+                categoryRepository.refreshCategories()
+                onComplete(true, "Successfully restored ${stats.slotCount} slots, ${stats.habitCount} habits, and ${stats.todoCount} todos!")
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "Failed to restore backup"
+                _uiState.value = _uiState.value.copy(errorMessage = err)
+                onComplete(false, err)
+            }
+        }
+    }
+
+    fun changePassword(
+        currentPass: String,
+        newPass: String,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            val result = authRepository.changePassword(currentPass, newPass)
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            if (result.isSuccess) {
+                onComplete(true, result.getOrNull() ?: "Password updated successfully!")
+            } else {
+                onComplete(false, result.exceptionOrNull()?.message ?: "Failed to change password")
+            }
+        }
+    }
+
+    fun clearStatusMessage() {
+        _uiState.value = _uiState.value.copy(statusMessage = null, errorMessage = null)
     }
 }

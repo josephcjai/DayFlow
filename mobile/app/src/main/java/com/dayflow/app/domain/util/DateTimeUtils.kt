@@ -98,4 +98,23 @@ object DateTimeUtils {
     fun generateWeekDays(monday: LocalDate): List<LocalDate> {
         return (0L..6L).map { monday.plusDays(it) }
     }
+
+    /**
+     * Formats time for slot row labels according to user's timeFormat preference.
+     * 12h: "09:00 AM", "01:30 PM" (DayFlow Web parity formatTimeLabel)
+     * 24h: "09:00", "13:30"
+     */
+    fun formatTimeLabel(time: LocalTime, is24Hour: Boolean = false): String {
+        return if (is24Hour) {
+            String.format("%02d:%02d", time.hour, time.minute)
+        } else {
+            val period = if (time.hour >= 12) "PM" else "AM"
+            val displayHour = when (val h = time.hour % 12) {
+                0 -> 12
+                else -> h
+            }
+            String.format("%02d:%02d %s", displayHour, time.minute, period)
+        }
+    }
+
 }

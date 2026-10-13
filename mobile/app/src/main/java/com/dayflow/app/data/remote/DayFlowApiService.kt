@@ -7,6 +7,7 @@ import com.dayflow.app.data.model.DayTemplateDto
 import com.dayflow.app.data.model.TemplatesResponse
 import com.dayflow.app.data.model.CreateTodoRequest
 import com.dayflow.app.data.model.DeleteSlotRequest
+import com.dayflow.app.data.model.ChangePasswordRequest
 import com.dayflow.app.data.model.ForgotPasswordRequest
 import com.dayflow.app.data.model.HabitLogDto
 import com.dayflow.app.data.model.LogHabitRequest
@@ -45,6 +46,9 @@ interface DayFlowApiService {
 
     @GET("auth/me")
     suspend fun getCurrentUser(): Response<UserProfileResponse>
+
+    @POST("auth/change-password")
+    suspend fun changePassword(@Body request: ChangePasswordRequest): Response<MessageResponse>
 
     @POST("auth/forgot-password")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<MessageResponse>

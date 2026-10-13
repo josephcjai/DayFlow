@@ -154,6 +154,12 @@ private class FakeSlotDao : ScheduleSlotDao {
     override suspend fun clearWeek(weekStart: String) {
         slots.values.removeIf { it.weekStart == weekStart }
     }
+
+    override suspend fun getAllSlots(): List<ScheduleSlotEntity> = slots.values.toList()
+
+    override suspend fun clearAllSlots() {
+        slots.clear()
+    }
 }
 
 private class FakeScheduleRepository(private val dao: FakeSlotDao) : ScheduleRepository {

@@ -7,6 +7,9 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Singleton
 
 @Singleton
@@ -174,5 +177,28 @@ open class TokenManager @Inject constructor(
         private const val KEY_IS_DEMO = "is_demo_mode"
         private const val KEY_HABIT_PRESETS = "custom_habit_presets"
         private const val KEY_NOTE_SHEETS_PREFIX = "note_sheets_"
+        private const val KEY_TIME_FORMAT = "key_time_format"
+        private const val KEY_BIOMETRICS_ENABLED = "key_biometrics_enabled"
     }
+
+    private val _timeFormatFlow = MutableStateFlow(if (context != null) (prefs.getString(KEY_TIME_FORMAT, "12h") ?: "12h") else "12h")
+    open val timeFormatFlow: StateFlow<String> = _timeFormatFlow.asStateFlow()
+
+    open fun getTimeFormat(): String {
+        return if (context != null) (prefs.getString(KEY_TIME_FORMAT, "12h") ?: "12h") else "12h"
+    }
+
+    open fun setTimeFormat(format: String) {
+        if (context != null) prefs.edit().putString(KEY_TIME_FORMAT, format).apply()
+        _timeFormatFlow.value = format
+    }
+
+    open fun isBiometricsEnabled(): Boolean {
+        return if (context != null) prefs.getBoolean(KEY_BIOMETRICS_ENABLED, false) else false
+    }
+
+    open fun setBiometricsEnabled(enabled: Boolean) {
+        if (context != null) prefs.edit().putBoolean(KEY_BIOMETRICS_ENABLED, enabled).apply()
+    }
+
 }
