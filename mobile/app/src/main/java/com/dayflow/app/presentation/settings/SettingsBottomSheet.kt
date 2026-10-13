@@ -347,6 +347,172 @@ fun SettingsBottomSheet(
                     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
                     Spacer(modifier = Modifier.height(14.dp))
 
+                    // Timeline Active Hours Window
+                    Text(
+                        text = "⏰ Timeline Window (Active Hours)",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Customize the visible timeline hours displayed on the schedule grid",
+                        fontSize = 11.sp,
+                        color = TextMuted
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Preset Window Chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PresetPill(
+                            label = "Full 24h",
+                            isSelected = state.timelineStartHour == 0 && state.timelineEndHour == 23,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            viewModel.setTimelineWindow(0, 23)
+                            Toast.makeText(context, "Showing full 24-hour day (48 slots)", Toast.LENGTH_SHORT).show()
+                        }
+
+                        PresetPill(
+                            label = "Workday (8-18)",
+                            isSelected = state.timelineStartHour == 8 && state.timelineEndHour == 18,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            viewModel.setTimelineWindow(8, 18)
+                            Toast.makeText(context, "Window set to 08:00 - 18:00 (22 slots)", Toast.LENGTH_SHORT).show()
+                        }
+
+                        PresetPill(
+                            label = "Waking (6-22)",
+                            isSelected = state.timelineStartHour == 6 && state.timelineEndHour == 22,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            viewModel.setTimelineWindow(6, 22)
+                            Toast.makeText(context, "Window set to 06:00 - 22:00 (34 slots)", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Stepper / Selectors for Start Hour and End Hour
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Start Hour Stepper
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Start Hour", fontSize = 11.sp, color = TextMuted)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(
+                                color = SurfaceDark,
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            if (state.timelineStartHour > 0) {
+                                                viewModel.setTimelineWindow(state.timelineStartHour - 1, state.timelineEndHour)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                        enabled = state.timelineStartHour > 0
+                                    ) {
+                                        Text("-", color = if (state.timelineStartHour > 0) DayFlowPrimary else TextMuted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+
+                                    Text(
+                                        text = String.format("%02d:00", state.timelineStartHour),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            if (state.timelineStartHour < state.timelineEndHour) {
+                                                viewModel.setTimelineWindow(state.timelineStartHour + 1, state.timelineEndHour)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                        enabled = state.timelineStartHour < state.timelineEndHour
+                                    ) {
+                                        Text("+", color = if (state.timelineStartHour < state.timelineEndHour) DayFlowPrimary else TextMuted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        // End Hour Stepper
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("End Hour", fontSize = 11.sp, color = TextMuted)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(
+                                color = SurfaceDark,
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            if (state.timelineEndHour > state.timelineStartHour) {
+                                                viewModel.setTimelineWindow(state.timelineStartHour, state.timelineEndHour - 1)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                        enabled = state.timelineEndHour > state.timelineStartHour
+                                    ) {
+                                        Text("-", color = if (state.timelineEndHour > state.timelineStartHour) DayFlowPrimary else TextMuted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+
+                                    Text(
+                                        text = String.format("%02d:00", state.timelineEndHour),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            if (state.timelineEndHour < 23) {
+                                                viewModel.setTimelineWindow(state.timelineStartHour, state.timelineEndHour + 1)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                        enabled = state.timelineEndHour < 23
+                                    ) {
+                                        Text("+", color = if (state.timelineEndHour < 23) DayFlowPrimary else TextMuted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    val slotCount = (state.timelineEndHour - state.timelineStartHour + 1) * 2
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Showing $slotCount slots per day (${String.format("%02d:00", state.timelineStartHour)} to ${String.format("%02d:30", state.timelineEndHour)})",
+                        fontSize = 11.sp,
+                        color = DayFlowPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
+                    Spacer(modifier = Modifier.height(14.dp))
+
                     Text(
                         text = "🎯 Daily Points Goal",
                         fontSize = 14.sp,

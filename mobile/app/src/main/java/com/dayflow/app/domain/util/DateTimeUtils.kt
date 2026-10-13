@@ -73,14 +73,20 @@ object DateTimeUtils {
     }
 
     /**
-     * Generates all 48 30-minute slot keys for a full 24-hour day (00:00 to 23:30).
+     * Generates 30-minute slot keys for a day within the specified hour window.
+     * Defaults to full 24 hours (00:00 to 23:30, 48 slots).
      */
-    fun generateDaySlotKeys(date: LocalDate): List<String> {
+    fun generateDaySlotKeys(
+        date: LocalDate,
+        startHour: Int = 0,
+        endHour: Int = 23
+    ): List<String> {
+        val clampedStart = startHour.coerceIn(0, 23)
+        val clampedEnd = endHour.coerceIn(clampedStart, 23)
         val slotKeys = mutableListOf<String>()
-        var time = LocalTime.MIDNIGHT
-        repeat(48) {
-            slotKeys.add(formatSlotKey(date, time))
-            time = time.plusMinutes(30)
+        for (h in clampedStart..clampedEnd) {
+            slotKeys.add(formatSlotKey(date, LocalTime.of(h, 0)))
+            slotKeys.add(formatSlotKey(date, LocalTime.of(h, 30)))
         }
         return slotKeys
     }

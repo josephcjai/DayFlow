@@ -180,6 +180,8 @@ open class TokenManager @Inject constructor(
         private const val KEY_TIME_FORMAT = "key_time_format"
         private const val KEY_BIOMETRICS_ENABLED = "key_biometrics_enabled"
         private const val KEY_DAILY_POINTS_TARGET = "daily_points_target"
+        private const val KEY_TIMELINE_START_HOUR = "timeline_start_hour"
+        private const val KEY_TIMELINE_END_HOUR = "timeline_end_hour"
     }
 
     private val _timeFormatFlow = MutableStateFlow(if (context != null) (prefs.getString(KEY_TIME_FORMAT, "12h") ?: "12h") else "12h")
@@ -213,6 +215,33 @@ open class TokenManager @Inject constructor(
         val clamped = target.coerceIn(10, 500)
         if (context != null) prefs.edit().putInt(KEY_DAILY_POINTS_TARGET, clamped).apply()
         _dailyPointsTargetFlow.value = clamped
+    }
+
+    private val _timelineStartHourFlow = MutableStateFlow(if (context != null) prefs.getInt(KEY_TIMELINE_START_HOUR, 0) else 0)
+    open val timelineStartHourFlow: StateFlow<Int> = _timelineStartHourFlow.asStateFlow()
+
+    private val _timelineEndHourFlow = MutableStateFlow(if (context != null) prefs.getInt(KEY_TIMELINE_END_HOUR, 23) else 23)
+    open val timelineEndHourFlow: StateFlow<Int> = _timelineEndHourFlow.asStateFlow()
+
+    open fun getTimelineStartHour(): Int {
+        return _timelineStartHourFlow.value
+    }
+
+    open fun getTimelineEndHour(): Int {
+        return _timelineEndHourFlow.value
+    }
+
+    open fun setTimelineWindow(startHour: Int, endHour: Int) {
+        val clampedStart = startHour.coerceIn(0, 23)
+        val clampedEnd = endHour.coerceIn(clampedStart, 23)
+        if (context != null) {
+            prefs.edit()
+                .putInt(KEY_TIMELINE_START_HOUR, clampedStart)
+                .putInt(KEY_TIMELINE_END_HOUR, clampedEnd)
+                .apply()
+        }
+        _timelineStartHourFlow.value = clampedStart
+        _timelineEndHourFlow.value = clampedEnd
     }
 
 }

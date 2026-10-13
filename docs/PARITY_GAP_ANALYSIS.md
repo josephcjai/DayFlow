@@ -1,4 +1,4 @@
-# DayFlow Web vs. Mobile Feature Parity Master Registry & Implementation Plan
+﻿# DayFlow Web vs. Mobile Feature Parity Master Registry & Implementation Plan
 
 **Date:** October 13, 2026  
 **Reference Web App:** DayFlow Web v2.9.0 (`c:\githubrepo\myrepos\DayFlow`, 10,400+ LOC)  
@@ -28,9 +28,9 @@ Mobile development has already established a production-grade foundation (Room v
 | 1.6 | **Task Copy & Paste** | Single & bulk paste, Golden Time-Lock adaptation | ✅ Implemented | Complete in ViewModel, UI bottomsheet & bulk bar. |
 | 1.7 | **Duplicate Next Slot** | `Ctrl+D` instant clone to next 30-min block | ✅ Implemented | Complete in `TaskEditorBottomSheet`. |
 | 1.8 | **Timeline Category Filter** | Dropdown/pill filter to view slots for specific category | ✅ Implemented | Complete in TimelineCategoryFilterBar and ScheduleViewModel. |
-| 1.9 | **Dynamic "NOW" Indicator** | 10-sec ticker highlighting current active slot with "+ Log current task" prompt | ❌ Missing | Add live "📍 NOW" pulsing badge on current slot with quick-log prompt. |
-| 1.10 | **Configurable Timeline Window** | Start hour & End hour windowing (e.g. 06:00 to 22:00 vs 24h) | ❌ Missing | Settings option to filter displayed timeline hours. |
-| 1.11 | **Undo Action Buffer** | Floating toast with 5-sec Undo after slot delete/bulk clear | ❌ Missing | In-memory undo stack for slot deletions. |
+| 1.9 | **Dynamic "NOW" Indicator** | 10-sec ticker highlighting current active slot with "+ Log current task" prompt | ✅ Implemented | Live "📍 NOW" pulsing badge on current slot with quick-log prompt & auto-scroll on load. |
+| 1.10 | **Configurable Timeline Window** | Start hour & End hour windowing (e.g. 06:00 to 22:00 vs 24h) | ✅ Implemented | Settings option with 24h, Workday (8-18), and Waking (6-22) presets + custom hour steppers. |
+| 1.11 | **Undo Action Buffer** | Floating toast with 5-sec Undo after slot delete/bulk clear | ✅ Implemented | In-memory 20-action undo stack with floating Snackbar restoring slot on tap. |
 
 ---
 
@@ -116,7 +116,7 @@ Mobile development has already established a production-grade foundation (Room v
 - **Phase 14 (Daily Notes & Markdown Scratchpad):** ✅ **Completed & Committed** (`1ffcc75`)
 - **Phase 15 (Data Export/Import, 12h/24h & Account Security):** ✅ **Completed & Committed** (`802609e`)
 - **Phase 16 (Habits Matrix, Gamification Targets & Points Breakdown):** ✅ **Completed & Live Verified** (7-day matrix, daily discipline goal gauge, celebration banner & points bifurcation audit sheet)
-- **Phase 17 (Dynamic NOW Indicator, Timeline Windowing & Undo Buffer):** ⏳ *Final Parity Sprint*
+- **Phase 17 (Dynamic NOW Indicator, Timeline Windowing & Undo Buffer):** ✅ **Completed & Live Verified** (Dynamic NOW pulsing badge, timeline window filtering, 20-action undo buffer & unit tests)
 
 ---
 
@@ -124,11 +124,11 @@ Mobile development has already established a production-grade foundation (Room v
 
 | Functional Area | Total Web Features | Completed Mobile | Parity % |
 |---|:---:|:---:|:---:|
-| **1. Schedule Timeline & Slot Actions** | 11 | 8 | **73%** |
+| **1. Schedule Timeline & Slot Actions** | 11 | 11 | **100%** 🎉 |
 | **2. Todos & Timeblocking** | 8 | 8 | **100%** 🎉 |
 | **3. Notes & Markdown** | 4 | 4 | **100%** 🎉 |
 | **4. Habits Ledger & Gamification** | 6 | 6 | **100%** 🎉 |
 | **5. Productivity Analytics** | 4 | 4 | **100%** 🎉 |
 | **6. Day Templates** | 3 | 3 | **100%** 🎉 |
 | **7. Settings, Backup & Security** | 6 | 6 | **100%** 🎉 |
-| **TOTAL** | **42** | **39** | **93%** 🚀 |
+| **TOTAL** | **42** | **42** | **100%** 🏆 |

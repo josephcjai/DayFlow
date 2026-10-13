@@ -61,6 +61,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.dayflow.app.data.sync.SyncStatus
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyRow
@@ -103,6 +119,36 @@ fun ScheduleTimelineScreen(
     val templates by viewModel.templates.collectAsState()
     val analyticsData by viewModel.analyticsData.collectAsState()
     val dayCategoryCounts by viewModel.dayCategoryCounts.collectAsState()
+    val undoMessage by viewModel.undoMessage.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val listState = rememberLazyListState()
+    var hasAutoScrolledToNow by remember(uiState.selectedDate) { mutableStateOf(false) }
+
+    LaunchedEffect(daySlots, uiState.selectedDate) {
+        if (!hasAutoScrolledToNow && uiState.selectedDate == LocalDate.now()) {
+            val currentIndex = daySlots.indexOfFirst { it.isCurrentSlot }
+            if (currentIndex >= 0) {
+                listState.animateScrollToItem(maxOf(0, currentIndex - 1))
+                hasAutoScrolledToNow = true
+            }
+        }
+    }
+
+    LaunchedEffect(undoMessage) {
+        undoMessage?.let { msg ->
+            val isRestored = msg.startsWith("↩️")
+            val result = snackbarHostState.showSnackbar(
+                message = msg,
+                actionLabel = if (isRestored) null else "Undo",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoLastAction()
+            }
+            viewModel.clearUndoMessage()
+        }
+    }
 
     val monthYearTitle = uiState.selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
 
@@ -443,6 +489,7 @@ fun ScheduleTimelineScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp)
@@ -517,7 +564,7 @@ fun ScheduleTimelineScreen(
                                         colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
-                                        Text("Show All 48 Slots", fontSize = 12.sp, color = Color.White)
+                                        Text("Show All Slots", fontSize = 12.sp, color = Color.White)
                                     }
                                 }
                             }
@@ -656,6 +703,22 @@ fun ScheduleTimelineScreen(
                         }
                     }
                 }
+            }
+
+            // Floating Undo / Action Snackbar
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = if (uiState.isSelectionMode) 84.dp else 20.dp, start = 16.dp, end = 16.dp)
+            ) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = SurfaceElevated,
+                    contentColor = TextPrimary,
+                    actionColor = DayFlowPrimary,
+                    shape = RoundedCornerShape(12.dp)
+                )
             }
         }
     }
@@ -804,14 +867,20 @@ fun TimelineSlotItem(
                 ) {
                     if (hasTask) {
                         val displayTask = if (row.slot.plannedTask.isNotBlank()) row.slot.plannedTask else row.slot.actualTask
-                        Text(
-                            text = displayTask,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (row.isCurrentSlot) {
+                                NowIndicatorBadge()
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text(
+                                text = displayTask,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
 
                         if (row.slot.actualTask.isNotBlank() && row.slot.actualTask != row.slot.plannedTask && row.slot.plannedTask.isNotBlank()) {
                             Text(
@@ -872,18 +941,29 @@ fun TimelineSlotItem(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add task",
-                                tint = TextMuted.copy(alpha = 0.5f),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (row.isTimePassed) "Available slot (past)" else "Available slot",
-                                fontSize = 13.sp,
-                                color = TextMuted.copy(alpha = 0.6f)
-                            )
+                            if (row.isCurrentSlot) {
+                                NowIndicatorBadge()
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "+ Log current task",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DayFlowPrimary
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add task",
+                                    tint = TextMuted.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (row.isTimePassed) "Available slot (past)" else "Available slot",
+                                    fontSize = 13.sp,
+                                    color = TextMuted.copy(alpha = 0.6f)
+                                )
+                            }
                         }
                     }
                 }
@@ -894,6 +974,21 @@ fun TimelineSlotItem(
                         status = row.slot.status,
                         onClick = { onStatusClick(row.slot) }
                     )
+                } else if (row.isCurrentSlot) {
+                    Surface(
+                        color = DayFlowPrimary.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.4f)),
+                        modifier = Modifier.clickable { onSlotClick() }
+                    ) {
+                        Text(
+                            text = "+ Log",
+                            color = DayFlowPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 } else if (onPasteDirect != null) {
                     Surface(
                         color = DayFlowPrimary.copy(alpha = 0.15f),
@@ -1355,3 +1450,47 @@ fun TimelineCategoryFilterBar(
         }
     }
 }
+
+
+@Composable
+fun NowIndicatorBadge(
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "now_pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha"
+    )
+
+    Surface(
+        color = DayFlowPrimary.copy(alpha = 0.18f * alpha),
+        shape = RoundedCornerShape(6.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DayFlowPrimary.copy(alpha = alpha)),
+        modifier = modifier
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(DayFlowPrimary.copy(alpha = alpha), shape = CircleShape)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "📍 NOW",
+                color = DayFlowPrimary,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+        }
+    }
+}
+

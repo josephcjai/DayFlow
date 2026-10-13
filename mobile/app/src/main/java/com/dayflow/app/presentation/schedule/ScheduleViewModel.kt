@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -39,6 +41,12 @@ import android.content.Context
 import androidx.glance.appwidget.updateAll
 import com.dayflow.app.presentation.widget.DayFlowWidget
 import dagger.hilt.android.qualifiers.ApplicationContext
+
+sealed class UndoAction {
+    data class SlotCleared(val slot: Slot) : UndoAction()
+    data class BulkCleared(val slots: List<Slot>, val count: Int) : UndoAction()
+    data class TemplateApplied(val overwrittenSlots: List<Slot>, val templateName: String) : UndoAction()
+}
 
 data class SlotRowUiModel(
     val slotKey: String,
@@ -100,6 +108,58 @@ class ScheduleViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    private val undoStack = mutableListOf<UndoAction>()
+    private val _undoMessage = MutableStateFlow<String?>(null)
+    val undoMessage: StateFlow<String?> = _undoMessage.asStateFlow()
+
+    fun clearUndoMessage() {
+        _undoMessage.value = null
+    }
+
+    fun recordUndoAction(action: UndoAction) {
+        undoStack.add(action)
+        if (undoStack.size > 20) {
+            undoStack.removeAt(0)
+        }
+    }
+
+    fun undoLastAction() {
+        if (undoStack.isEmpty()) return
+        val action = undoStack.removeAt(undoStack.lastIndex)
+        viewModelScope.launch {
+            when (action) {
+                is UndoAction.SlotCleared -> {
+                    saveSlotUseCase(action.slot)
+                    val name = action.slot.plannedTask.ifBlank { action.slot.actualTask }.ifBlank { "Task" }
+                    _undoMessage.value = "↩️ Undone: Restored \"$name\""
+                }
+                is UndoAction.BulkCleared -> {
+                    action.slots.forEach { saveSlotUseCase(it) }
+                    _undoMessage.value = "↩️ Undone: Cleared ${action.count} slots"
+                }
+                is UndoAction.TemplateApplied -> {
+                    action.overwrittenSlots.forEach { saveSlotUseCase(it) }
+                    _undoMessage.value = "↩️ Undone: Template \"${action.templateName}\""
+                }
+            }
+        }
+    }
+
+    private val currentSlotTicker = flow {
+        while (true) {
+            emit(System.currentTimeMillis())
+            delay(10_000)
+        }
+    }
+
+    private val timelineSettingsFlow = combine(
+        tokenManager.timelineStartHourFlow,
+        tokenManager.timelineEndHourFlow,
+        tokenManager.timeFormatFlow
+    ) { startHour, endHour, timeFormat ->
+        Triple(startHour, endHour, timeFormat)
+    }
+
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()
 
@@ -142,14 +202,15 @@ class ScheduleViewModel @Inject constructor(
         initialValue = emptyMap()
     )
 
-    // 48-slot timeline for the currently selected date (with category filtering and 12h/24h time formatting)
+    // Timeline slots for the currently selected date respecting windowing and reactive to 10s ticker
     val daySlots: StateFlow<List<SlotRowUiModel>> = combine(
         _uiState,
         weekSlotsFlow,
-        tokenManager.timeFormatFlow
-    ) { state, weekSlots, timeFormat ->
+        timelineSettingsFlow,
+        currentSlotTicker
+    ) { state, weekSlots, (startHour, endHour, timeFormat), _ ->
         val slotsMap = weekSlots.associateBy { it.slotKey }
-        val allDayKeys = DateTimeUtils.generateDaySlotKeys(state.selectedDate)
+        val allDayKeys = DateTimeUtils.generateDaySlotKeys(state.selectedDate, startHour, endHour)
         val now = LocalDateTime.now()
         val isToday = state.selectedDate == LocalDate.now()
         val is24h = timeFormat == "24h"
@@ -184,7 +245,7 @@ class ScheduleViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = buildInitialDaySlots(LocalDate.now())
+        initialValue = buildInitialDaySlots(LocalDate.now(), tokenManager.getTimelineStartHour(), tokenManager.getTimelineEndHour())
     )
 
     init {
@@ -307,6 +368,12 @@ class ScheduleViewModel @Inject constructor(
 
     fun deleteSlot(slotKey: String) {
         viewModelScope.launch {
+            val existing = daySlots.value.firstOrNull { it.slotKey == slotKey }?.slot
+            if (existing != null && (existing.plannedTask.isNotBlank() || existing.actualTask.isNotBlank())) {
+                recordUndoAction(UndoAction.SlotCleared(existing))
+                val name = existing.plannedTask.ifBlank { existing.actualTask }
+                _undoMessage.value = "Slot cleared: \"$name\""
+            }
             deleteSlotUseCase(slotKey)
             closeSlotEditor()
         }
@@ -534,8 +601,15 @@ class ScheduleViewModel @Inject constructor(
     fun bulkClearSlots() {
         viewModelScope.launch {
             val keys = _uiState.value.selectedSlotKeys.toList()
-            var clearedCount = 0
+            val existingSlots = keys.mapNotNull { k -> daySlots.value.firstOrNull { it.slotKey == k }?.slot }
+                .filter { it.plannedTask.isNotBlank() || it.actualTask.isNotBlank() }
 
+            if (existingSlots.isNotEmpty()) {
+                recordUndoAction(UndoAction.BulkCleared(existingSlots, existingSlots.size))
+                _undoMessage.value = "Cleared ${existingSlots.size} slots"
+            }
+
+            var clearedCount = 0
             for (key in keys) {
                 deleteSlotUseCase(key)
                 clearedCount++
@@ -674,8 +748,12 @@ class ScheduleViewModel @Inject constructor(
     }
 
     companion object {
-        fun buildInitialDaySlots(selectedDate: LocalDate): List<SlotRowUiModel> {
-            val allDayKeys = DateTimeUtils.generateDaySlotKeys(selectedDate)
+        fun buildInitialDaySlots(
+            selectedDate: LocalDate,
+            startHour: Int = 0,
+            endHour: Int = 23
+        ): List<SlotRowUiModel> {
+            val allDayKeys = DateTimeUtils.generateDaySlotKeys(selectedDate, startHour, endHour)
             val now = LocalDateTime.now()
             val isToday = selectedDate == LocalDate.now()
             return allDayKeys.map { key ->

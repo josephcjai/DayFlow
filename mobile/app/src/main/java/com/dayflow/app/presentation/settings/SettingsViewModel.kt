@@ -28,6 +28,8 @@ data class SettingsUiState(
     val timeFormat: String = "12h",
     val biometricsEnabled: Boolean = false,
     val dailyPointsTarget: Int = 50,
+    val timelineStartHour: Int = 0,
+    val timelineEndHour: Int = 23,
     val categories: List<CategoryItem> = emptyList(),
     val isLoading: Boolean = false,
     val statusMessage: String? = null,
@@ -53,7 +55,9 @@ class SettingsViewModel @Inject constructor(
             onlyProductive = tokenManager.isOnlyProductive(),
             timeFormat = tokenManager.getTimeFormat(),
             biometricsEnabled = tokenManager.isBiometricsEnabled(),
-            dailyPointsTarget = tokenManager.getDailyPointsTarget()
+            dailyPointsTarget = tokenManager.getDailyPointsTarget(),
+            timelineStartHour = tokenManager.getTimelineStartHour(),
+            timelineEndHour = tokenManager.getTimelineEndHour()
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -73,6 +77,14 @@ class SettingsViewModel @Inject constructor(
     fun setTimeFormat(format: String) {
         tokenManager.setTimeFormat(format)
         _uiState.value = _uiState.value.copy(timeFormat = format)
+    }
+
+    fun setTimelineWindow(startHour: Int, endHour: Int) {
+        tokenManager.setTimelineWindow(startHour, endHour)
+        _uiState.value = _uiState.value.copy(
+            timelineStartHour = tokenManager.getTimelineStartHour(),
+            timelineEndHour = tokenManager.getTimelineEndHour()
+        )
     }
 
     fun setDailyPointsTarget(target: Int) {
