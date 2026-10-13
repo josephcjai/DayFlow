@@ -350,6 +350,77 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
+
+    fun saveCurrentDayAsTemplate(name: String, description: String) {
+        viewModelScope.launch {
+            val datePrefix = _uiState.value.selectedDate.toString()
+            val currentSlots = daySlots.value
+                .mapNotNull { it.slot }
+                .filter { it.slotKey.startsWith(datePrefix) && (it.plannedTask.isNotBlank() || it.actualTask.isNotBlank()) }
+
+            if (currentSlots.isEmpty()) {
+                _uiState.update { it.copy(errorMessage = "No planned tasks found on selected day to save as template.") }
+                return@launch
+            }
+
+            val slotsMap = currentSlots.associate { slot ->
+                val (_, time) = DateTimeUtils.parseSlotKey(slot.slotKey)
+                val timeKey = String.format("%02d:%02d", time.hour, time.minute)
+                val taskTitle = slot.plannedTask.ifBlank { slot.actualTask }
+                timeKey to com.dayflow.app.domain.model.TemplateSlot(
+                    time = timeKey,
+                    title = taskTitle,
+                    plannedTask = taskTitle,
+                    category = slot.categoryName.ifBlank { slot.category.displayName },
+                    planned = if (slot.plannedDuration > 0) slot.plannedDuration else 30
+                )
+            }
+
+            val defaultName = "${_uiState.value.selectedDate.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }} Routine"
+            val result = templateRepository.createTemplate(
+                name = name.trim().ifBlank { defaultName },
+                description = description.trim(),
+                slots = slotsMap
+            )
+
+            result.fold(
+                onSuccess = { created ->
+                    _uiState.update {
+                        it.copy(
+                            isTemplateSheetOpen = false,
+                            templateFeedbackMessage = "💾 Saved template '${created.name}' with ${slotsMap.size} slots"
+                        )
+                    }
+                    templateRepository.refreshTemplates()
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(errorMessage = error.localizedMessage ?: "Failed to save template")
+                    }
+                }
+            )
+        }
+    }
+
+    fun deleteTemplate(templateId: String) {
+        viewModelScope.launch {
+            val result = templateRepository.deleteTemplate(templateId)
+            result.fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(templateFeedbackMessage = "🗑️ Template deleted")
+                    }
+                    templateRepository.refreshTemplates()
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(errorMessage = error.localizedMessage ?: "Failed to delete template")
+                    }
+                }
+            )
+        }
+    }
+
     fun clearTemplateFeedback() {
         _uiState.update { it.copy(templateFeedbackMessage = null) }
     }

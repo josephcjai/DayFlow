@@ -675,7 +675,10 @@ fun ScheduleTimelineScreen(
         ApplyTemplateBottomSheet(
             selectedDate = uiState.selectedDate,
             templates = templates,
+            currentDaySlots = daySlots,
             onApplyTemplate = { tmpl -> viewModel.applyTemplate(tmpl) },
+            onSaveDayAsTemplate = { name, desc -> viewModel.saveCurrentDayAsTemplate(name, desc) },
+            onDeleteTemplate = { tmplId -> viewModel.deleteTemplate(tmplId) },
             onDismiss = { viewModel.closeTemplateSheet() }
         )
     }

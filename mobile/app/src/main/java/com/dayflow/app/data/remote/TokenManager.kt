@@ -1,6 +1,7 @@
 package com.dayflow.app.data.remote
 
 import android.content.Context
+import android.os.Build
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -14,6 +15,19 @@ open class TokenManager @Inject constructor(
 ) {
     private val prefs: SharedPreferences by lazy {
         val ctx = context ?: throw IllegalStateException("Context required for SharedPreferences")
+        val isEmulator = Build.FINGERPRINT.startsWith("generic") ||
+                Build.FINGERPRINT.startsWith("unknown") ||
+                Build.MODEL.contains("google_sdk") ||
+                Build.MODEL.contains("Emulator") ||
+                Build.MODEL.contains("Android SDK built for x86") ||
+                Build.HARDWARE.contains("goldfish") ||
+                Build.HARDWARE.contains("ranchu") ||
+                Build.PRODUCT.contains("sdk")
+
+        if (isEmulator) {
+            return@lazy ctx.getSharedPreferences(FALLBACK_PREFS, Context.MODE_PRIVATE)
+        }
+
         try {
             val masterKey = MasterKey.Builder(ctx)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -126,6 +140,15 @@ open class TokenManager @Inject constructor(
         prefs.edit().putString(KEY_NOTIF_QUIET_MODE, mode).apply()
     }
 
+
+    open fun getCustomHabitPresetsJson(): String? {
+        return prefs.getString(KEY_HABIT_PRESETS, null)
+    }
+
+    open fun saveCustomHabitPresetsJson(json: String) {
+        prefs.edit().putString(KEY_HABIT_PRESETS, json).apply()
+    }
+
     companion object {
         private const val KEY_NOTIF_ENABLED = "notif_enabled"
         private const val KEY_NOTIF_ACTIVE_WINDOW = "notif_active_window"
@@ -141,5 +164,6 @@ open class TokenManager @Inject constructor(
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_IS_DEMO = "is_demo_mode"
+        private const val KEY_HABIT_PRESETS = "custom_habit_presets"
     }
 }

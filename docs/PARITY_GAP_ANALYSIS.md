@@ -65,8 +65,8 @@ Mobile development has already established a production-grade foundation (Room v
 | # | Feature Name | Web App Implementation | Mobile Status | Work Required |
 |---|---|---|---|---|
 | 4.1 | **Daily Habits Checklist** | Habit item with checkbox and streak count | ✅ Implemented | Dedicated Habits tab. |
-| 4.2 | **Habit Action Ledger & Points** | Points system (+5, +10, +15 pts per action), points ledger log | ❌ Missing | Habit points calculation and logged history entries. |
-| 4.3 | **Customizable Habit Presets** | Add, edit, archive presets with emoji, name, and pts | ❌ Missing | "Manage Habit Presets" dialog with custom emoji & point target. |
+| 4.2 | **Habit Action Ledger & Points** | Points system (+5, +10, +15 pts per action), points ledger log | ✅ Implemented | Habit ledger with 1-tap logging, score calculation & recent logs. |
+| 4.3 | **Customizable Habit Presets** | Add, edit, archive presets with emoji, name, and pts | ✅ Implemented | Custom routine builder with emoji pills, points, category, and delete. |
 | 4.4 | **7-Day Consistency Matrix** | Mon–Sun completion grid showing weekly habit execution | ❌ Missing | 7-day mini dot/checkbox matrix in Habit card. |
 | 4.5 | **Gamification Targets** | Daily points goal (e.g. 50 pts target) with progress bar | ❌ Missing | Daily goal setting and visual progress gauge. |
 | 4.6 | **Points Breakdown Modal** | Modal showing exact points earned from habits + todos | ❌ Missing | Points inspection sheet. |
@@ -89,8 +89,8 @@ Mobile development has already established a production-grade foundation (Room v
 | # | Feature Name | Web App Implementation | Mobile Status | Work Required |
 |---|---|---|---|---|
 | 6.1 | **Apply Built-in Day Templates**| Productive Workday, Weekend Reset with Least Priority Rule | ✅ Implemented | Template bottom sheet with preview & apply. |
-| 6.2 | **Save Current Day as Template**| Button to capture today's 48 slots as a new reusable template | ❌ Missing | "Save Current Day as Template" dialog in Template sheet. |
-| 6.3 | **Custom Template Management** | Create, edit, rename, delete custom templates | ❌ Missing | Template CRUD manager in Settings. |
+| 6.2 | **Save Current Day as Template**| Button to capture today's 48 slots as a new reusable template | ✅ Implemented | Save Day as Blueprint dialog in ApplyTemplateBottomSheet with preview & banner feedback. |
+| 6.3 | **Custom Template Management** | Create, edit, rename, delete custom templates | ✅ Implemented | Custom blueprints badge, slot preview, and delete confirmation dialog. |
 
 ---
 
@@ -111,9 +111,9 @@ Mobile development has already established a production-grade foundation (Room v
 
 - **Phase 10 (Task Copy & Paste):** ✅ **Completed & Committed** (`3872d69`)
 - **Phase 11 (Enhanced Todos & 1-Click Timeblocking):** ✅ **Completed & Live Verified** (Unit tests passing, live tested on Pixel 6)
-- **Phase 12 (Productivity Analytics & Category Distribution):** ⏳ *Next in queue*
-- **Phase 13 (Save Day as Template & Habit Presets):** ⏳
-- **Phase 14 (Daily Notes & Markdown Scratchpad):** ⏳
+- **Phase 12 (Productivity Analytics & Category Distribution):** ✅ **Completed & Committed** (`c626c7c`)
+- **Phase 13 (Save Day as Template & Habit Presets):** ✅ **Completed & Live Verified** (Templates Blueprint capture + Custom Habit Routines)
+- **Phase 14 (Daily Notes & Markdown Scratchpad):** ⏳ *Next in queue*
 - **Phase 15 (Data Export/Import, 12h/24h & Final Parity):** ⏳
 
 ---

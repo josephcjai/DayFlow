@@ -1,8 +1,9 @@
-﻿package com.dayflow.app.presentation.habits
+package com.dayflow.app.presentation.habits
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dayflow.app.data.local.HabitLogEntity
+import com.dayflow.app.data.remote.TokenManager
 import com.dayflow.app.data.repository.HabitRepository
 import com.dayflow.app.domain.model.Category
 import com.dayflow.app.domain.usecase.LogHabitUseCase
@@ -15,35 +16,46 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.time.LocalDate
+import java.util.UUID
 import javax.inject.Inject
 
+@Serializable
 data class QuickHabitTemplate(
     val id: String,
     val name: String,
     val category: Category,
     val points: Int,
-    val defaultNotes: String? = null
+    val defaultNotes: String? = null,
+    val icon: String = "⚡",
+    val isCustom: Boolean = false
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HabitsViewModel @Inject constructor(
     private val habitRepository: HabitRepository,
-    private val logHabitUseCase: LogHabitUseCase
+    private val logHabitUseCase: LogHabitUseCase,
+    private val tokenManager: TokenManager,
+    private val json: Json
 ) : ViewModel() {
 
     private val _currentWeekStart = MutableStateFlow(DateTimeUtils.getWeekKey(LocalDate.now()))
     val currentWeekStart: StateFlow<String> = _currentWeekStart.asStateFlow()
 
-    val quickTemplates = listOf(
-        QuickHabitTemplate("h1", "Morning Hydration", Category.HEALTH, 5, "500ml water"),
-        QuickHabitTemplate("h2", "Deep Work Sprint", Category.WORK, 15, "90 min focus"),
-        QuickHabitTemplate("h3", "Workout / Walk", Category.HEALTH, 10, "Cardio / Strength"),
-        QuickHabitTemplate("h4", "Skill Reading", Category.LEARNING, 10, "30 pages"),
-        QuickHabitTemplate("h5", "Household Reset", Category.HOUSEHOLD, 5, "Organize workspace"),
-        QuickHabitTemplate("h6", "Family Check-in", Category.FAMILY, 10, "Connect & Call")
-    )
+    private val _quickTemplates = MutableStateFlow(loadInitialPresets())
+    val quickTemplates: StateFlow<List<QuickHabitTemplate>> = _quickTemplates.asStateFlow()
+
+    private val _isAddRoutineDialogOpen = MutableStateFlow(false)
+    val isAddRoutineDialogOpen: StateFlow<Boolean> = _isAddRoutineDialogOpen.asStateFlow()
+
+    private val _routineToDelete = MutableStateFlow<QuickHabitTemplate?>(null)
+    val routineToDelete: StateFlow<QuickHabitTemplate?> = _routineToDelete.asStateFlow()
 
     val loggedHabits: StateFlow<List<HabitLogEntity>> = _currentWeekStart.flatMapLatest { weekStart ->
         habitRepository.getHabits(weekStart)
@@ -61,10 +73,87 @@ class HabitsViewModel @Inject constructor(
         initialValue = 0
     )
 
+    private fun loadInitialPresets(): List<QuickHabitTemplate> {
+        val customPresets = try {
+            val jsonStr = tokenManager.getCustomHabitPresetsJson()
+            if (!jsonStr.isNullOrBlank()) {
+                json.decodeFromString<List<QuickHabitTemplate>>(jsonStr)
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+        return DEFAULT_PRESETS + customPresets
+    }
+
+    private fun persistCustomPresets(templates: List<QuickHabitTemplate>) {
+        val customOnly = templates.filter { it.isCustom }
+        try {
+            val jsonStr = json.encodeToString(customOnly)
+            tokenManager.saveCustomHabitPresetsJson(jsonStr)
+        } catch (e: Exception) {
+            // Log/ignore fallback
+        }
+    }
+
+    fun openAddRoutineDialog() {
+        _isAddRoutineDialogOpen.value = true
+    }
+
+    fun closeAddRoutineDialog() {
+        _isAddRoutineDialogOpen.value = false
+    }
+
+    fun promptDeleteRoutine(template: QuickHabitTemplate) {
+        if (template.isCustom) {
+            _routineToDelete.value = template
+        }
+    }
+
+    fun cancelDeleteRoutine() {
+        _routineToDelete.value = null
+    }
+
+    fun confirmDeleteRoutine() {
+        val target = _routineToDelete.value ?: return
+        _quickTemplates.update { list ->
+            val updated = list.filterNot { it.id == target.id }
+            persistCustomPresets(updated)
+            updated
+        }
+        _routineToDelete.value = null
+    }
+
+    fun addCustomRoutine(
+        name: String,
+        category: Category,
+        points: Int,
+        icon: String = "⚡",
+        notes: String? = null
+    ) {
+        if (name.isBlank()) return
+        val newRoutine = QuickHabitTemplate(
+            id = UUID.randomUUID().toString(),
+            name = name.trim(),
+            category = category,
+            points = points.coerceIn(1, 100),
+            defaultNotes = notes?.trim()?.ifEmpty { null },
+            icon = icon.ifBlank { "⚡" },
+            isCustom = true
+        )
+        _quickTemplates.update { list ->
+            val updated = list + newRoutine
+            persistCustomPresets(updated)
+            updated
+        }
+        _isAddRoutineDialogOpen.value = false
+    }
+
     fun logQuickHabit(template: QuickHabitTemplate) {
         viewModelScope.launch {
             logHabitUseCase(
-                habitName = template.name,
+                habitName = "${template.icon} ${template.name}".trim(),
                 category = template.category,
                 pointsImpact = template.points,
                 notes = template.defaultNotes,
@@ -90,5 +179,16 @@ class HabitsViewModel @Inject constructor(
         viewModelScope.launch {
             habitRepository.deleteHabit(id)
         }
+    }
+
+    companion object {
+        val DEFAULT_PRESETS = listOf(
+            QuickHabitTemplate("p1", "Deep Focus Block", Category.WORK, 15, "Deep Work / Study Complete", icon = "🎯"),
+            QuickHabitTemplate("p2", "Hydration & Health", Category.HEALTH, 5, "Drank Water (500ml+)", icon = "💧"),
+            QuickHabitTemplate("p3", "Exercise & Workout", Category.HEALTH, 15, "30-Min Workout / Walk", icon = "🏃"),
+            QuickHabitTemplate("p4", "Daily Learning & Reading", Category.LEARNING, 10, "Read / Skill Practice", icon = "📚"),
+            QuickHabitTemplate("p5", "Healthy Meal", Category.HEALTH, 5, "Nutritious Meal Logged", icon = "🍽️"),
+            QuickHabitTemplate("p6", "Mindful Break & Stretch", Category.HEALTH, 5, "Stretching / Rest Period", icon = "🧘")
+        )
     }
 }
