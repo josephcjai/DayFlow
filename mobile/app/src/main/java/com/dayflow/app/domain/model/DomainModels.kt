@@ -262,3 +262,68 @@ object DefaultDayTemplates {
 
     val ALL = listOf(WORKDAY, WEEKEND)
 }
+
+// ==========================================
+// 7. Note Sheets & Markdown Models (v2.9.0 Web Parity)
+// ==========================================
+
+@kotlinx.serialization.Serializable
+data class NoteSheet(
+    val id: String,
+    val title: String,
+    val icon: String,
+    val content: String = "",
+    val dailyContent: Map<String, String> = emptyMap(),
+    val isDefault: Boolean = true
+)
+
+enum class NotesSaveStatus(val label: String, val hexColor: String) {
+    SAVED("Saved ✓", "#10B981"),
+    UNSAVED("Unsaved", "#F59E0B"),
+    SAVING("Saving...", "#38BDF8")
+}
+
+object DefaultNoteSheets {
+    val JOURNAL = NoteSheet(
+        id = "journal",
+        title = "Weekly Journal",
+        icon = "📓",
+        content = "# Weekly Focus & Objectives\n\n- [x] Complete responsive UI design revamp\n- [ ] Ship production update\n\n### Key Highlights\nDiscipline score reached 92% with consistent deep work blocks.",
+        isDefault = true
+    )
+
+    val DAILY_JOURNAL = NoteSheet(
+        id = "daily_journal",
+        title = "Daily Journal",
+        icon = "📅",
+        content = "# Daily Reflection\n\n### Wins Today\n- Completed key time blocks on schedule\n\n### Blockers & Learnings\n- Keep deep work intervals strictly isolated.",
+        dailyContent = emptyMap(),
+        isDefault = true
+    )
+
+    val TECH = NoteSheet(
+        id = "tech",
+        title = "Tech & Architecture",
+        icon = "💻",
+        content = "# System Architecture & Notes\n\n```kotlin\n// Clean Architecture Flow\nDomain -> Repository -> Local/Remote Data\n```",
+        isDefault = true
+    )
+
+    val BACKLOG = NoteSheet(
+        id = "backlog",
+        title = "Sprint Backlog",
+        icon = "💼",
+        content = "# Backlog Priorities\n\n- [ ] Automated regression tests\n- [ ] Performance profiling on release APK",
+        isDefault = true
+    )
+
+    val SCRATCHPAD = NoteSheet(
+        id = "scratchpad",
+        title = "Quick Scratchpad",
+        icon = "⚡",
+        content = "# Quick Scratchpad\n\nJot down fleeting ideas, clipboard snippets, and quick thoughts here...",
+        isDefault = true
+    )
+
+    val ALL = listOf(JOURNAL, DAILY_JOURNAL, TECH, BACKLOG, SCRATCHPAD)
+}

@@ -24,7 +24,7 @@ open class TokenManager @Inject constructor(
                 Build.HARDWARE.contains("ranchu") ||
                 Build.PRODUCT.contains("sdk")
 
-        if (isEmulator) {
+        if (com.dayflow.app.BuildConfig.DEBUG || isEmulator) {
             return@lazy ctx.getSharedPreferences(FALLBACK_PREFS, Context.MODE_PRIVATE)
         }
 
@@ -149,6 +149,14 @@ open class TokenManager @Inject constructor(
         prefs.edit().putString(KEY_HABIT_PRESETS, json).apply()
     }
 
+    open fun getNoteSheetsJson(weekStart: String): String? {
+        return prefs.getString(KEY_NOTE_SHEETS_PREFIX + weekStart, null)
+    }
+
+    open fun saveNoteSheetsJson(weekStart: String, json: String) {
+        prefs.edit().putString(KEY_NOTE_SHEETS_PREFIX + weekStart, json).apply()
+    }
+
     companion object {
         private const val KEY_NOTIF_ENABLED = "notif_enabled"
         private const val KEY_NOTIF_ACTIVE_WINDOW = "notif_active_window"
@@ -165,5 +173,6 @@ open class TokenManager @Inject constructor(
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_IS_DEMO = "is_demo_mode"
         private const val KEY_HABIT_PRESETS = "custom_habit_presets"
+        private const val KEY_NOTE_SHEETS_PREFIX = "note_sheets_"
     }
 }

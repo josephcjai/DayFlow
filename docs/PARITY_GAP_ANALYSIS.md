@@ -53,10 +53,10 @@ Mobile development has already established a production-grade foundation (Room v
 
 | # | Feature Name | Web App Implementation | Mobile Status | Work Required |
 |---|---|---|---|---|
-| 3.1 | **Daily/Weekly Notes Editor** | Markdown notes area linked to selected week/day | ❌ Missing | Add Notes tab or BottomSheet with text editor. |
-| 3.2 | **Multi-Sheet Notes Tabs** | Multiple sheets (e.g., Daily Log, Ideas, Retrospective) | ❌ Missing | Tabbed sheet manager per week. |
-| 3.3 | **Markdown Preview / Formatting**| Headers, bullet points, checklists, bold/italic | ❌ Missing | Markdown rendering in Compose using annotated strings. |
-| 3.4 | **Offline Autosave with Sync** | Debounced local save with sync in-flight indicator | ❌ Missing | Room entity `NoteEntity` with auto-save debounce. |
+| 3.1 | **Daily/Weekly Notes Editor** | Markdown notes area linked to selected week/day | ✅ Implemented | Complete in `TodosScreen` sub-tab navigation with date-aware content. |
+| 3.2 | **Multi-Sheet Notes Tabs** | Multiple sheets (e.g., Daily Log, Ideas, Retrospective) | ✅ Implemented | Complete: 5 default sheets + custom sheets dialog + icon picker + deletion. |
+| 3.3 | **Markdown Preview / Formatting**| Headers, bullet points, checklists, bold/italic | ✅ Implemented | Complete in native Compose `MarkdownRenderer` with syntax highlighting & checklist toggle. |
+| 3.4 | **Offline Autosave with Sync** | Debounced local save with sync in-flight indicator | ✅ Implemented | Complete: 1.5s debounced persistence, manual save button, status pill (Saved/Unsaved/Saving). |
 
 ---
 
@@ -113,8 +113,8 @@ Mobile development has already established a production-grade foundation (Room v
 - **Phase 11 (Enhanced Todos & 1-Click Timeblocking):** ✅ **Completed & Live Verified** (Unit tests passing, live tested on Pixel 6)
 - **Phase 12 (Productivity Analytics & Category Distribution):** ✅ **Completed & Committed** (`c626c7c`)
 - **Phase 13 (Save Day as Template & Habit Presets):** ✅ **Completed & Live Verified** (Templates Blueprint capture + Custom Habit Routines)
-- **Phase 14 (Daily Notes & Markdown Scratchpad):** ⏳ *Next in queue*
-- **Phase 15 (Data Export/Import, 12h/24h & Final Parity):** ⏳
+- **Phase 14 (Daily Notes & Markdown Scratchpad):** ✅ **Completed & Live Verified** (Multi-sheet markdown notes, Compose renderer, live metrics & debounce persistence)
+- **Phase 15 (Data Export/Import, 12h/24h & Final Parity):** ⏳ *Next in queue*
 
 ---
 
