@@ -342,6 +342,40 @@ fun SettingsBottomSheet(
                             Toast.makeText(context, "Switched to 24-Hour format", Toast.LENGTH_SHORT).show()
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "🎯 Daily Points Goal",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Gamification target for daily habit routines & completed tasks",
+                        fontSize = 11.sp,
+                        color = TextMuted
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(30, 50, 75, 100).forEach { targetPts ->
+                            PresetPill(
+                                label = "$targetPts pts",
+                                isSelected = state.dailyPointsTarget == targetPts,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                viewModel.setDailyPointsTarget(targetPts)
+                                Toast.makeText(context, "Daily goal set to $targetPts pts", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 }
             }
 

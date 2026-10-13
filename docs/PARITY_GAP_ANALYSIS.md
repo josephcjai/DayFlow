@@ -67,9 +67,9 @@ Mobile development has already established a production-grade foundation (Room v
 | 4.1 | **Daily Habits Checklist** | Habit item with checkbox and streak count | ✅ Implemented | Dedicated Habits tab. |
 | 4.2 | **Habit Action Ledger & Points** | Points system (+5, +10, +15 pts per action), points ledger log | ✅ Implemented | Habit ledger with 1-tap logging, score calculation & recent logs. |
 | 4.3 | **Customizable Habit Presets** | Add, edit, archive presets with emoji, name, and pts | ✅ Implemented | Custom routine builder with emoji pills, points, category, and delete. |
-| 4.4 | **7-Day Consistency Matrix** | Mon–Sun completion grid showing weekly habit execution | ❌ Missing | 7-day mini dot/checkbox matrix in Habit card. |
-| 4.5 | **Gamification Targets** | Daily points goal (e.g. 50 pts target) with progress bar | ❌ Missing | Daily goal setting and visual progress gauge. |
-| 4.6 | **Points Breakdown Modal** | Modal showing exact points earned from habits + todos | ❌ Missing | Points inspection sheet. |
+| 4.4 | **7-Day Consistency Matrix** | Mon–Sun completion grid showing weekly habit execution | ✅ Implemented | `HabitConsistencyMatrixCard` with Mon–Sun daily trend bars, points indicators & active day highlight. |
+| 4.5 | **Gamification Targets** | Daily points goal (e.g. 50 pts target) with progress bar | ✅ Implemented | `GamificationTargetCard` with progress gauge, celebration banner, editable target & Settings synchronization. |
+| 4.6 | **Points Breakdown Modal** | Modal showing exact points earned from habits + todos | ✅ Implemented | `PointsBreakdownBottomSheet` with habit + completed todo points audit, 3 summary KPI cards & filter chips. |
 
 ---
 
@@ -114,8 +114,9 @@ Mobile development has already established a production-grade foundation (Room v
 - **Phase 12 (Productivity Analytics & Category Distribution):** ✅ **Completed & Committed** (`c626c7c`)
 - **Phase 13 (Save Day as Template & Habit Presets):** ✅ **Completed & Live Verified** (Templates Blueprint capture + Custom Habit Routines)
 - **Phase 14 (Daily Notes & Markdown Scratchpad):** ✅ **Completed & Committed** (`1ffcc75`)
-- **Phase 15 (Data Export/Import, 12h/24h & Account Security):** ✅ **Completed & Live Verified** (Full JSON export/restore, 12h/24h reactive toggle, biometric lock & password update)
-- **Phase 16 (Habits Matrix, Gamification Targets & Points Breakdown):** ⏳ *In Progress*
+- **Phase 15 (Data Export/Import, 12h/24h & Account Security):** ✅ **Completed & Committed** (`802609e`)
+- **Phase 16 (Habits Matrix, Gamification Targets & Points Breakdown):** ✅ **Completed & Live Verified** (7-day matrix, daily discipline goal gauge, celebration banner & points bifurcation audit sheet)
+- **Phase 17 (Dynamic NOW Indicator, Timeline Windowing & Undo Buffer):** ⏳ *Final Parity Sprint*
 
 ---
 
@@ -126,8 +127,8 @@ Mobile development has already established a production-grade foundation (Room v
 | **1. Schedule Timeline & Slot Actions** | 11 | 8 | **73%** |
 | **2. Todos & Timeblocking** | 8 | 8 | **100%** 🎉 |
 | **3. Notes & Markdown** | 4 | 4 | **100%** 🎉 |
-| **4. Habits Ledger & Gamification** | 6 | 3 | **50%** |
+| **4. Habits Ledger & Gamification** | 6 | 6 | **100%** 🎉 |
 | **5. Productivity Analytics** | 4 | 4 | **100%** 🎉 |
 | **6. Day Templates** | 3 | 3 | **100%** 🎉 |
 | **7. Settings, Backup & Security** | 6 | 6 | **100%** 🎉 |
-| **TOTAL** | **42** | **36** | **86%** |
+| **TOTAL** | **42** | **39** | **93%** 🚀 |

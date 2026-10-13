@@ -179,13 +179,14 @@ open class TokenManager @Inject constructor(
         private const val KEY_NOTE_SHEETS_PREFIX = "note_sheets_"
         private const val KEY_TIME_FORMAT = "key_time_format"
         private const val KEY_BIOMETRICS_ENABLED = "key_biometrics_enabled"
+        private const val KEY_DAILY_POINTS_TARGET = "daily_points_target"
     }
 
     private val _timeFormatFlow = MutableStateFlow(if (context != null) (prefs.getString(KEY_TIME_FORMAT, "12h") ?: "12h") else "12h")
     open val timeFormatFlow: StateFlow<String> = _timeFormatFlow.asStateFlow()
 
     open fun getTimeFormat(): String {
-        return if (context != null) (prefs.getString(KEY_TIME_FORMAT, "12h") ?: "12h") else "12h"
+        return _timeFormatFlow.value
     }
 
     open fun setTimeFormat(format: String) {
@@ -199,6 +200,19 @@ open class TokenManager @Inject constructor(
 
     open fun setBiometricsEnabled(enabled: Boolean) {
         if (context != null) prefs.edit().putBoolean(KEY_BIOMETRICS_ENABLED, enabled).apply()
+    }
+
+    private val _dailyPointsTargetFlow = MutableStateFlow(if (context != null) prefs.getInt(KEY_DAILY_POINTS_TARGET, 50) else 50)
+    open val dailyPointsTargetFlow: StateFlow<Int> = _dailyPointsTargetFlow.asStateFlow()
+
+    open fun getDailyPointsTarget(): Int {
+        return _dailyPointsTargetFlow.value
+    }
+
+    open fun setDailyPointsTarget(target: Int) {
+        val clamped = target.coerceIn(10, 500)
+        if (context != null) prefs.edit().putInt(KEY_DAILY_POINTS_TARGET, clamped).apply()
+        _dailyPointsTargetFlow.value = clamped
     }
 
 }
