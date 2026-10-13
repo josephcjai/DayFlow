@@ -90,6 +90,52 @@ data class FocusAnalyticsSummary(
     val effectivenessPercentage: Int
 )
 
+enum class AnalyticsScope(val label: String) {
+    DAY("Day Report"),
+    WEEK("Week Report")
+}
+
+data class CategoryDistributionItem(
+    val categoryName: String,
+    val icon: String = "📌",
+    val hexColor: String = "#64748B",
+    val isProductive: Boolean = false,
+    val plannedMinutes: Int = 0,
+    val actualMinutes: Int = 0,
+    val completionPercentage: Int = 0
+) {
+    val plannedHours: String get() = String.format(java.util.Locale.US, "%.1f", plannedMinutes / 60f)
+    val actualHours: String get() = String.format(java.util.Locale.US, "%.1f", actualMinutes / 60f)
+}
+
+data class DayConsistencyItem(
+    val date: java.time.LocalDate,
+    val dayLabel: String,
+    val dateLabel: String,
+    val plannedMinutes: Int = 0,
+    val actualMinutes: Int = 0,
+    val isSelected: Boolean = false,
+    val isToday: Boolean = false
+) {
+    val actualHours: String get() = String.format(java.util.Locale.US, "%.1f", actualMinutes / 60f)
+    val plannedHours: String get() = String.format(java.util.Locale.US, "%.1f", plannedMinutes / 60f)
+}
+
+data class ScheduleAnalyticsData(
+    val scope: AnalyticsScope = AnalyticsScope.DAY,
+    val plannedMinutes: Int = 0,
+    val actualMinutes: Int = 0,
+    val productiveMinutes: Int = 0,
+    val completionScore: Int = 0,
+    val effectivenessScore: Int = 0,
+    val categoryDistribution: List<CategoryDistributionItem> = emptyList(),
+    val weeklyConsistencyTrend: List<DayConsistencyItem> = emptyList()
+) {
+    val plannedHours: String get() = String.format(java.util.Locale.US, "%.1f", plannedMinutes / 60f)
+    val actualHours: String get() = String.format(java.util.Locale.US, "%.1f", actualMinutes / 60f)
+    val productiveHours: String get() = String.format(java.util.Locale.US, "%.1f", productiveMinutes / 60f)
+}
+
 data class Habit(
     val id: String,
     val weekStart: String,

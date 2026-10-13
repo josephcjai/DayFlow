@@ -78,9 +78,9 @@ Mobile development has already established a production-grade foundation (Room v
 | # | Feature Name | Web App Implementation | Mobile Status | Work Required |
 |---|---|---|---|---|
 | 5.1 | **Core Daily KPIs** | Planned vs Actual hours, Focus Score %, Effectiveness % | ✅ Implemented | Present on schedule header card. |
-| 5.2 | **Category Distribution Bars** | Visual breakdown (% and hours) by category | ❌ Missing | Analytics card with colored progress bars for Work, Learning, Health, etc. |
-| 5.3 | **7-Day Consistency Trend** | Daily performance consistency bar chart across Mon–Sun | ❌ Missing | 7-day bar chart showing productivity score per day. |
-| 5.4 | **View Mode Aggregation** | Toggle KPI between Day View and 7-Day Weekly Summary | ❌ Missing | Day vs Week toggle in Analytics card/screen. |
+| 5.2 | **Category Distribution Bars** | Visual breakdown (% and hours) by category | ✅ Implemented | Category distribution bars with icons, planned/actual hours, % completion, and High Impact badge. |
+| 5.3 | **7-Day Consistency Trend** | Daily performance consistency bar chart across Mon–Sun | ✅ Implemented | 7-day consistency visualizer with daily hours, proportional heights, and active day highlight. |
+| 5.4 | **View Mode Aggregation** | Toggle KPI between Day View and 7-Day Weekly Summary | ✅ Implemented | Day vs Week scope toggle pills dynamically re-aggregating KPIs, distribution, and trend. |
 
 ---
 
@@ -126,7 +126,7 @@ Mobile development has already established a production-grade foundation (Room v
 | **2. Todos & Timeblocking** | 8 | 8 | **100%** 🎉 |
 | **3. Notes & Markdown** | 4 | 0 | **0%** |
 | **4. Habits Ledger & Gamification** | 6 | 1 | **17%** |
-| **5. Productivity Analytics** | 4 | 1 | **25%** |
+| **5. Productivity Analytics** | 4 | 4 | **100%** |
 | **6. Day Templates** | 3 | 1 | **33%** |
 | **7. Settings, Backup & Security** | 6 | 2 | **33%** |
-| **TOTAL** | **42** | **20** | **48%** |
+| **TOTAL** | **42** | **24** | **57%** |

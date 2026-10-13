@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.dayflow.app.data.repository.TemplateRepository
 import com.dayflow.app.domain.model.DayTemplate
 import com.dayflow.app.domain.usecase.ApplyTemplateUseCase
+import com.dayflow.app.domain.model.AnalyticsScope
+import com.dayflow.app.domain.model.ScheduleAnalyticsData
+import com.dayflow.app.domain.usecase.CalculateFocusAnalyticsUseCase
 import com.dayflow.app.data.repository.CategoryRepository
 import com.dayflow.app.data.repository.ScheduleRepository
 import com.dayflow.app.domain.model.CategoryItem
@@ -60,7 +63,10 @@ data class ScheduleUiState(
     val isSelectionMode: Boolean = false,
     val selectedSlotKeys: Set<String> = emptySet(),
     val isCategoryPickerOpen: Boolean = false,
-    val clipboardSlot: Slot? = null
+    val clipboardSlot: Slot? = null,
+    val selectedCategoryFilter: String = "ALL",
+    val isAnalyticsExpanded: Boolean = false,
+    val analyticsScope: AnalyticsScope = AnalyticsScope.DAY
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -74,6 +80,7 @@ class ScheduleViewModel @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val templateRepository: TemplateRepository,
     private val applyTemplateUseCase: ApplyTemplateUseCase,
+    private val calculateFocusAnalyticsUseCase: CalculateFocusAnalyticsUseCase,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -99,7 +106,41 @@ class ScheduleViewModel @Inject constructor(
         getWeekScheduleUseCase(state.weekStart)
     }
 
-    // 48-slot timeline for the currently selected date
+    val analyticsData: StateFlow<ScheduleAnalyticsData> = combine(
+        _uiState,
+        weekSlotsFlow,
+        categories
+    ) { state, weekSlots, catList ->
+        val datePrefix = state.selectedDate.toString()
+        val daySlotsList = weekSlots.filter { it.slotKey.startsWith(datePrefix) }
+        calculateFocusAnalyticsUseCase.calculateScheduleAnalytics(
+            daySlots = daySlotsList,
+            weekSlots = weekSlots,
+            categories = catList,
+            selectedDate = state.selectedDate,
+            weekDays = state.weekDays,
+            scope = state.analyticsScope
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = ScheduleAnalyticsData()
+    )
+
+    val dayCategoryCounts: StateFlow<Map<String, Int>> = combine(
+        _uiState,
+        weekSlotsFlow
+    ) { state, weekSlots ->
+        val datePrefix = state.selectedDate.toString()
+        val todaySlots = weekSlots.filter { it.slotKey.startsWith(datePrefix) && (it.plannedTask.isNotBlank() || it.actualTask.isNotBlank()) }
+        todaySlots.groupingBy { it.categoryName.ifBlank { it.category.displayName } }.eachCount()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyMap()
+    )
+
+    // 48-slot timeline for the currently selected date (with category filtering)
     val daySlots: StateFlow<List<SlotRowUiModel>> = combine(
         _uiState,
         weekSlotsFlow
@@ -109,7 +150,7 @@ class ScheduleViewModel @Inject constructor(
         val now = LocalDateTime.now()
         val isToday = state.selectedDate == LocalDate.now()
 
-        allDayKeys.map { key ->
+        val allRows = allDayKeys.map { key ->
             val (_, time) = DateTimeUtils.parseSlotKey(key)
             val endTime = time.plusMinutes(30)
             val isPassed = DateTimeUtils.isSlotTimePassed(key, now)
@@ -123,6 +164,18 @@ class ScheduleViewModel @Inject constructor(
                 isTimePassed = isPassed,
                 isCurrentSlot = isCurrent
             )
+        }
+
+        if (state.selectedCategoryFilter != "ALL") {
+            allRows.filter { row ->
+                val slot = row.slot
+                slot != null && (
+                    slot.categoryName.equals(state.selectedCategoryFilter, ignoreCase = true) ||
+                    slot.category.displayName.equals(state.selectedCategoryFilter, ignoreCase = true)
+                )
+            }
+        } else {
+            allRows
         }
     }.stateIn(
         scope = viewModelScope,
@@ -522,6 +575,20 @@ class ScheduleViewModel @Inject constructor(
             }
         }
     }
+    fun setCategoryFilter(category: String) {
+        _uiState.update {
+            it.copy(selectedCategoryFilter = if (it.selectedCategoryFilter.equals(category, ignoreCase = true) && category != "ALL") "ALL" else category)
+        }
+    }
+
+    fun toggleAnalyticsExpanded() {
+        _uiState.update { it.copy(isAnalyticsExpanded = !it.isAnalyticsExpanded) }
+    }
+
+    fun setAnalyticsScope(scope: AnalyticsScope) {
+        _uiState.update { it.copy(analyticsScope = scope) }
+    }
+
     companion object {
         fun buildInitialDaySlots(selectedDate: LocalDate): List<SlotRowUiModel> {
             val allDayKeys = DateTimeUtils.generateDaySlotKeys(selectedDate)

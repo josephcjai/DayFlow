@@ -62,6 +62,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dayflow.app.data.sync.SyncStatus
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.text.style.TextAlign
+import com.dayflow.app.domain.model.AnalyticsScope
+import com.dayflow.app.domain.model.CategoryDistributionItem
+import com.dayflow.app.domain.model.DayConsistencyItem
+import com.dayflow.app.domain.model.ScheduleAnalyticsData
 import com.dayflow.app.domain.model.CategoryItem
 import com.dayflow.app.domain.model.Slot
 import com.dayflow.app.domain.model.SlotStatus
@@ -91,6 +101,8 @@ fun ScheduleTimelineScreen(
     val daySlots by viewModel.daySlots.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val templates by viewModel.templates.collectAsState()
+    val analyticsData by viewModel.analyticsData.collectAsState()
+    val dayCategoryCounts by viewModel.dayCategoryCounts.collectAsState()
 
     val monthYearTitle = uiState.selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
 
@@ -404,27 +416,24 @@ fun ScheduleTimelineScreen(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        val activeSlots = remember(daySlots) { daySlots.mapNotNull { it.slot } }
-        val grandPlannedMins = remember(activeSlots) { activeSlots.sumOf { it.plannedDuration } }
-        val grandActualMins = remember(activeSlots) { activeSlots.sumOf { it.actualDuration } }
-        val productiveActualMins = remember(activeSlots) {
-            activeSlots.filter { it.isProductiveSlot() }.sumOf { it.actualDuration }
-        }
-        val plannedHrs = String.format(Locale.US, "%.1f", grandPlannedMins / 60f)
-        val actualHrs = String.format(Locale.US, "%.1f", grandActualMins / 60f)
-        val productiveHrs = String.format(Locale.US, "%.1f", productiveActualMins / 60f)
-        val completionScore = if (grandPlannedMins > 0) ((grandActualMins.toFloat() / grandPlannedMins) * 100).toInt().coerceAtMost(100) else 0
-        val effectivenessScore = if (grandActualMins > 0) ((productiveActualMins.toFloat() / grandActualMins) * 100).toInt().coerceAtMost(100) else 0
-
-        if (grandPlannedMins > 0 || grandActualMins > 0) {
+        if (analyticsData.plannedMinutes > 0 || analyticsData.actualMinutes > 0) {
             DailyEffectivenessCard(
-                plannedHrs = plannedHrs,
-                actualHrs = actualHrs,
-                productiveHrs = productiveHrs,
-                completionScore = completionScore,
-                effectivenessScore = effectivenessScore
+                analytics = analyticsData,
+                isExpanded = uiState.isAnalyticsExpanded,
+                onToggleExpand = { viewModel.toggleAnalyticsExpanded() },
+                onScopeChanged = { scope -> viewModel.setAnalyticsScope(scope) }
             )
         }
+
+        // Horizontal Category Filter Bar (Web Parity: Filter by category)
+        TimelineCategoryFilterBar(
+            categories = categories,
+            selectedCategoryFilter = uiState.selectedCategoryFilter,
+            categoryCounts = dayCategoryCounts,
+            onCategorySelected = { catName -> viewModel.setCategoryFilter(catName) }
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
 
         // 4. Pull-to-Refresh & 48-Slot Timeline List with Bulk Actions
         Box(modifier = Modifier.fillMaxSize()) {
@@ -438,6 +447,83 @@ fun ScheduleTimelineScreen(
                         .fillMaxSize()
                         .padding(horizontal = 16.dp)
                 ) {
+                    if (uiState.selectedCategoryFilter != "ALL" && daySlots.isNotEmpty()) {
+                        item {
+                            Surface(
+                                color = SurfaceDark,
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Filtered by '${uiState.selectedCategoryFilter}' (${daySlots.size} slots)",
+                                        fontSize = 11.sp,
+                                        color = DayFlowPrimary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Clear Filter",
+                                        fontSize = 11.sp,
+                                        color = TextMuted,
+                                        modifier = Modifier.clickable { viewModel.setCategoryFilter("ALL") }
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+
+                    if (daySlots.isEmpty() && uiState.selectedCategoryFilter != "ALL") {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("📌", fontSize = 28.sp)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "No tasks in '${uiState.selectedCategoryFilter}'",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "No time blocks scheduled with this category for today.",
+                                        fontSize = 12.sp,
+                                        color = TextMuted,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(14.dp))
+                                    Button(
+                                        onClick = { viewModel.setCategoryFilter("ALL") },
+                                        colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("Show All 48 Slots", fontSize = 12.sp, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     items(daySlots, key = { it.slotKey }) { row ->
                         TimelineSlotItem(
                             row = row,
@@ -861,11 +947,10 @@ fun StatusChip(
 
 @Composable
 fun DailyEffectivenessCard(
-    plannedHrs: String,
-    actualHrs: String,
-    productiveHrs: String,
-    completionScore: Int,
-    effectivenessScore: Int
+    analytics: ScheduleAnalyticsData,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onScopeChanged: (AnalyticsScope) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -878,33 +963,53 @@ fun DailyEffectivenessCard(
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
+            // Header Row: Scope Selector & Expand Toggle
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Daily Focus & Effectiveness",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
-                Surface(
-                    color = Color(0xFFF59E0B).copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "⚡ High Impact",
-                        color = Color(0xFFF59E0B),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        text = if (analytics.scope == AnalyticsScope.DAY) "Daily Focus Analytics" else "Weekly Focus Analytics",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Scope selector toggle
+                Row(
+                    modifier = Modifier
+                        .background(SurfaceElevated, RoundedCornerShape(8.dp))
+                        .padding(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ScopePill(
+                        label = "Day",
+                        isSelected = analytics.scope == AnalyticsScope.DAY,
+                        onClick = { onScopeChanged(AnalyticsScope.DAY) }
+                    )
+                    ScopePill(
+                        label = "Week",
+                        isSelected = analytics.scope == AnalyticsScope.WEEK,
+                        onClick = { onScopeChanged(AnalyticsScope.WEEK) }
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // KPI Metrics Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -913,26 +1018,335 @@ fun DailyEffectivenessCard(
                 Column {
                     Text("Planned", fontSize = 11.sp, color = TextMuted)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("${plannedHrs}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text("${analytics.plannedHours}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 }
                 // Actual
                 Column {
                     Text("Actual", fontSize = 11.sp, color = TextMuted)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("${actualHrs}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text("${analytics.actualHours}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 }
-                // Completion
+                // Score
                 Column {
                     Text("Score", fontSize = 11.sp, color = TextMuted)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("${completionScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DayFlowPrimary)
+                    Text("${analytics.completionScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DayFlowPrimary)
                 }
                 // Work Effectiveness
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Work Effectiveness", fontSize = 11.sp, color = Color(0xFFF59E0B))
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("${effectivenessScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
-                    Text("${productiveHrs}h of ${actualHrs}h logged", fontSize = 10.sp, color = TextMuted)
+                    Text("${analytics.effectivenessScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
+                    Text("${analytics.productiveHours}h of ${analytics.actualHours}h logged", fontSize = 10.sp, color = TextMuted)
+                }
+            }
+
+            // Expandable Category Distribution & 7-Day Consistency Trend
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.padding(top = 12.dp)) {
+                    HorizontalDivider(
+                        modifier = Modifier.fillMaxWidth(),
+                        thickness = 1.dp,
+                        color = SurfaceElevated
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 1. Category Focus Distribution
+                    Text(
+                        text = "Category Focus Distribution",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (analytics.categoryDistribution.isEmpty()) {
+                        Text(
+                            text = "No focus blocks recorded for this period.",
+                            fontSize = 11.sp,
+                            color = TextMuted,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    } else {
+                        analytics.categoryDistribution.forEach { catItem ->
+                            CategoryDistributionRow(item = catItem)
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.fillMaxWidth(),
+                        thickness = 1.dp,
+                        color = SurfaceElevated
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 2. 7-Day Consistency Trend
+                    Text(
+                        text = "7-Day Consistency Context (Mon – Sun)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Showing daily logged focus hours (🎯 = Selected Day)",
+                        fontSize = 10.sp,
+                        color = TextMuted
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    WeeklyTrendRow(trend = analytics.weeklyConsistencyTrend)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScopePill(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        color = if (isSelected) DayFlowPrimary else Color.Transparent,
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) Color.White else TextMuted,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+    }
+}
+
+@Composable
+private fun CategoryDistributionRow(item: CategoryDistributionItem) {
+    val parsedColor = remember(item.hexColor) {
+        try {
+            val hex = if (item.hexColor.startsWith("#")) item.hexColor else "#${item.hexColor}"
+            Color(android.graphics.Color.parseColor(hex))
+        } catch (e: Exception) {
+            DayFlowPrimary
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = item.icon, fontSize = 12.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = item.categoryName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
+                if (item.isProductive) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        color = Color(0xFFF59E0B).copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = "⚡ High Impact",
+                            color = Color(0xFFF59E0B),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = "Plan: ${item.plannedHours}h | Act: ${item.actualHours}h (${item.completionPercentage}%)",
+                fontSize = 10.sp,
+                color = TextMuted
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(5.dp)
+                .background(SurfaceElevated, RoundedCornerShape(3.dp))
+        ) {
+            val fillFraction = (item.completionPercentage / 100f).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fillFraction)
+                    .fillMaxHeight()
+                    .background(parsedColor, RoundedCornerShape(3.dp))
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyTrendRow(trend: List<DayConsistencyItem>) {
+    val maxActual = remember(trend) {
+        val maxMins = trend.maxOfOrNull { it.actualMinutes } ?: 0
+        maxMins.coerceAtLeast(120)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceElevated.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        trend.forEach { day ->
+            val fillFraction = (day.actualMinutes.toFloat() / maxActual.toFloat()).coerceIn(0.06f, 1f)
+            val barColor = if (day.isSelected) DayFlowPrimary else if (day.actualMinutes > 0) Color(0xFF818CF8) else TextMuted.copy(alpha = 0.3f)
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (day.isSelected) "🎯" else if (day.isToday) "📍" else " ",
+                    fontSize = 8.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Box(
+                    modifier = Modifier
+                        .width(16.dp)
+                        .height(40.dp)
+                        .background(SurfaceDark, RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(fillFraction)
+                            .background(barColor, RoundedCornerShape(4.dp))
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = day.dayLabel,
+                    fontSize = 9.sp,
+                    fontWeight = if (day.isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (day.isSelected) DayFlowPrimary else TextMuted
+                )
+
+                Text(
+                    text = if (day.actualMinutes > 0) "${day.actualHours}h" else "0h",
+                    fontSize = 8.sp,
+                    color = if (day.isSelected) TextPrimary else TextMuted
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun TimelineCategoryFilterBar(
+    categories: List<CategoryItem>,
+    selectedCategoryFilter: String,
+    categoryCounts: Map<String, Int>,
+    onCategorySelected: (String) -> Unit
+) {
+    val totalScheduled = categoryCounts.values.sum()
+
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // "All" chip
+        item {
+            val isAllSelected = selectedCategoryFilter == "ALL"
+            Surface(
+                modifier = Modifier.clickable { onCategorySelected("ALL") },
+                color = if (isAllSelected) DayFlowPrimary else SurfaceDark,
+                shape = RoundedCornerShape(20.dp),
+                border = if (!isAllSelected) androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated) else null
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "All",
+                        fontSize = 11.sp,
+                        fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isAllSelected) Color.White else TextSecondary
+                    )
+                    if (totalScheduled > 0) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "($totalScheduled)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isAllSelected) Color.White.copy(alpha = 0.85f) else TextMuted
+                        )
+                    }
+                }
+            }
+        }
+
+        // Active Category chips
+        items(categories, key = { it.id.ifBlank { it.name } }) { cat ->
+            val isSelected = selectedCategoryFilter.equals(cat.name, ignoreCase = true)
+            val count = categoryCounts[cat.name] ?: 0
+            val parsedColor = remember(cat.hexColor) {
+                try {
+                    val hex = if (cat.hexColor.startsWith("#")) cat.hexColor else "#${cat.hexColor}"
+                    Color(android.graphics.Color.parseColor(hex))
+                } catch (e: Exception) {
+                    DayFlowPrimary
+                }
+            }
+
+            Surface(
+                modifier = Modifier.clickable { onCategorySelected(cat.name) },
+                color = if (isSelected) parsedColor else SurfaceDark,
+                shape = RoundedCornerShape(20.dp),
+                border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated) else null
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = cat.icon, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = cat.name,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) Color.White else TextSecondary
+                    )
+                    if (count > 0) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "($count)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isSelected) Color.White.copy(alpha = 0.85f) else parsedColor
+                        )
+                    }
                 }
             }
         }
