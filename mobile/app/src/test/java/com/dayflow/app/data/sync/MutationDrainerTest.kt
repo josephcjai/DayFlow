@@ -201,6 +201,8 @@ class FakeDayFlowApiService : DayFlowApiService {
 
     override suspend fun register(request: RegisterRequest): Response<AuthResponse> = TODO()
     override suspend fun login(request: LoginRequest): Response<AuthResponse> = TODO()
+    override suspend fun googleLogin(request: com.dayflow.app.data.model.GoogleLoginRequest): Response<AuthResponse> = TODO()
+    override suspend fun getAuthConfig(): Response<com.dayflow.app.data.model.AuthConfigResponse> = TODO()
     override suspend fun getCurrentUser(): Response<UserProfileResponse> = TODO()
     override suspend fun forgotPassword(request: ForgotPasswordRequest): Response<MessageResponse> = TODO()
     override suspend fun changePassword(request: com.dayflow.app.data.model.ChangePasswordRequest): Response<MessageResponse> = TODO()

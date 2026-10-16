@@ -13,6 +13,8 @@ import com.dayflow.app.data.model.HabitLogDto
 import com.dayflow.app.data.model.LogHabitRequest
 import com.dayflow.app.data.model.LogHabitResponse
 import com.dayflow.app.data.model.LoginRequest
+import com.dayflow.app.data.model.GoogleLoginRequest
+import com.dayflow.app.data.model.AuthConfigResponse
 import com.dayflow.app.data.model.MessageResponse
 import com.dayflow.app.data.model.RegisterRequest
 import com.dayflow.app.data.model.SaveNotesRequest
@@ -43,6 +45,12 @@ interface DayFlowApiService {
 
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
+
+    @POST("auth/google")
+    suspend fun googleLogin(@Body request: GoogleLoginRequest): Response<AuthResponse>
+
+    @GET("auth/config")
+    suspend fun getAuthConfig(): Response<AuthConfigResponse>
 
     @GET("auth/me")
     suspend fun getCurrentUser(): Response<UserProfileResponse>
@@ -125,6 +133,7 @@ interface DayFlowApiService {
     suspend fun deleteTemplate(@Path("id") id: String): Response<Unit>
 
     companion object {
+        const val GOOGLE_SERVER_CLIENT_ID = "1033021313424-jm6ke98n03tjl3ti7gndk10fv2pphq8p.apps.googleusercontent.com"
         const val PROD_BASE_URL = "https://dayflowlive.com/api/"
         const val DEV_EMULATOR_BASE_URL = "http://10.0.2.2:5000/api/"
         const val DEV_PHYSICAL_BASE_URL = "http://192.168.1.100:5000/api/"

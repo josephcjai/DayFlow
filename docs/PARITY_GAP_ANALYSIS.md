@@ -107,6 +107,16 @@ Mobile development has already established a production-grade foundation (Room v
 
 ---
 
+### Area 8: Native Authentication & Identity (`auth.js`, `apiClient.js`)
+
+| # | Feature Name | Web App Implementation | Mobile Status | Work Required |
+|---|---|---|---|---|
+| 8.1 | **Email & Password Authentication** | Register and Login with JWT tokens | ✅ Implemented | AuthScreen with tabbed interface and EncryptedSharedPreferences token persistence. |
+| 8.2 | **Native Google Sign-In** | Google Identity Services OAuth login | ✅ Implemented | Modern Android Credential Manager (`androidx.credentials` + `googleid`), official vector Google branding, and `/api/auth/google` backend integration. |
+| 8.3 | **1-Tap Demo Mode** | Guest exploration mode with mock datasets | ✅ Implemented | Demo mode banner with pre-populated schedules, habits, and categories. |
+
+---
+
 ## 3. Sequenced Roadmap Status
 
 - **Phase 10 (Task Copy & Paste):** ✅ **Completed & Committed** (`3872d69`)

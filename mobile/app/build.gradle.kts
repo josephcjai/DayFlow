@@ -101,6 +101,10 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.biometric)
+    // Google Sign-In via Credential Manager
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     // Testing
     testImplementation(libs.junit)

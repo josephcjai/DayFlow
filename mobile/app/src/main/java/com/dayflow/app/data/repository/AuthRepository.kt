@@ -14,6 +14,8 @@ import com.dayflow.app.data.local.DayFlowDatabase
 
 interface AuthRepository {
     suspend fun login(email: String, password: String): Result<UserDto>
+    suspend fun googleLogin(credential: String): Result<UserDto>
+    suspend fun getGoogleClientId(): String
     suspend fun register(email: String, password: String, displayName: String): Result<UserDto>
     suspend fun getCurrentUser(): Result<UserDto>
     suspend fun forgotPassword(email: String): Result<String>
@@ -30,6 +32,57 @@ class AuthRepositoryImpl @Inject constructor(
     private val tokenManager: TokenManager,
     private val database: DayFlowDatabase
 ) : AuthRepository {
+    private fun parseErrorMessage(rawError: String?, fallback: String): String {
+        if (rawError.isNullOrBlank()) return fallback
+        return try {
+            val trimmed = rawError.trim()
+            if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+                val json = org.json.JSONObject(trimmed)
+                when {
+                    json.has("error") -> json.getString("error")
+                    json.has("message") -> json.getString("message")
+                    else -> trimmed
+                }
+            } else {
+                trimmed
+            }
+        } catch (e: Exception) {
+            rawError
+        }
+    }
+
+
+    override suspend fun googleLogin(credential: String): Result<UserDto> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.googleLogin(com.dayflow.app.data.model.GoogleLoginRequest(credential = credential))
+            if (response.isSuccessful && response.body() != null) {
+                val authBody = response.body()!!
+                tokenManager.saveToken(authBody.token)
+                tokenManager.saveUserEmail(authBody.user.email)
+                tokenManager.saveDisplayName(authBody.user.displayName)
+                tokenManager.setDemoMode(false)
+                Result.success(authBody.user)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Google login failed (${response.code()})")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getGoogleClientId(): String = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getAuthConfig()
+            if (response.isSuccessful && !response.body()?.googleClientId.isNullOrBlank()) {
+                response.body()!!.googleClientId!!
+            } else {
+                DayFlowApiService.GOOGLE_SERVER_CLIENT_ID
+            }
+        } catch (e: Exception) {
+            DayFlowApiService.GOOGLE_SERVER_CLIENT_ID
+        }
+    }
 
     override suspend fun login(email: String, password: String): Result<UserDto> = withContext(Dispatchers.IO) {
         try {
@@ -42,7 +95,7 @@ class AuthRepositoryImpl @Inject constructor(
                 tokenManager.setDemoMode(false)
                 Result.success(authBody.user)
             } else {
-                val errorMsg = response.errorBody()?.string() ?: "Login failed (${response.code()})"
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Login failed (${response.code()})")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
@@ -71,7 +124,7 @@ class AuthRepositoryImpl @Inject constructor(
                 tokenManager.setDemoMode(false)
                 Result.success(authBody.user)
             } else {
-                val errorMsg = response.errorBody()?.string() ?: "Registration failed (${response.code()})"
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Registration failed (${response.code()})")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
@@ -119,7 +172,7 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful) {
                 Result.success(response.body()?.message ?: "Password updated successfully!")
             } else {
-                val errorMsg = response.errorBody()?.string() ?: "Failed to change password (${response.code()})"
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Failed to change password (${response.code()})")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
@@ -133,7 +186,8 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!.message)
             } else {
-                Result.failure(Exception("Password reset request failed"))
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Password reset request failed")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)

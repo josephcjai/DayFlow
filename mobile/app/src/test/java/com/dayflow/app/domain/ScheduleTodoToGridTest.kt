@@ -201,7 +201,8 @@ class ScheduleTodoToGridTest {
             todo = todo,
             date = testDate,
             timeStr = "14:00",
-            forceOverwrite = true
+            forceOverwrite = true,
+            currentTime = java.time.LocalDateTime.of(2026, 10, 14, 10, 0)
         )
 
         assertTrue(result is ScheduleTodoResult.Success)

@@ -50,6 +50,43 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun loginWithGoogle(credential: String) {
+        if (credential.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Google credential token was not received") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val result = authRepository.googleLogin(credential)
+            result.fold(
+                onSuccess = { user ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isAuthenticated = true,
+                            isDemoMode = false,
+                            userEmail = user.email,
+                            displayName = user.displayName
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = error.localizedMessage ?: "Google login failed"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    suspend fun getGoogleClientId(): String {
+        return authRepository.getGoogleClientId()
+    }
+
     fun login(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Email and password are required") }
@@ -165,6 +202,10 @@ class AuthViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    fun setErrorMessage(message: String) {
+        _uiState.update { it.copy(errorMessage = message, isLoading = false) }
     }
 
     fun clearMessages() {

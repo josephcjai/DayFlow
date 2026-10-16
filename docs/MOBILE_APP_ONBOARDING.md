@@ -121,6 +121,18 @@ Tasks belong to defined productivity categories:
 | `POST` | `/api/auth/register` | Register with email, password, displayName | No |
 | `POST` | `/api/auth/login` | Login with email and password -> returns JWT token | No |
 | `POST` | `/api/auth/google` | Google Sign-In with Google ID token | No |
+
+#### 4.2.1 Native Google Sign-In Setup Guide (Credential Manager)
+DayFlow Android integrates modern Android Credential Manager (`androidx.credentials` + `googleid`) for seamless 1-tap sign-in:
+1. **Web Client ID (Server Client ID):** Provided dynamically by `GET /api/auth/config` (`googleClientId`), with fallback to the configured project server client ID (`1033021313424-jm6ke98n03tjl3ti7gndk10fv2pphq8p.apps.googleusercontent.com`).
+2. **Android Client ID (Google Cloud Console):**
+   - For Google Play Services to authorize the native sheet on Android devices, create an **Android OAuth Client ID** in Google Cloud Console under the same project.
+   - **Package Name:** `com.dayflow.app`
+   - **Debug SHA-1:** `0B:F1:BE:FB:33:1C:EB:3A:19:3E:B5:D4:95:C8:BF:1F:C6:E7:0F:7F`
+   - **Release SHA-1:** Copy the SHA-1 fingerprint from Google Play Console (`Setup` > `App integrity`) or your custom release keystore.
+3. **Backend Exchange:**
+   - Client sends `{ "credential": "<idToken>" }` to `POST /api/auth/google`.
+   - Backend verifies token via `google-auth-library`, finds or creates the user in PostgreSQL, and issues a standard DayFlow JWT session token.
 | `GET` | `/api/auth/me` | Fetch active user profile | **Yes** |
 | `POST` | `/api/auth/forgot-password` | Request password reset email | No |
 | `GET` | `/api/schedule/week/:weekStart` | Fetch full week schedule slots, habits, and notes | **Yes** |

@@ -21,13 +21,24 @@ data class LoginRequest(
 )
 
 @Serializable
+data class GoogleLoginRequest(
+    val credential: String
+)
+
+@Serializable
+data class AuthConfigResponse(
+    val googleClientId: String? = null
+)
+
+@Serializable
 data class UserDto(
     val id: String,
     val email: String,
     val displayName: String,
     val hasPassword: Boolean = true,
     val timezone: String? = null,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val avatarUrl: String? = null
 )
 
 @Serializable

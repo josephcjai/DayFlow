@@ -68,7 +68,8 @@ class ScheduleTodoToGridUseCase @Inject constructor(
         todo: TodoEntity,
         date: LocalDate,
         timeStr: String,
-        forceOverwrite: Boolean = false
+        forceOverwrite: Boolean = false,
+        currentTime: java.time.LocalDateTime = java.time.LocalDateTime.now()
     ): ScheduleTodoResult {
         val slotKey = "${date}_$timeStr"
         if (!DateTimeUtils.isValidSlotKey(slotKey)) {
@@ -104,7 +105,7 @@ class ScheduleTodoToGridUseCase @Inject constructor(
             weekStart = weekStart
         )
 
-        val saveResult = saveSlotUseCase(slot)
+        val saveResult = saveSlotUseCase(slot, currentTime)
         return if (saveResult.isSuccess) {
             todoDao.updateScheduledSlot(todo.id, slotKey, isSyncPending = false)
             ScheduleTodoResult.Success(slotKey)
