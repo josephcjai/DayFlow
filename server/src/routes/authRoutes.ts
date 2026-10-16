@@ -62,6 +62,9 @@ router.post('/google', async (req, res) => {
     let user = userResult.rows[0];
 
     if (user) {
+      if (user.is_disabled) {
+        return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
+      }
       // If user existed, link google_id or avatar if missing
       if (!user.google_id || !user.avatar_url) {
         await executeQuery(
@@ -218,6 +221,10 @@ router.post('/login', async (req, res) => {
 
     const passwordHash = user ? (user.password_hash || user.passwordHash) : null;
 
+    if (user && user.is_disabled) {
+      return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
+    }
+
     if (!user || !passwordHash) {
       // Finding 26: Always run bcrypt compare against dummy hash to prevent user enumeration via response timing
       await bcrypt.compare(passwordToCompare, DUMMY_BCRYPT_HASH);
@@ -372,7 +379,7 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(503).json({ error: 'Email delivery service is currently unavailable. Please try again later.' });
     }
 
-    const userResult = await executeQuery('SELECT id, email, display_name FROM users WHERE LOWER(email) = $1', [cleanEmail]);
+    const userResult = await executeQuery('SELECT id, email, display_name, is_disabled FROM users WHERE LOWER(email) = $1', [cleanEmail]);
     let user = userResult.rows[0];
 
     if (!user) {
@@ -380,7 +387,7 @@ router.post('/forgot-password', async (req, res) => {
       if (memUser) user = memUser;
     }
 
-    if (!user) {
+    if (!user || user.is_disabled) {
       // Finding 17: Timing mitigation for non-existent users (perform dummy crypto work and DB query)
       const dummyToken = crypto.randomBytes(32).toString('hex');
       crypto.createHash('sha256').update(dummyToken).digest('hex');
@@ -468,7 +475,7 @@ router.post('/reset-password', async (req, res) => {
     const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex');
 
     const result = await executeQuery(`
-      SELECT prt.id as token_id, prt.expires_at, prt.used, u.id as user_id, u.email, u.display_name
+      SELECT prt.id as token_id, prt.expires_at, prt.used, u.id as user_id, u.email, u.display_name, u.is_disabled
       FROM password_reset_tokens prt
       JOIN users u ON u.id = prt.user_id
       WHERE LOWER(u.email) = $1 AND prt.token_hash = $2
@@ -491,7 +498,8 @@ router.post('/reset-password', async (req, res) => {
             used: memToken.used,
             user_id: memUser.id,
             email: memUser.email,
-            display_name: memUser.displayName
+            display_name: memUser.displayName,
+            is_disabled: memUser.is_disabled ?? false
           };
         }
       }
@@ -499,6 +507,10 @@ router.post('/reset-password', async (req, res) => {
 
     if (!record || record.used) {
       return res.status(400).json({ error: 'This password reset link is invalid or has already been used. Please request a new one.' });
+    }
+
+    if (record.is_disabled) {
+      return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
     }
 
     if (new Date(record.expires_at).getTime() < Date.now()) {

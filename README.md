@@ -13,6 +13,7 @@
 | 📋 [**Notes & Todo Roadmap**](docs/NOTES_TODO_ROADMAP.md) | Detailed feature roadmap and completed milestones (Phases 1 through 6). |
 | 📅 [**Day Templates Roadmap**](docs/DAY_TEMPLATES_ROADMAP.md) | Future roadmap & cloud sync architecture for Day Templates (v2.7.0). |
 | 🏷️ [**Custom Categories Roadmap**](docs/CUSTOM_CATEGORIES_ROADMAP.md) | Architecture specification & soft-deletion strategy for Custom Categories (v2.9.0). |
+| 🛡️ [**Admin Operations Roadmap**](docs/ADMIN_OPERATIONS_ROADMAP.md) | Privacy-first administrative tooling, DevOps CLI (Phase 1), and future web portal architecture (Phase 2). |
 | ⚙️ [**Technical Specification**](docs/TECHNICAL_SPECIFICATION.md) | System architecture, planned vs. actual time-lock mechanics, and design tokens. |
 | 🚀 [**Production Deployment Guide**](docs/DEPLOYMENT_LIGHTSAIL.md) | AWS Lightsail / Docker deployment guide with Nginx reverse proxy. |
 | 🚢 [**v2.9.0 Production Deployment Runbook**](docs/DEPLOYMENT_v2.9.0_PRODUCTION.md) | Step-by-step production runbook, DB migration ordering, execution log & sign-off for `v2.9.0`. |

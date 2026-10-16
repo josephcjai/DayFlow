@@ -36,18 +36,27 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
         // Malformed userId that is not a UUID (prevents raw Postgres 500 syntax errors)
         const memUser = memoryStore.users.find(u => u.id === decoded.userId);
         if (memUser) {
+          if (memUser.is_disabled) {
+            return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
+          }
           currentTokenVersion = memUser.token_version ?? 1;
         } else {
           return res.status(401).json({ error: 'Unauthorized access. Invalid user identifier.' });
         }
       } else {
         try {
-          const result = await executeQuery('SELECT token_version FROM users WHERE id = $1', [decoded.userId]);
+          const result = await executeQuery('SELECT token_version, is_disabled FROM users WHERE id = $1', [decoded.userId]);
           if (result.rows.length > 0) {
+            if (result.rows[0].is_disabled) {
+              return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
+            }
             currentTokenVersion = result.rows[0].token_version ?? 1;
           } else {
             const memUser = memoryStore.users.find(u => u.id === decoded.userId);
             if (memUser) {
+              if (memUser.is_disabled) {
+                return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
+              }
               currentTokenVersion = memUser.token_version ?? 1;
             } else {
               return res.status(401).json({ error: 'Unauthorized access. User no longer exists.' });
@@ -56,6 +65,9 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
         } catch (dbErr: any) {
           const memUser = memoryStore.users.find(u => u.id === decoded.userId);
           if (memUser) {
+            if (memUser.is_disabled) {
+              return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
+            }
             currentTokenVersion = memUser.token_version ?? 1;
           } else {
             // Fail closed! If DB lookup fails, return 503 instead of falling open
