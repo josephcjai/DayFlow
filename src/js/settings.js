@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.10.0';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi, markCategoryPendingSave, clearCategoryPendingSave, purgeAllUserData } from './state.js?v=2.10.0';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.10.0';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.0';
-import { showToast, escapeHtml, generateUUID } from './utils.js?v=2.10.0';
+import { generateTimeSlots } from './grid.js?v=2.10.1';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi, markCategoryPendingSave, clearCategoryPendingSave, purgeAllUserData } from './state.js?v=2.10.1';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.10.1';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.1';
+import { showToast, escapeHtml, generateUUID } from './utils.js?v=2.10.1';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {

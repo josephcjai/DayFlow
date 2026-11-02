@@ -2,8 +2,8 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.0';
-import { isValidUuid } from './utils.js?v=2.10.0';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.1';
+import { isValidUuid } from './utils.js?v=2.10.1';
 
 export const DEFAULT_CATEGORIES = [
   { id: 'cat_work', name: 'Work', icon: '💼', color: '#3b82f6', isProductive: true, isSystem: false, isArchived: false, sortOrder: 0 },

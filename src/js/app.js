@@ -36,22 +36,22 @@ import {
   syncCategoriesWithApi,
   resetStateCategoriesToDefault,
   purgeAllUserData
-} from './state.js?v=2.10.0';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.0';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.0';
-import { initModal, openTaskModal } from './modal.js?v=2.10.0';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.0';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.0';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.0';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.0';
-import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.0';
+} from './state.js?v=2.10.1';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.1';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.1';
+import { initModal, openTaskModal } from './modal.js?v=2.10.1';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.1';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.1';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.1';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.1';
+import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.1';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.10.0';
+} from './notifications.js?v=2.10.1';
 
 const DOM = {};
 
@@ -3915,10 +3915,18 @@ function initLegalModal() {
   function openModal(initialTab = 'about') {
     switchTab(initialTab);
     modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+      modal.classList.add('active');
+    });
   }
 
   function closeModal() {
-    modal.style.display = 'none';
+    modal.classList.remove('active');
+    setTimeout(() => {
+      if (!modal.classList.contains('active')) {
+        modal.style.display = 'none';
+      }
+    }, 200);
   }
 
   tabBtns.forEach(btn => {
@@ -3934,7 +3942,7 @@ function initLegalModal() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal.style.display === 'flex') {
+    if (e.key === 'Escape' && (modal.classList.contains('active') || modal.style.display === 'flex')) {
       closeModal();
     }
   });
@@ -3943,6 +3951,7 @@ function initLegalModal() {
   document.addEventListener('click', (e) => {
     const target = e.target.closest('.landing-legal-link, .open-legal-modal-btn');
     if (target) {
+      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
       e.preventDefault();
       const tab = target.dataset.legal || 'about';
       openModal(tab);
