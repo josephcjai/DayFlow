@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About Us — DayFlow</title>
+  <meta name="description" content="About DayFlow — 30-minute intentional time-blocking, habit ledger, and weekly focus analytics.">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏳</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.10.0">
+  <style>
+    .legal-page-body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg-primary, #0f172a);
+      color: var(--text-primary, #f8fafc);
+      padding: 2.5rem 1.25rem 4rem;
+    }
+    .legal-container {
+      width: 100%;
+      max-width: 820px;
+      background: var(--bg-secondary, #1e293b);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      border-radius: var(--radius-lg, 16px);
+      padding: 2.5rem;
+      box-shadow: var(--shadow-lg, 0 10px 30px -10px rgba(0, 0, 0, 0.5));
+    }
+    .legal-header {
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .legal-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    .legal-brand .logo-icon {
+      font-size: 2rem;
+    }
+    .legal-brand h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+    .legal-nav-links {
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.88rem;
+    }
+    .legal-nav-links a {
+      color: var(--text-secondary, #94a3b8);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    .legal-nav-links a:hover,
+    .legal-nav-links a.active {
+      color: var(--accent-primary, #6366f1);
+      font-weight: 600;
+    }
+    .legal-content h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-primary, #f8fafc);
+      margin: 2rem 0 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .legal-content h2:first-of-type {
+      margin-top: 0;
+    }
+    .legal-content p {
+      font-size: 0.95rem;
+      color: var(--text-secondary, #94a3b8);
+      line-height: 1.7;
+      margin-bottom: 1.25rem;
+    }
+    .legal-content ul {
+      margin: 0 0 1.5rem 1.5rem;
+      color: var(--text-secondary, #94a3b8);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+    .legal-content li {
+      margin-bottom: 0.5rem;
+    }
+    .feature-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin: 1.5rem 0 2rem;
+    }
+    .feature-card {
+      background: var(--bg-primary, #0f172a);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+      border-radius: var(--radius-md, 10px);
+      padding: 1.25rem;
+    }
+    .feature-card-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.65rem;
+      display: inline-block;
+    }
+    .feature-card h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary, #f8fafc);
+      margin-bottom: 0.4rem;
+    }
+    .feature-card p {
+      font-size: 0.85rem;
+      color: var(--text-muted, #64748b);
+      line-height: 1.5;
+      margin-bottom: 0;
+    }
+    .legal-footer-nav {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted, #64748b);
+    }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      background: var(--accent-primary, #6366f1);
+      color: #fff;
+      text-decoration: none;
+      border-radius: var(--radius-sm, 6px);
+      font-weight: 500;
+      transition: background 0.2s ease;
+    }
+    .back-btn:hover {
+      background: var(--accent-primary-hover, #4f46e5);
+    }
+  </style>
+</head>
+<body class="legal-page-body">
+  <div class="legal-container">
+    <header class="legal-header">
+      <a href="/" class="legal-brand">
+        <span class="logo-icon">⏳</span>
+        <div>
+          <h1>DayFlow</h1>
+          <span style="font-size: 0.75rem; color: var(--text-muted, #64748b);">Intentional Productivity</span>
+        </div>
+      </a>
+      <nav class="legal-nav-links">
+        <a href="/about.html" class="active">About Us</a>
+        <a href="/terms.html">Terms & Conditions</a>
+        <a href="/privacy.html">Privacy Policy</a>
+      </nav>
+    </header>
+
+    <main class="legal-content">
+      <h2>🎯 Our Purpose & Philosophy</h2>
+      <p>
+        <strong>DayFlow</strong> was created to solve a modern productivity paradox: we have never had more productivity apps, yet we have never felt more distracted, overwhelmed, and reactive.
+      </p>
+      <p>
+        Rather than treating your day as an endless, stressful list of checkboxes, DayFlow anchors your focus to the fundamental reality of calendar time. Built around the proven methodology of <strong>30-minute time-blocking</strong>, DayFlow empowers knowledge workers, creators, students, and engineers to move from reactive busywork to intentional mastery.
+      </p>
+
+      <div class="feature-card-grid">
+        <div class="feature-card">
+          <span class="feature-card-icon">⏱️</span>
+          <h4>30-Min Time-Boxing</h4>
+          <p>Overcome Parkinson's Law by bounding your focus into deliberate 30-minute blocks with clear distinction between planned intentions and actual execution.</p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-card-icon">⚡</span>
+          <h4>Habit Ledger & Points</h4>
+          <p>Reinforce positive compounding rituals. Track hydration, deep work, movement, and reading with quantifiable discipline points and streak milestones.</p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-card-icon">🔒</span>
+          <h4>Zero-Surveillance Privacy</h4>
+          <p>Your calendar is your sanctuary. We never sell, advertise, or broker your personal routine data. Our administrative tooling is privacy-isolated by design.</p>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-card-icon">💾</span>
+          <h4>Full Data Portability</h4>
+          <p>You always own your data. Export a complete, human-readable JSON archive of your entire weekly history anytime with a single click.</p>
+        </div>
+      </div>
+
+      <h2>💡 The Core Principles of DayFlow</h2>
+      <ul>
+        <li><strong>Intentionality over Quantity:</strong> It is far better to execute 4 high-impact productive blocks with full immersion than to shuffle through 20 fragmented tasks.</li>
+        <li><strong>Planned vs. Actual Truth:</strong> Honest reflection is where growth happens. DayFlow lets you review what you intended to accomplish versus how you actually spent your 30 minutes, without judgment.</li>
+        <li><strong>Distraction-Free Speed:</strong> No algorithmic feeds, no intrusive popups, and no advertising trackers. DayFlow opens instantly, works offline, and keeps you immersed in your work.</li>
+        <li><strong>User Autonomy & Control:</strong> You choose whether to sync to the cloud or keep your schedules offline. You retain the right to permanently purge your data anytime.</li>
+      </ul>
+
+      <h2>🛠️ Technical Craftsmanship</h2>
+      <p>
+        DayFlow is built using modern, standards-based web engineering: resilient HTML5, modular JavaScript architecture, and responsive CSS token systems backed by enterprise-grade PostgreSQL with strict cryptographic isolation and zero-attack-surface administrative tooling.
+      </p>
+    </main>
+
+    <footer class="legal-footer-nav">
+      <div>
+        <span>© 2026 DayFlow. Crafted for deep focus and personal growth.</span>
+      </div>
+      <a href="/" class="back-btn">← Launch DayFlow</a>
+    </footer>
+  </div>
+</body>
+</html>

@@ -360,6 +360,84 @@ router.post('/change-password', authMiddleware, async (req: AuthenticatedRequest
   }
 });
 
+// Delete Account (Permanent User & Data Purge - Google Play Store & Privacy Policy Compliance)
+router.delete(['/account', '/me'], authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized access. Authentication token required.' });
+    }
+    const { password, confirmation } = req.body || {};
+
+    const userResult = await executeQuery('SELECT * FROM users WHERE id = $1', [userId]);
+    let user = userResult.rows[0] || memoryStore.users.find(u => u.id === userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User account not found' });
+    }
+
+    const existingHash = user.password_hash || user.passwordHash;
+    if (existingHash) {
+      // User has a password set. Require password verification.
+      if (!password || typeof password !== 'string') {
+        return res.status(400).json({ error: 'Your current password is required to confirm account deletion.' });
+      }
+      let passwordToCompare = password;
+      if (Buffer.byteLength(password, 'utf8') > 72) {
+        passwordToCompare = Buffer.from(password, 'utf8').subarray(0, 72).toString('utf8');
+      }
+      const isMatch = await bcrypt.compare(passwordToCompare, existingHash);
+      if (!isMatch) {
+        return res.status(400).json({ error: 'Incorrect password. Account deletion denied.' });
+      }
+    } else {
+      // Google-only account (no password set). Require confirmation string 'DELETE' or user's email
+      const cleanConfirm = typeof confirmation === 'string' ? confirmation.trim().toUpperCase() : '';
+      const cleanEmail = typeof confirmation === 'string' ? confirmation.trim().toLowerCase() : '';
+      if (cleanConfirm !== 'DELETE' && cleanEmail !== (user.email || '').toLowerCase()) {
+        return res.status(400).json({ error: 'Please confirm account deletion by typing "DELETE" or your email address.' });
+      }
+    }
+
+    // Explicit cascading cleanup in PostgreSQL:
+    // 1. schedule_slots (via schedule_weeks)
+    await executeQuery('DELETE FROM schedule_slots WHERE week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $1)', [userId]);
+    // 2. todo_items (via schedule_weeks)
+    await executeQuery('DELETE FROM todo_items WHERE week_id IN (SELECT id FROM schedule_weeks WHERE user_id = $1)', [userId]);
+    // 3. schedule_weeks (includes weekly_notes and note_sheets)
+    await executeQuery('DELETE FROM schedule_weeks WHERE user_id = $1', [userId]);
+    // 4. habit_logs
+    await executeQuery('DELETE FROM habit_logs WHERE user_id = $1', [userId]);
+    // 5. user_day_templates
+    await executeQuery('DELETE FROM user_day_templates WHERE user_id = $1', [userId]);
+    // 6. user_categories
+    await executeQuery('DELETE FROM user_categories WHERE user_id = $1', [userId]);
+    // 7. password_reset_tokens
+    await executeQuery('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+    // 8. users
+    await executeQuery('DELETE FROM users WHERE id = $1', [userId]);
+
+    // Memory Store cleanup (fallback)
+    if (memoryStore) {
+      memoryStore.users = memoryStore.users.filter(u => u.id !== userId);
+      delete memoryStore.scheduleWeeks[userId];
+      delete memoryStore.habitLogs[userId];
+      delete memoryStore.todos[userId];
+      delete memoryStore.dayTemplates[userId];
+      delete memoryStore.categories[userId];
+      if (memoryStore.passwordResetTokens) {
+        memoryStore.passwordResetTokens = memoryStore.passwordResetTokens.filter(t => t.userId !== userId);
+      }
+    }
+
+    res.json({
+      message: 'Your account and all associated data have been permanently deleted.'
+    });
+  } catch (err: any) {
+    sendError(res, 500, err);
+  }
+});
+
 // Forgot Password (Public - Generates reset token & sends Brevo email)
 router.post('/forgot-password', async (req, res) => {
   const startTime = Date.now();

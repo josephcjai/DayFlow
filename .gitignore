@@ -45,4 +45,5 @@ nginx/ssl/*.crt
 
 # Temporary / Scratch Files & Folders
 temp/
+scratch/
 *.log

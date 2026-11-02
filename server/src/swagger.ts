@@ -249,6 +249,32 @@ export const openApiDocument = {
         }
       }
     },
+    '/auth/account': {
+      delete: {
+        summary: 'Permanently Delete User Account & Cascade All Data (Google Play Store & GDPR Compliance)',
+        tags: ['Authentication'],
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  password: { type: 'string', description: 'Current password (required if account has password set)' },
+                  confirmation: { type: 'string', description: 'Confirmation string "DELETE" or email (required for Google OAuth accounts)' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Your account and all associated data have been permanently deleted.' },
+          400: { description: 'Incorrect password or missing confirmation' },
+          401: { description: 'Unauthorized access. Authentication token required.' }
+        }
+      }
+    },
     '/auth/change-password': {
       post: {
         summary: 'Change User Password (Authenticated)',

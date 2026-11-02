@@ -2,8 +2,8 @@
  * DayFlow State & Storage Manager
  * Supports Day, Week, and Month schedule view modes with PostgreSQL & namespaced local storage sync
  */
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.29';
-import { isValidUuid } from './utils.js?v=2.9.29';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.0';
+import { isValidUuid } from './utils.js?v=2.10.0';
 
 export const DEFAULT_CATEGORIES = [
   { id: 'cat_work', name: 'Work', icon: '💼', color: '#3b82f6', isProductive: true, isSystem: false, isArchived: false, sortOrder: 0 },
@@ -681,6 +681,64 @@ export function getUserStorageKey(prefix = 'dayflow_data') {
     } catch (e) {}
   }
   return `${prefix}_guest`;
+}
+
+/**
+ * Permanently purges all user data from client localStorage, cookies, and memory.
+ * Invoked on Account Deletion for Google Play Store & GDPR compliance.
+ */
+export function purgeAllUserData(userId = null, userEmail = null) {
+  try {
+    if (typeof window !== 'undefined' && window.location) {
+      try {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (e) {
+        window.location.hash = '';
+      }
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      const keysToRemove = [];
+      const idStr = userId ? String(userId) : '';
+      const emailStr = userEmail ? String(userEmail).toLowerCase() : '';
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key === 'dayflow_token' || key === 'dayflow_user') {
+          keysToRemove.push(key);
+        } else if (idStr && key.includes(idStr)) {
+          keysToRemove.push(key);
+        } else if (emailStr && key.toLowerCase().includes(emailStr)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    }
+
+    // Expire cookies
+    if (typeof document !== 'undefined' && document.cookie) {
+      document.cookie.split(';').forEach(c => {
+        document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+      });
+    }
+
+    // Reset in-memory state
+    STATE.scheduleData = {};
+    resetStateCategoriesToDefault();
+    STATE.pendingSlotSaves = {};
+    if (STATE.selectedSlotKeys && typeof STATE.selectedSlotKeys.clear === 'function') {
+      STATE.selectedSlotKeys.clear();
+    }
+    STATE.undoStack = [];
+    STATE.redoStack = [];
+
+    if (typeof google !== 'undefined' && google.accounts?.id) {
+      google.accounts.id.disableAutoSelect();
+    }
+  } catch (err) {
+    console.error('Error during purgeAllUserData:', err);
+  }
 }
 
 export function loadStateFromStorage() {

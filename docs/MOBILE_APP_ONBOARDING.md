@@ -122,7 +122,9 @@ Tasks belong to defined productivity categories:
 | `POST` | `/api/auth/login` | Login with email and password -> returns JWT token | No |
 | `POST` | `/api/auth/google` | Google Sign-In with Google ID token | No |
 | `GET` | `/api/auth/me` | Fetch active user profile | **Yes** |
+| `POST` | `/api/auth/change-password` | Update account password | **Yes** |
 | `POST` | `/api/auth/forgot-password` | Request password reset email | No |
+| `DELETE` | `/api/auth/account` | **Permanently delete account & cascade all data (Google Play Policy)** | **Yes** |
 | `GET` | `/api/schedule/week/:weekStart` | Fetch full week schedule slots, habits, and notes | **Yes** |
 | `POST` | `/api/schedule/slot` | Save or update a 30-min schedule slot | **Yes** |
 | `DELETE` | `/api/schedule/slot` | Clear/delete a schedule slot | **Yes** |
@@ -160,6 +162,17 @@ Tasks belong to defined productivity categories:
    - **Biometrics:** Offer Fingerprint / Face Unlock for instant access without retyping passwords.
 6. **DO Sanitize and Validate Dates:**
    - Enforce ISO format `YYYY-MM-DD` between `1800-01-01` and `2200-12-31`.
+7. **DO Implement In-App Account Deletion (Google Play Store Policy Requirement):**
+   - **Mandatory Policy:** Under Google Play's User Data policy, apps allowing account creation must provide an in-app path for users to delete their account and associated data.
+   - **Endpoint:** `DELETE /api/auth/account` with `Authorization: Bearer <token>`.
+   - **Request Body:**
+     - For password users: `{ "password": "<current_password>" }`
+     - For Google-only users: `{ "confirmation": "DELETE" }`
+   - **Local Cleanup:** Upon HTTP 200 response, immediately wipe:
+     - `EncryptedSharedPreferences` / DataStore (remove auth token, refresh tokens, user profile).
+     - Local Room DB / SQLite tables (wipe cached slots, habits, todos, and categories).
+     - Reset navigation stack back to the Onboarding / Auth screen.
+   - **Web Deletion URL:** Google Play Console requires a public web link where users can also request deletion. The web application URL is: `https://dayflowlive.com` (Settings -> Danger Zone -> Delete Account).
 
 ---
 

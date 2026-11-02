@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — DayFlow</title>
+  <meta name="description" content="Privacy Policy for DayFlow: Strict data privacy, zero data selling, and complete user ownership.">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏳</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/css/styles.css?v=2.10.0">
+  <style>
+    .legal-page-body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg-primary, #0f172a);
+      color: var(--text-primary, #f8fafc);
+      padding: 2.5rem 1.25rem 4rem;
+    }
+    .legal-container {
+      width: 100%;
+      max-width: 820px;
+      background: var(--bg-secondary, #1e293b);
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      border-radius: var(--radius-lg, 16px);
+      padding: 2.5rem;
+      box-shadow: var(--shadow-lg, 0 10px 30px -10px rgba(0, 0, 0, 0.5));
+    }
+    .legal-header {
+      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .legal-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    .legal-brand .logo-icon {
+      font-size: 2rem;
+    }
+    .legal-brand h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+    .legal-nav-links {
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.88rem;
+    }
+    .legal-nav-links a {
+      color: var(--text-secondary, #94a3b8);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    .legal-nav-links a:hover,
+    .legal-nav-links a.active {
+      color: var(--accent-primary, #6366f1);
+      font-weight: 600;
+    }
+    .legal-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted, #64748b);
+      margin-bottom: 1.5rem;
+    }
+    .privacy-badge-banner {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: var(--radius-md, 10px);
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .privacy-badge-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+    .privacy-badge-banner h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #34d399;
+      margin-bottom: 0.25rem;
+    }
+    .privacy-badge-banner p {
+      margin: 0 !important;
+      font-size: 0.88rem !important;
+      color: var(--text-secondary, #94a3b8) !important;
+      line-height: 1.5 !important;
+    }
+    .legal-content h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary, #f8fafc);
+      margin: 2rem 0 0.75rem;
+    }
+    .legal-content h2:first-of-type {
+      margin-top: 0;
+    }
+    .legal-content p {
+      font-size: 0.93rem;
+      color: var(--text-secondary, #94a3b8);
+      line-height: 1.7;
+      margin-bottom: 1.15rem;
+    }
+    .legal-content ul {
+      margin: 0 0 1.25rem 1.5rem;
+      color: var(--text-secondary, #94a3b8);
+      font-size: 0.93rem;
+      line-height: 1.7;
+    }
+    .legal-content li {
+      margin-bottom: 0.45rem;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.25rem 0 2rem;
+      font-size: 0.88rem;
+    }
+    .data-table th,
+    .data-table td {
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      padding: 0.75rem 1rem;
+      text-align: left;
+    }
+    .data-table th {
+      background: var(--bg-primary, #0f172a);
+      color: var(--text-primary, #f8fafc);
+      font-weight: 600;
+    }
+    .data-table td {
+      color: var(--text-secondary, #94a3b8);
+    }
+    .legal-footer-nav {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted, #64748b);
+    }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      background: var(--accent-primary, #6366f1);
+      color: #fff;
+      text-decoration: none;
+      border-radius: var(--radius-sm, 6px);
+      font-weight: 500;
+      transition: background 0.2s ease;
+    }
+    .back-btn:hover {
+      background: var(--accent-primary-hover, #4f46e5);
+    }
+  </style>
+</head>
+<body class="legal-page-body">
+  <div class="legal-container">
+    <header class="legal-header">
+      <a href="/" class="legal-brand">
+        <span class="logo-icon">⏳</span>
+        <div>
+          <h1>DayFlow</h1>
+          <span style="font-size: 0.75rem; color: var(--text-muted, #64748b);">Privacy Policy</span>
+        </div>
+      </a>
+      <nav class="legal-nav-links">
+        <a href="/about.html">About Us</a>
+        <a href="/terms.html">Terms & Conditions</a>
+        <a href="/privacy.html" class="active">Privacy Policy</a>
+      </nav>
+    </header>
+
+    <div class="legal-meta">
+      <strong>Effective Date:</strong> November 2, 2026 &bull; <strong>Version:</strong> 2.10.0
+    </div>
+
+    <div class="privacy-badge-banner">
+      <span class="privacy-badge-icon">🛡️</span>
+      <div>
+        <h3>Zero Data Selling Guarantee</h3>
+        <p>DayFlow is funded and built to respect human autonomy. We do not sell, rent, monetize, or broker your personal routine data, schedule entries, or notes to any third-party advertisers or data brokers.</p>
+      </div>
+    </div>
+
+    <main class="legal-content">
+      <h2>1. Overview & Privacy Philosophy</h2>
+      <p>
+        At DayFlow, your daily schedule and personal habits are private by default. This Privacy Policy describes how we collect, handle, and protect your information when you use DayFlow across web and mobile platforms.
+      </p>
+
+      <h2>2. What Information We Collect & Why</h2>
+      <p>We adhere to strict data minimization principles. We only collect information strictly required to deliver our time-tracking, synchronization, and habit ledger services:</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Data Category</th>
+            <th>Specific Elements</th>
+            <th>Purpose & Usage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Account Identification</strong></td>
+            <td>Email address, Display Name, avatar URL (optional).</td>
+            <td>To identify your account, enable secure login, and recover access.</td>
+          </tr>
+          <tr>
+            <td><strong>Authentication Security</strong></td>
+            <td>Cryptographically salted password hash (via bcrypt) and JWT tokens. We never store plain-text passwords.</td>
+            <td>To authenticate your requests securely and maintain authenticated sessions.</td>
+          </tr>
+          <tr>
+            <td><strong>Schedule & Productivity Data</strong></td>
+            <td>30-minute schedule slot entries (planned vs. actual tasks, categories, durations, notes).</td>
+            <td>To synchronize your timeline across your devices and calculate focus analytics.</td>
+          </tr>
+          <tr>
+            <td><strong>Habits & Todo Items</strong></td>
+            <td>Habit logs, streaks, discipline points, and priority checklist items.</td>
+            <td>To maintain your habit ledger and track weekly goal completions.</td>
+          </tr>
+          <tr>
+            <td><strong>Technical Diagnostics</strong></td>
+            <td>Standard HTTP server logs (IP address, user agent, timestamps).</td>
+            <td>To protect against brute-force attacks, mitigate abuse, and monitor system health.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>3. Zero Third-Party Data Selling or Advertising</h2>
+      <p>
+        We make an unconditional commitment: <strong>We do not sell, trade, rent, or transfer your personal data to outside commercial parties, data brokers, or advertisement networks.</strong>
+      </p>
+      <p>
+        DayFlow contains no third-party advertising trackers, pixel beacons, or user surveillance SDKs.
+      </p>
+
+      <h2>4. Administrative Privacy Guardrails</h2>
+      <p>
+        DayFlow's administrative and DevOps CLI operations are built with strict mathematical privacy boundaries:
+      </p>
+      <ul>
+        <li>Administrators can only view <strong>aggregated record counts</strong> (e.g. number of slots, number of habit logs) and account status (Active / Suspended).</li>
+        <li>Administrative inspection commands deliberately exclude private task text (`planned_task`, `actual_task`), weekly reflections (`weekly_notes`), and note sheet contents.</li>
+      </ul>
+
+      <h2>5. Third-Party Service Providers</h2>
+      <p>We engage only essential, reputable third-party infrastructure providers:</p>
+      <ul>
+        <li><strong>Google Identity Services (Optional):</strong> If you choose to authenticate via "Sign in with Google", Google provides your basic profile (email, name, avatar). DayFlow accesses zero Google Drive files, emails, or personal contacts.</li>
+        <li><strong>Brevo SMTP (Optional):</strong> Used exclusively to deliver transactional password-reset emails when explicitly requested by you. We do not subscribe you to marketing newsletters.</li>
+      </ul>
+
+      <h2>6. Security & Storage Standards</h2>
+      <p>
+        All traffic between your browser or mobile client and DayFlow servers is encrypted using <strong>Transport Layer Security (TLS 1.2 / TLS 1.3 / HTTPS)</strong>. Data is stored in secure PostgreSQL relational databases with strict per-user foreign key isolation.
+      </p>
+
+      <h2>7. Your Data Rights & Deletion (GDPR, CCPA & Google Play)</h2>
+      <p>
+        You have complete ownership and control over your data:
+      </p>
+      <ul>
+        <li><strong>Right to Export (Portability):</strong> You can download a complete, portable JSON archive of your schedules, habits, and notes anytime directly from <em>Settings &gt; Data Export &amp; Offline Backup</em>.</li>
+        <li><strong>Right to Erasure (Permanent Account &amp; Data Deletion):</strong> You can permanently delete your account and all associated cloud data at any time from <em>Settings &gt; Danger Zone: Delete Account</em>. This triggers an immediate, permanent cryptographic purge of all your schedule weeks, habit logs, todos, and categories from PostgreSQL.</li>
+      </ul>
+
+      <h2>8. Children's Privacy</h2>
+      <p>
+        DayFlow is not directed to children under 13 years of age, and we do not knowingly collect personal information from children under 13.
+      </p>
+
+      <h2>9. Contact for Privacy Inquiries</h2>
+      <p>
+        If you have questions regarding this Privacy Policy or wish to make an inquiry regarding your data, you can reach out via DayFlow project support.
+      </p>
+    </main>
+
+    <footer class="legal-footer-nav">
+      <div>
+        <span>© 2026 DayFlow. Your schedule, your privacy, your ownership.</span>
+      </div>
+      <a href="/" class="back-btn">← Launch DayFlow</a>
+    </footer>
+  </div>
+</body>
+</html>

@@ -34,23 +34,24 @@ import {
   getCategoryColor,
   getCategoryIcon,
   syncCategoriesWithApi,
-  resetStateCategoriesToDefault
-} from './state.js?v=2.9.29';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.29';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.9.29';
-import { initModal, openTaskModal } from './modal.js?v=2.9.29';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.9.29';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.9.29';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.9.29';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.9.29';
-import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.9.29';
+  resetStateCategoriesToDefault,
+  purgeAllUserData
+} from './state.js?v=2.10.0';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.0';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.0';
+import { initModal, openTaskModal } from './modal.js?v=2.10.0';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.0';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.0';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.0';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.0';
+import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.0';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.9.29';
+} from './notifications.js?v=2.10.0';
 
 const DOM = {};
 
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAll();
   });
   initPointsBreakdownModal();
+  initLegalModal();
   bindEvents();
   initBulkActionsUI();
   initAuthUI();
@@ -236,7 +238,7 @@ function initAuthUI() {
       localStorage.setItem('dayflow_token', res.token);
       localStorage.setItem('dayflow_user', JSON.stringify(res.user));
 
-      await onAuthSuccess(res.user);
+      await onAuthSuccess(res.user, true);
     } catch (err) {
       DOM.landingRegisterErrorMsg.textContent = err.message;
       DOM.landingRegisterErrorMsg.style.display = 'block';
@@ -412,23 +414,48 @@ function initAuthUI() {
     showLoginScreen();
   });
 
-  // Handle Session Expiry (401 from API)
-  window.addEventListener('dayflow:session-expired', () => {
+  // Handle Session Expiry or Suspension (401 & 403 from API)
+  window.addEventListener('dayflow:session-expired', (e) => {
     if (isDemoMode()) return;
     const hadToken = !!localStorage.getItem('dayflow_token');
     if (hadToken) {
+      const isSuspended = e.detail?.isSuspended || e.detail?.status === 403;
+      const msg = e.detail?.message || (isSuspended ? 'This account has been suspended. Please contact support.' : 'Session expired or invalidated. Please sign in again.');
+
+      let userId = null;
+      let userEmail = null;
+      try {
+        const u = JSON.parse(localStorage.getItem('dayflow_user') || '{}');
+        userId = u.id;
+        userEmail = u.email;
+      } catch (err) {}
+
       localStorage.removeItem('dayflow_token');
       localStorage.removeItem('dayflow_user');
-      STATE.scheduleData = {};
-      resetStateCategoriesToDefault();
-      resetUserSettingsToDefault();
+
+      if (isSuspended) {
+        // If suspended, wipe local cache so optimistic offline items vanish
+        purgeAllUserData(userId, userEmail);
+      } else {
+        STATE.scheduleData = {};
+        STATE.pendingSlotSaves = {};
+        if (STATE.selectedSlotKeys && typeof STATE.selectedSlotKeys.clear === 'function') {
+          STATE.selectedSlotKeys.clear();
+        }
+        STATE.undoStack = [];
+        STATE.redoStack = [];
+        resetStateCategoriesToDefault();
+        resetUserSettingsToDefault();
+      }
+
       renderCategoryDropdowns();
       renderCategoriesManagementUI(renderAll);
       renderAll();
-      showToast('⚠️ Your session has expired. Please sign in again.', 'warning', 5000);
+
+      showToast(isSuspended ? `🚫 ${msg}` : '⚠️ Your session has expired. Please sign in again.', isSuspended ? 'error' : 'warning', 6000);
       showLoginScreen();
       if (DOM.landingLoginErrorMsg) {
-        DOM.landingLoginErrorMsg.textContent = 'Session expired. Please sign in to reconnect.';
+        DOM.landingLoginErrorMsg.textContent = msg;
         DOM.landingLoginErrorMsg.style.display = 'block';
       }
     }
@@ -565,7 +592,15 @@ async function checkUserSessionGate() {
 
 const VALID_VIEWS = ['grid', 'habits', 'analytics', 'notes', 'settings'];
 
-function getSavedActiveView() {
+function getSavedActiveView(isNewRegistration = false) {
+  if (isNewRegistration) {
+    if (window.location.hash) {
+      try {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch (e) {}
+    }
+    return USER_SETTINGS.defaultLandingView || 'grid';
+  }
   const hash = (window.location.hash || '').replace('#', '').trim().toLowerCase();
   if (VALID_VIEWS.includes(hash)) {
     return hash;
@@ -576,7 +611,7 @@ function getSavedActiveView() {
       return saved;
     }
   } catch (e) {}
-  return 'grid';
+  return USER_SETTINGS.defaultLandingView || 'grid';
 }
 
 async function switchView(view, syncBackend = true) {
@@ -623,7 +658,7 @@ async function switchView(view, syncBackend = true) {
   }
 }
 
-async function onAuthSuccess(user) {
+async function onAuthSuccess(user, isNewRegistration = false) {
   DOM.userDisplayName.textContent = user.displayName || user.email.split('@')[0];
   if (DOM.userAvatarImg) {
     if (user.avatarUrl) {
@@ -652,7 +687,7 @@ async function onAuthSuccess(user) {
     DOM.habitDateInput.value = formatDateISO(new Date());
   }
   ensureSampleDataForCurrentWeek();
-  const initialView = getSavedActiveView();
+  const initialView = getSavedActiveView(isNewRegistration);
   await switchView(initialView, false);
   initNotificationEngine();
   initHeaderLayoutManager();
@@ -676,6 +711,11 @@ async function onAuthSuccess(user) {
 function showLoginScreen() {
   DOM.app.style.display = 'none';
   DOM.loginScreen.style.display = 'flex';
+  if (window.location.hash && VALID_VIEWS.includes(window.location.hash.replace('#', '').trim().toLowerCase())) {
+    try {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch (e) {}
+  }
   switchLandingTab('signin');
 }
 
@@ -3744,5 +3784,171 @@ async function handleConfirmBulkClear(targetKeys = null) {
 
   showToast(`🗑️ Cleared ${affectedSlots.length} slots (Press Ctrl+Z to undo)`, 'info');
 }
+
+/**
+ * Legal, Terms & Privacy Transparency In-App Modal Controller
+ */
+function initLegalModal() {
+  const modal = document.getElementById('legalModal');
+  if (!modal) return;
+
+  const titleEl = document.getElementById('legalModalTitle');
+  const standaloneBtn = document.getElementById('legalOpenStandaloneBtn');
+  const contentEl = document.getElementById('legalModalContent');
+  const tabBtns = modal.querySelectorAll('.legal-tab-btn');
+  const closeBtns = [
+    document.getElementById('closeLegalModalBtn'),
+    document.getElementById('closeLegalModalFooterBtn')
+  ].filter(Boolean);
+
+  const tabsData = {
+    about: {
+      title: 'About DayFlow — 30-Minute Intentional Focus',
+      url: '/about.html',
+      html: `
+        <div style="margin-bottom: 1.25rem;">
+          <h4 style="font-size: 1.15rem; color: var(--text-primary); margin-bottom: 0.5rem;">🎯 Our Mission & Philosophy</h4>
+          <p>DayFlow is built to solve the modern productivity crisis: endless, noisy task lists that lead to burnout without actual progress. DayFlow anchors your day to the tangible reality of calendar time through <strong>30-minute time-boxing</strong>.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+            <div style="font-size: 1.4rem; margin-bottom: 0.35rem;">⏱️</div>
+            <strong style="color: var(--text-primary);">30-Min Time-Boxing</strong>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Overcome Parkinson's Law by bounding work into deliberate blocks with clear planned vs actual distinction.</p>
+          </div>
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+            <div style="font-size: 1.4rem; margin-bottom: 0.35rem;">⚡</div>
+            <strong style="color: var(--text-primary);">Habit Ledger & Points</strong>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Quantifiable discipline points and streak milestones to reinforce positive compounding rituals.</p>
+          </div>
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+            <div style="font-size: 1.4rem; margin-bottom: 0.35rem;">🔒</div>
+            <strong style="color: var(--text-primary);">Zero-Surveillance Privacy</strong>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Your calendar is private. We never monetize or sell personal data. Administrative tools are privacy-isolated.</p>
+          </div>
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+            <div style="font-size: 1.4rem; margin-bottom: 0.35rem;">💾</div>
+            <strong style="color: var(--text-primary);">Full Data Portability</strong>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Export complete, human-readable JSON archives anytime with a single click in Settings.</p>
+          </div>
+        </div>
+        <div>
+          <h4 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 0.4rem;">💡 Planned vs. Actual Truth</h4>
+          <p>Honest reflection drives growth. DayFlow lets you review what you intended to achieve against how you actually spent your 30-minute blocks, without judgment.</p>
+        </div>
+      `
+    },
+    terms: {
+      title: 'DayFlow Terms & Conditions of Use',
+      url: '/terms.html',
+      html: `
+        <div style="background: rgba(245, 158, 11, 0.08); border-left: 4px solid #f59e0b; padding: 0.85rem 1rem; border-radius: 6px; margin-bottom: 1.25rem;">
+          <strong style="color: #f59e0b; font-size: 0.88rem; display: block; margin-bottom: 0.25rem;">⚠️ Notice Regarding User Data Responsibility & Warranties</strong>
+          <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">
+            DayFlow is provided on an <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> basis. Users are solely responsible for keeping credentials secure, maintaining independent offline backups via JSON export, and exercising discretion with sensitive information.
+          </p>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <h4 style="color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.35rem;">1. Acceptance & Nature of Service</h4>
+          <p style="font-size: 0.85rem;">By using DayFlow, you agree to these Terms. DayFlow is a personal productivity, time-boxing, and habit tracking platform. We do not provide professional, medical, financial, or legal advice.</p>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <h4 style="color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.35rem;">2. User Responsibility & Backups</h4>
+          <p style="font-size: 0.85rem;">You are responsible for safeguarding your credentials and using the <em>Settings &gt; Export Backup (JSON)</em> feature regularly to keep offline copies of your records. Do not store sensitive credentials or bank details in task names or scratchpad notes.</p>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <h4 style="color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.35rem;">3. Disclaimer of Warranties & Limitation of Liability</h4>
+          <p style="font-size: 0.85rem;">DayFlow disclaims all express or implied warranties. To the maximum extent permitted by law, DayFlow and its operators shall not be liable for any indirect, incidental, or consequential damages resulting from data loss, downtime, network interruption, or service changes.</p>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <h4 style="color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.35rem;">4. Account Termination & Self-Service Deletion</h4>
+          <p style="font-size: 0.85rem;">We reserve the right to suspend accounts that abuse APIs or compromise security. You may permanently delete your account and all associated cloud data at any time from <em>Settings &gt; Danger Zone: Delete Account</em>.</p>
+        </div>
+      `
+    },
+    privacy: {
+      title: 'DayFlow Privacy Policy & Data Commitment',
+      url: '/privacy.html',
+      html: `
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
+          <strong style="color: #34d399; font-size: 0.88rem; display: block; margin-bottom: 0.25rem;">🛡️ Zero Data Selling Guarantee</strong>
+          <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">
+            We do not sell, rent, monetize, or broker your personal routine data, schedule entries, or notes to any third-party advertisers or data brokers. Ever.
+          </p>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <h4 style="color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.35rem;">1. Data Minimization</h4>
+          <p style="font-size: 0.85rem;">We only collect email, encrypted password hash (bcrypt), and your schedule/habit data strictly to sync across your devices. No third-party ad tracking SDKs or spyware are used.</p>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <h4 style="color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.35rem;">2. Administrative Isolation</h4>
+          <p style="font-size: 0.85rem;">Our DevOps & admin tools are mathematically isolated from personal content: administrators can only view aggregated counts (e.g. number of slots, active status) and cannot inspect private notes or task descriptions.</p>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <h4 style="color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.35rem;">3. Data Ownership & Erasure (GDPR / Google Play)</h4>
+          <p style="font-size: 0.85rem;">You own your data. You can download a full JSON archive anytime, or trigger an immediate, permanent cryptographic purge of your account and all records in <em>Settings &gt; Danger Zone: Delete Account</em>.</p>
+        </div>
+      `
+    }
+  };
+
+  function switchTab(tabKey) {
+    const data = tabsData[tabKey] || tabsData.about;
+    tabBtns.forEach(btn => {
+      const isActive = btn.dataset.tab === tabKey;
+      btn.classList.toggle('active', isActive);
+      btn.style.background = isActive ? 'var(--bg-primary)' : 'transparent';
+      btn.style.color = isActive ? 'var(--accent-primary)' : 'var(--text-secondary)';
+      btn.style.fontWeight = isActive ? '600' : '400';
+    });
+    if (titleEl) titleEl.textContent = data.title;
+    if (standaloneBtn) {
+      standaloneBtn.href = data.url;
+      standaloneBtn.title = `Open ${data.title} in standalone page`;
+    }
+    if (contentEl) {
+      contentEl.innerHTML = data.html;
+      contentEl.scrollTop = 0;
+    }
+  }
+
+  function openModal(initialTab = 'about') {
+    switchTab(initialTab);
+    modal.style.display = 'flex';
+  }
+
+  function closeModal() {
+    modal.style.display = 'none';
+  }
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  closeBtns.forEach(btn => {
+    btn.addEventListener('click', closeModal);
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.style.display === 'flex') {
+      closeModal();
+    }
+  });
+
+  // Delegate clicks on any legal link/button in landing or settings
+  document.addEventListener('click', (e) => {
+    const target = e.target.closest('.landing-legal-link, .open-legal-modal-btn');
+    if (target) {
+      e.preventDefault();
+      const tab = target.dataset.legal || 'about';
+      openModal(tab);
+    }
+  });
+}
+
 
 
