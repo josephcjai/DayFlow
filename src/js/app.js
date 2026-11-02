@@ -36,22 +36,22 @@ import {
   syncCategoriesWithApi,
   resetStateCategoriesToDefault,
   purgeAllUserData
-} from './state.js?v=2.10.1';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.1';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.1';
-import { initModal, openTaskModal } from './modal.js?v=2.10.1';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.1';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.1';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.1';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.1';
-import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.1';
+} from './state.js?v=2.10.2';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.2';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.2';
+import { initModal, openTaskModal } from './modal.js?v=2.10.2';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.2';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.2';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.2';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.2';
+import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.2';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.10.1';
+} from './notifications.js?v=2.10.2';
 
 const DOM = {};
 
@@ -670,6 +670,7 @@ async function onAuthSuccess(user, isNewRegistration = false) {
       if (DOM.userDefaultIcon) DOM.userDefaultIcon.style.display = 'inline-block';
     }
   }
+  document.documentElement.classList.add('user-authenticated');
   DOM.loginScreen.style.display = 'none';
   DOM.app.style.display = 'flex';
   
@@ -709,6 +710,7 @@ async function onAuthSuccess(user, isNewRegistration = false) {
 }
 
 function showLoginScreen() {
+  document.documentElement.classList.remove('user-authenticated');
   DOM.app.style.display = 'none';
   DOM.loginScreen.style.display = 'flex';
   if (window.location.hash && VALID_VIEWS.includes(window.location.hash.replace('#', '').trim().toLowerCase())) {

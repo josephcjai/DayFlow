@@ -3198,6 +3198,8 @@ body {
 }
 .google-auth-section {
   width: 100%;
+  min-height: 84px;
+  transition: opacity 0.2s ease;
 }
 .google-btn-wrapper {
   display: flex;
@@ -3713,7 +3715,7 @@ body {
 }
 
 /* THEMES */
-body.theme-oled {
+:root[data-theme="oled"], body.theme-oled {
   --bg-primary: #000000;
   --bg-secondary: #0a0a0a;
   --bg-tertiary: #141414;
@@ -3721,7 +3723,7 @@ body.theme-oled {
   --border-color: #222222;
 }
 
-body.theme-emerald {
+:root[data-theme="emerald"], body.theme-emerald {
   --bg-primary: #022c22;
   --bg-secondary: #064e3b;
   --bg-tertiary: #047857;
@@ -3729,7 +3731,7 @@ body.theme-emerald {
   --border-color: #059669;
 }
 
-body.theme-light {
+:root[data-theme="light"], body.theme-light {
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-tertiary: #e2e8f0;
