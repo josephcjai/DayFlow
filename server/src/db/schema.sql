@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     google_id VARCHAR(255) UNIQUE,
     avatar_url TEXT,
     token_version INT NOT NULL DEFAULT 1,
+    is_disabled BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

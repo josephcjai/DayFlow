@@ -34,28 +34,32 @@ import {
   getCategoryColor,
   getCategoryIcon,
   syncCategoriesWithApi,
-  resetStateCategoriesToDefault,
-  purgeAllUserData
-} from './state.js?v=2.10.2';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.2';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.2';
-import { initModal, openTaskModal } from './modal.js?v=2.10.2';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.2';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.2';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.2';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.2';
-import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.2';
+  resetStateCategoriesToDefault
+} from './state.js?v=2.10.3';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.3';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, scrollToCurrentSlot, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.3';
+import { initModal, openTaskModal } from './modal.js?v=2.10.3';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.3';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.3';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.3';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.3';
+import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.3';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.10.2';
+} from './notifications.js?v=2.10.3';
 
 const DOM = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof history !== 'undefined' && 'scrollRestoration' in history) {
+    try {
+      history.scrollRestoration = 'manual';
+    } catch (e) {}
+  }
   cacheDomElements();
   loadUserSettings();
   loadStateFromStorage();
@@ -384,6 +388,7 @@ function initAuthUI() {
   }
 
   DOM.logoutBtn.addEventListener('click', () => {
+    resetGridAutoScroll();
     localStorage.removeItem('dayflow_token');
     localStorage.removeItem('dayflow_user');
     try {
@@ -422,31 +427,22 @@ function initAuthUI() {
       const isSuspended = e.detail?.isSuspended || e.detail?.status === 403;
       const msg = e.detail?.message || (isSuspended ? 'This account has been suspended. Please contact support.' : 'Session expired or invalidated. Please sign in again.');
 
-      let userId = null;
-      let userEmail = null;
-      try {
-        const u = JSON.parse(localStorage.getItem('dayflow_user') || '{}');
-        userId = u.id;
-        userEmail = u.email;
-      } catch (err) {}
-
       localStorage.removeItem('dayflow_token');
       localStorage.removeItem('dayflow_user');
+      resetGridAutoScroll();
 
-      if (isSuspended) {
-        // If suspended, wipe local cache so optimistic offline items vanish
-        purgeAllUserData(userId, userEmail);
-      } else {
-        STATE.scheduleData = {};
-        STATE.pendingSlotSaves = {};
-        if (STATE.selectedSlotKeys && typeof STATE.selectedSlotKeys.clear === 'function') {
-          STATE.selectedSlotKeys.clear();
-        }
-        STATE.undoStack = [];
-        STATE.redoStack = [];
-        resetStateCategoriesToDefault();
-        resetUserSettingsToDefault();
+      // Finding 48: Suspension is reversible via admin CLI (enable). Do NOT purge all user data.
+      // Clear session credentials and in-memory state so user is logged out, while preserving
+      // offline pending queues (e.g. pending categories) so data survives re-activation.
+      STATE.scheduleData = {};
+      STATE.pendingSlotSaves = {};
+      if (STATE.selectedSlotKeys && typeof STATE.selectedSlotKeys.clear === 'function') {
+        STATE.selectedSlotKeys.clear();
       }
+      STATE.undoStack = [];
+      STATE.redoStack = [];
+      resetStateCategoriesToDefault();
+      resetUserSettingsToDefault();
 
       renderCategoryDropdowns();
       renderCategoriesManagementUI(renderAll);
@@ -617,6 +613,9 @@ function getSavedActiveView(isNewRegistration = false) {
 async function switchView(view, syncBackend = true) {
   await flushCurrentNoteEditor();
   if (!VALID_VIEWS.includes(view)) view = 'grid';
+  if (view === 'grid') {
+    resetGridAutoScroll();
+  }
   STATE.activeView = view;
 
   // Auto-switch journal mode based on schedule view granularity when entering notes
@@ -673,6 +672,7 @@ async function onAuthSuccess(user, isNewRegistration = false) {
   document.documentElement.classList.add('user-authenticated');
   DOM.loginScreen.style.display = 'none';
   DOM.app.style.display = 'flex';
+  resetGridAutoScroll();
   
   // 1. Reload settings for this authenticated user
   loadUserSettings();
@@ -701,8 +701,17 @@ async function onAuthSuccess(user, isNewRegistration = false) {
       renderAll();
     });
 
-    await syncWeekDataWithApi(renderAll);
+    await syncWeekDataWithApi(() => {
+      renderAll();
+      if (STATE.activeView === 'grid') {
+        scrollToCurrentSlot(true);
+      }
+    });
     syncDayTemplatesFromApi();
+  } else {
+    if (STATE.activeView === 'grid') {
+      scrollToCurrentSlot(true);
+    }
   }
   if (STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0) {
     flushCurrentNoteEditor();
@@ -710,6 +719,7 @@ async function onAuthSuccess(user, isNewRegistration = false) {
 }
 
 function showLoginScreen() {
+  resetGridAutoScroll();
   document.documentElement.classList.remove('user-authenticated');
   DOM.app.style.display = 'none';
   DOM.loginScreen.style.display = 'flex';
@@ -813,6 +823,7 @@ function bindEvents() {
       await flushCurrentNoteEditor();
       const newMode = btn.dataset.mode;
       setScheduleViewMode(newMode);
+      resetGridAutoScroll();
       if (newMode === 'day') {
         setActiveSheetId('daily_journal');
       } else if (getActiveSheetId() === 'daily_journal') {
@@ -2324,6 +2335,7 @@ async function handleSwitchToDayView(targetDateStr) {
   STATE.currentWeekStart = getMonday(targetDate);
   setScheduleViewMode('day');
   setActiveSheetId('daily_journal');
+  resetGridAutoScroll();
 
   renderAll();
   await syncWeekDataWithApi(renderAll);

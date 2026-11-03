@@ -221,10 +221,6 @@ router.post('/login', async (req, res) => {
 
     const passwordHash = user ? (user.password_hash || user.passwordHash) : null;
 
-    if (user && user.is_disabled) {
-      return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
-    }
-
     if (!user || !passwordHash) {
       // Finding 26: Always run bcrypt compare against dummy hash to prevent user enumeration via response timing
       await bcrypt.compare(passwordToCompare, DUMMY_BCRYPT_HASH);
@@ -237,6 +233,12 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(passwordToCompare, passwordHash);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // Finding 49: Only reveal suspension status after password verification (or dummy comparison)
+    // to ensure constant-time response and prevent account suspension enumeration
+    if (user.is_disabled) {
+      return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
     }
 
     const token = jwt.sign(
