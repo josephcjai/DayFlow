@@ -45,7 +45,7 @@
    - In-app executive summary modal accessible from the login screen footer and Settings.
 4. **Schedule Grid "NOW" Cell Auto-Centering & UI Polish:**
    - Resilient `scrollToCurrentSlot()` dynamically queries the live DOM (`.slot-cell.current-active-slot`), retries via `requestAnimationFrame` if layout dimensions are mid-transition, debounces startup sync re-renders, and sets `history.scrollRestoration = 'manual'` so both login and page reload reliably center on the current time slot.
-   - Header badge updated to `v2.10.0 Web`; static asset cache-busting parameter updated to `?v=2.10.3`.
+   - Header badge updated to `v2.10.0 Web`; static asset cache-busting parameter updated to `?v=2.10.4`.
 5. **Cumulative `v2.9.0` Features (Included if upgrading directly from `v2.8.0`):**
    - Custom Task Categories engine (`user_categories` table & `/api/categories` CRUD endpoints) and Notification Active Hours & Quiet Window (Do Not Disturb).
 
@@ -276,7 +276,16 @@ curl -s https://dayflowlive.com/api/ | jq .
 #   "name": "DayFlow REST API Server",
 #   "version": "2.10.0",
 #   "status": "online",
-#   "docs": "https://dayflowlive.com/api-docs (disabled in production)"
+#   "healthCheck": "https://dayflowlive.com/api/health",
+#   "endpoints": {
+#     "auth": "/api/auth (POST /register, POST /login, POST /google, GET /me)",
+#     "schedule": "/api/schedule (GET /week/:weekStart, POST /slot, DELETE /slot)",
+#     "habits": "/api/habits (GET /week/:weekStart, POST /log, DELETE /:id)",
+#     "todos": "/api/todos (GET /week/:weekStart, POST /todo, PATCH /:id, DELETE /:id, POST /notes)",
+#     "templates": "/api/templates (GET /, POST /, PUT /:id, DELETE /:id)",
+#     "categories": "/api/categories (GET /, POST /, PUT /:id, DELETE /:id)",
+#     "health": "/api/health"
+#   }
 # }
 ```
 
@@ -289,7 +298,6 @@ curl -s https://dayflowlive.com/api/health | jq .
 #   "database": "connected",
 #   "service": "DayFlow API Server",
 #   "version": "2.10.0",
-#   "uptime": ...,
 #   "timestamp": "..."
 # }
 ```
@@ -314,22 +322,40 @@ curl -s -o /dev/null -w "%{http_code}\n" https://dayflowlive.com/api/categories
 cd /var/www/dayflow/server
 npm run admin -- stats
 # Expected output:
-# 📊 DAYFLOW SYSTEM STATISTICS
-# Total Registered Users: ... (Active: ..., Suspended: ...)
-# Total Schedule Weeks:   ...
-# Total Schedule Slots:   ...
-# Total Habit Logs:       ...
-# Total Todo Items:       ...
+# ================================================================
+#    🛡️  DAYFLOW DEVOPS & ADMINISTRATIVE CLI (v2.10.0)
+#    Zero-Attack-Surface Operations • Strict User Privacy
+# ================================================================
+#
+# 📊 Fetching DayFlow Platform Telemetry & Metrics...
+#
+# ┌─────────────────────────────────────────────────────────────┐
+# │ Database Storage Footprint:  ...                            │
+# ├─────────────────────────────────────────────────────────────┤
+# │ Total Registered Users:      ...                            │
+# │  • Active Accounts:          ...                            │
+# │  • Suspended Accounts:       ...                            │
+# │  • Google Auth Users:        ...                            │
+# │  • Password Auth Users:      ...                            │
+# ├─────────────────────────────────────────────────────────────┤
+# │ Productivity Records Ledger:                                │
+# │  • Schedule Weeks:           ...                            │
+# │  • Schedule Slots:           ...            (... productive) │
+# │  • Habit Logs:               ...                            │
+# │  • Todo Items:               ...            (... completed)  │
+# │  • Custom Categories:        ...                            │
+# │  • Day Templates:            ...                            │
+# └─────────────────────────────────────────────────────────────┘
 ```
 
-### Smoke Test 5: Verify Standalone Legal Pages & Cache-Busting (`?v=2.10.3`)
+### Smoke Test 5: Verify Standalone Legal Pages & Cache-Busting (`?v=2.10.4`)
 ```bash
-# 1. Verify index.html serves v2.10.0 Web badge and v=2.10.3 asset query parameter
-curl -s https://dayflowlive.com/ | grep -E 'v2.10.0 Web|v=2.10.3'
+# 1. Verify index.html serves v2.10.0 Web badge and v=2.10.4 asset query parameter
+curl -s https://dayflowlive.com/ | grep -E 'v2.10.0 Web|v=2.10.4'
 # Expected matches:
 # <span class="badge">v2.10.0 Web</span>
-# <link rel="stylesheet" href="src/css/styles.css?v=2.10.3">
-# <script type="module" src="src/js/app.js?v=2.10.3"></script>
+# <link rel="stylesheet" href="src/css/styles.css?v=2.10.4">
+# <script type="module" src="src/js/app.js?v=2.10.4"></script>
 
 # 2. Verify standalone legal pages return HTTP 200 with canonical content
 for page in about.html terms.html privacy.html; do
@@ -412,7 +438,7 @@ curl -s https://dayflowlive.com/api/health | jq .
 - [ ] **Account Deletion & Auth Guards:** Unauthenticated `DELETE /api/auth/account` and `/api/auth/me` return `401`.
 - [ ] **Admin CLI Operational:** `npm run admin -- stats` executes cleanly over SSH.
 - [ ] **Legal Pages Live:** `/about.html`, `/terms.html`, and `/privacy.html` return `200 OK`.
-- [ ] **Frontend Web Assets:** Header badge displays `v2.10.0 Web`; assets reference `v=2.10.3`; "NOW" cell auto-centers on login and refresh.
+- [ ] **Frontend Web Assets:** Header badge displays `v2.10.0 Web`; assets reference `v=2.10.4`; "NOW" cell auto-centers on login and refresh.
 - [ ] **HelpFinder4U Coexistence:** `hf-web` and `hf-api` remain online; restart counts unchanged.
 
 ### Execution Log & Sign-Off Record
@@ -433,7 +459,7 @@ Admin CLI Check:     npm run admin -- stats verified
 PM2 Process Status:  dayflow-api online, 0 unexpected restarts
 API Health Check:    GET /api/health -> version: 2.10.0, database: connected
 Legal Pages Check:   /about.html, /terms.html, /privacy.html -> HTTP 200 OK
-Web Asset Check:     HTML header badge v2.10.0 Web, cache-buster ?v=2.10.3
+Web Asset Check:     HTML header badge v2.10.0 Web, cache-buster ?v=2.10.4
 HelpFinder Coexist:  hf-web & hf-api verified online and untouched
 ========================================================================
 DEPLOYMENT RESULT:   [  ] SUCCESSFUL ROLLOUT    [  ] ROLLBACK TRIGGERED

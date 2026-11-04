@@ -35,22 +35,22 @@ import {
   getCategoryIcon,
   syncCategoriesWithApi,
   resetStateCategoriesToDefault
-} from './state.js?v=2.10.3';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.3';
-import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, scrollToCurrentSlot, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.3';
-import { initModal, openTaskModal } from './modal.js?v=2.10.3';
-import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.3';
-import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.3';
-import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.3';
-import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.3';
-import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.3';
+} from './state.js?v=2.10.4';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.4';
+import { renderGrid, selectSlotCell, clearSlotSelection, clearCopiedSource, getAdjacentSlotKey, startCurrentSlotTicker, TIME_SLOTS, resetGridAutoScroll, scrollToCurrentSlot, updateBulkActionBar, syncMultiSelectedClasses } from './grid.js?v=2.10.4';
+import { initModal, openTaskModal } from './modal.js?v=2.10.4';
+import { renderHabits, addHabitLog, renderQuickPresetsUI } from './habits.js?v=2.10.4';
+import { renderAnalytics, initPointsBreakdownModal } from './analytics.js?v=2.10.4';
+import { renderNotes, initTodoFilterBar, initMarkdownScratchpad, getActiveSheetId, setActiveSheetId, flushCurrentNoteEditor, setSheetContent, markNotesDirty, setCancelAutosaveCallback, getSelectedDateISO } from './notes.js?v=2.10.4';
+import { initSettingsUI, USER_SETTINGS, saveUserSettings, getDayTemplates, getDayTemplateById, saveDayTemplate, renderSettingsDayTemplatesUI, syncDayTemplatesFromApi, isSlotProductive, resetUserSettingsToDefault, loadUserSettings, renderCategoriesManagementUI } from './settings.js?v=2.10.4';
+import { showToast, generateUUID, escapeHtml } from './utils.js?v=2.10.4';
 import {
   initNotificationEngine,
   updateNotificationBellUI,
   requestNotificationPermission,
   getNotificationPermissionStatus,
   playNotificationSound
-} from './notifications.js?v=2.10.3';
+} from './notifications.js?v=2.10.4';
 
 const DOM = {};
 
@@ -704,13 +704,13 @@ async function onAuthSuccess(user, isNewRegistration = false) {
     await syncWeekDataWithApi(() => {
       renderAll();
       if (STATE.activeView === 'grid') {
-        scrollToCurrentSlot(true);
+        scrollToCurrentSlot(true, true);
       }
     });
     syncDayTemplatesFromApi();
   } else {
     if (STATE.activeView === 'grid') {
-      scrollToCurrentSlot(true);
+      scrollToCurrentSlot(true, true);
     }
   }
   if (STATE.failedNotesWeekKeys && STATE.failedNotesWeekKeys.size > 0) {
