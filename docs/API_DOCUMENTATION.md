@@ -260,6 +260,53 @@ All date parameters across the API (`weekStart`, `dueDate`, `slotKey` date prefi
 
 ---
 
+### 1.9 Permanently Delete User Account & Cascade Data (Google Play Store & Privacy Policy Compliance)
+
+- **URL:** `DELETE /api/auth/account` *(or alias `DELETE /api/auth/me`)*
+- **Auth Required:** Yes (`Bearer <token>`)
+- **Compliance Purpose:** Fulfills Google Play Store User Data Policy (mandatory in-app account and data deletion) and GDPR / CCPA "Right to be Forgotten".
+- **Cascading Deletion Guarantee:** Permanently purges user account and cascade-deletes all related entities across:
+  - `users` (credentials, profile)
+  - `schedule_slots` (all 30-min schedule blocks)
+  - `schedule_weeks` (weekly notes & daily note sheets)
+  - `habit_logs` (habit completions & streaks)
+  - `todo_items` (task checklists)
+  - `user_day_templates` (saved day blueprints)
+  - `user_categories` (custom category definitions)
+  - `password_reset_tokens` (active recovery tokens)
+- **Request Body (Password-based accounts):**
+  ```json
+  {
+    "password": "current_password"
+  }
+  ```
+- **Request Body (Google OAuth accounts without password):**
+  ```json
+  {
+    "confirmation": "DELETE"
+  }
+  ```
+  *(Accepts string `"DELETE"` or the user's email address).*
+- **Success Response (200 OK):**
+  ```json
+  {
+    "message": "Your account and all associated data have been permanently deleted."
+  }
+  ```
+- **Error Responses:**
+  - `400 Bad Request`:
+    - `{ "error": "Your current password is required to confirm account deletion." }`
+    - `{ "error": "Incorrect password. Account deletion denied." }`
+    - `{ "error": "Please confirm account deletion by typing \"DELETE\" or your email address." }`
+  - `401 Unauthorized`:
+    - `{ "error": "Unauthorized access. Authentication token required." }`
+  - `403 Forbidden`:
+    - `{ "error": "This account has been suspended. Please contact support." }`
+  - `404 Not Found`:
+    - `{ "error": "User account not found" }`
+
+---
+
 ## 2. Schedule Grid Endpoints (`/api/schedule`)
 
 ### 2.1 Fetch Weekly Schedule Slots

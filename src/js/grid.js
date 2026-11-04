@@ -2,10 +2,10 @@
  * DayFlow Multi-View Schedule Grid Renderer
  * Supports Day View, Weekly View, and Monthly View modes
  */
-import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected, getCategoryColor, getCategoryIcon } from './state.js?v=2.9.29';
-import { openTaskModal } from './modal.js?v=2.9.29';
-import { escapeHtml } from './utils.js?v=2.9.29';
-import { isSlotProductive } from './settings.js?v=2.9.29';
+import { STATE, getWeekDates, getCurrentWeekData, getWeekKey, formatDateISO, formatDateDisplay, formatDateDisplayShort, getSelectedSlotKeys, clearSelectedSlotKeys, addSelectedSlotKey, removeSelectedSlotKey, toggleSelectedSlotKey, isSlotMultiSelected, getCategoryColor, getCategoryIcon } from './state.js?v=2.10.4';
+import { openTaskModal } from './modal.js?v=2.10.4';
+import { escapeHtml } from './utils.js?v=2.10.4';
+import { isSlotProductive } from './settings.js?v=2.10.4';
 
 export const TIME_SLOTS = [];
 
@@ -36,10 +36,61 @@ export function getCurrentSlotKey() {
   return `${dateStr}_${hour}:${slotMin}`;
 }
 
+let autoScrollTimeout = null;
 let hasAutoScrolledToNow = false;
 
 export function resetGridAutoScroll() {
   hasAutoScrolledToNow = false;
+  if (autoScrollTimeout) {
+    clearTimeout(autoScrollTimeout);
+    autoScrollTimeout = null;
+  }
+}
+
+/**
+ * Centrally scrolls the schedule grid container so the current "NOW" slot cell
+ * is vertically and horizontally centered in view.
+ * Dynamically queries the live DOM to prevent detached-node offset errors.
+ */
+export function scrollToCurrentSlot(smooth = true, force = false) {
+  if (hasAutoScrolledToNow && !force) return;
+  if (autoScrollTimeout) {
+    clearTimeout(autoScrollTimeout);
+    autoScrollTimeout = null;
+  }
+
+  const container = document.querySelector('.timeline-table-container');
+  if (!container) return;
+
+  // Find the live active slot cell in the currently rendered DOM
+  const activeCell = container.querySelector('.slot-cell.current-active-slot');
+  if (!activeCell || !activeCell.isConnected) return;
+
+  const tdTop = activeCell.offsetTop;
+  const containerHeight = container.clientHeight;
+  if (containerHeight === 0) {
+    // If layout is not settled yet (e.g. during display:none -> flex transition on login),
+    // wait for next animation frame
+    requestAnimationFrame(() => {
+      scrollToCurrentSlot(smooth, force);
+    });
+    return;
+  }
+
+  const targetTop = Math.max(0, tdTop - containerHeight / 2 + 40);
+
+  // If container is horizontally scrollable (e.g. mobile/tablet Week view), also center/reveal the day column
+  const timeCol = document.querySelector('.schedule-table th.time-col');
+  const timeColWidth = timeCol ? timeCol.offsetWidth : 80;
+  const targetLeft = Math.max(0, activeCell.offsetLeft - timeColWidth);
+
+  container.scrollTo({
+    top: targetTop,
+    left: targetLeft > 0 ? targetLeft : container.scrollLeft,
+    behavior: smooth ? 'smooth' : 'auto'
+  });
+
+  hasAutoScrolledToNow = true;
 }
 
 let currentSlotTicker = null;
@@ -468,14 +519,9 @@ function renderWeekGridBody(scheduleTableBody) {
   });
 
   if (!hasAutoScrolledToNow && currentActiveTd) {
-    setTimeout(() => {
-      const c = document.querySelector('.timeline-table-container');
-      if (c) {
-        const tdTop = currentActiveTd.offsetTop;
-        const containerHeight = c.clientHeight;
-        c.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
-        hasAutoScrolledToNow = true;
-      }
+    if (autoScrollTimeout) clearTimeout(autoScrollTimeout);
+    autoScrollTimeout = setTimeout(() => {
+      scrollToCurrentSlot(true);
     }, 150);
   } else if (container) {
     container.scrollTop = prevScrollTop;
@@ -611,14 +657,9 @@ function renderDayGridBody(scheduleTableBody) {
   });
 
   if (!hasAutoScrolledToNow && currentActiveTd) {
-    setTimeout(() => {
-      const c = document.querySelector('.timeline-table-container');
-      if (c) {
-        const tdTop = currentActiveTd.offsetTop;
-        const containerHeight = c.clientHeight;
-        c.scrollTo({ top: Math.max(0, tdTop - containerHeight / 2 + 40), behavior: 'smooth' });
-        hasAutoScrolledToNow = true;
-      }
+    if (autoScrollTimeout) clearTimeout(autoScrollTimeout);
+    autoScrollTimeout = setTimeout(() => {
+      scrollToCurrentSlot(true);
     }, 150);
   } else if (container) {
     container.scrollTop = prevScrollTop;

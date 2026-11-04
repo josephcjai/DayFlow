@@ -13,8 +13,12 @@
 | 📋 [**Notes & Todo Roadmap**](docs/NOTES_TODO_ROADMAP.md) | Detailed feature roadmap and completed milestones (Phases 1 through 6). |
 | 📅 [**Day Templates Roadmap**](docs/DAY_TEMPLATES_ROADMAP.md) | Future roadmap & cloud sync architecture for Day Templates (v2.7.0). |
 | 🏷️ [**Custom Categories Roadmap**](docs/CUSTOM_CATEGORIES_ROADMAP.md) | Architecture specification & soft-deletion strategy for Custom Categories (v2.9.0). |
+| 🛡️ [**Admin Operations Roadmap**](docs/ADMIN_OPERATIONS_ROADMAP.md) | Privacy-first administrative tooling, DevOps CLI (Phase 1), and future web portal architecture (Phase 2). |
 | ⚙️ [**Technical Specification**](docs/TECHNICAL_SPECIFICATION.md) | System architecture, planned vs. actual time-lock mechanics, and design tokens. |
 | 🚀 [**Production Deployment Guide**](docs/DEPLOYMENT_LIGHTSAIL.md) | AWS Lightsail / Docker deployment guide with Nginx reverse proxy. |
+| 🧭 [**Deployment Runbook Standards & Release Checklist**](docs/DEPLOYMENT_RUNBOOK_STANDARDS.md) | Mandatory pre-promotion checklist, exact boot/CLI output templates, and queued deployment improvements. |
+| 🚢 [**v2.10.0 Production Deployment Runbook**](docs/DEPLOYMENT_v2.10.0_PRODUCTION.md) | Step-by-step production runbook, DB migration ordering, Admin CLI & Legal verification, and sign-off for `v2.10.0`. |
+| 📜 [**v2.10.0 Production Execution Log**](docs/DEPLOYMENT_v2.10.0_EXECUTION_LOG.md) | Live execution record from production deployment on AWS Lightsail (`v2.10.0` / 2026-11-04). |
 | 🚢 [**v2.9.0 Production Deployment Runbook**](docs/DEPLOYMENT_v2.9.0_PRODUCTION.md) | Step-by-step production runbook, DB migration ordering, execution log & sign-off for `v2.9.0`. |
 | 🚢 [**v2.8.0 Production Deployment Runbook**](docs/DEPLOYMENT_v2.8.0_PRODUCTION.md) | Step-by-step production runbook, DB migration ordering, and rollback instructions for `v2.8.0`. |
 | 📋 [**v2.8.0 Deployment Execution Log**](docs/DEPLOYMENT_v2.8.0_EXECUTION_LOG.md) | DevOps execution log template, pre-flight checks, and verification smoke tests. |

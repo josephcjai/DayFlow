@@ -8,11 +8,11 @@
  * 5. Gamification Targets (Daily Points Goal, Todo Completion Rewards)
  * 6. 1-Click JSON Data Export & Backup
  */
-import { generateTimeSlots } from './grid.js?v=2.9.29';
-import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi, markCategoryPendingSave, clearCategoryPendingSave } from './state.js?v=2.9.29';
-import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.9.29';
-import { ApiClient, isDemoMode } from './apiClient.js?v=2.9.29';
-import { showToast, escapeHtml, generateUUID } from './utils.js?v=2.9.29';
+import { generateTimeSlots } from './grid.js?v=2.10.4';
+import { STATE, getUserStorageKey, saveStateToStorage, setActiveDateFormat, getActiveCategories, getAllCategories, getCategoryColor, getCategoryIcon, isCategoryProductive, cascadeCategoryRenameLocally, saveCategoriesToStorage, syncCategoriesWithApi, markCategoryPendingSave, clearCategoryPendingSave, purgeAllUserData } from './state.js?v=2.10.4';
+import { playNotificationSound, requestNotificationPermission, getNotificationPermissionStatus, updateNotificationBellUI } from './notifications.js?v=2.10.4';
+import { ApiClient, isDemoMode } from './apiClient.js?v=2.10.4';
+import { showToast, escapeHtml, generateUUID } from './utils.js?v=2.10.4';
 
 export const DEFAULT_DAY_TEMPLATES = [
   {
@@ -591,6 +591,9 @@ export function initSettingsUI(domElements, renderAllCallback) {
   // Initialize Account & Security Card
   initAccountSecurityUI();
 
+  // Initialize Danger Zone: Delete Account
+  initDeleteAccountUI();
+
   // Initialize Custom Categories Management
   initCategoryManagement(onSettingsChangedCallback);
 
@@ -687,6 +690,172 @@ export function initAccountSecurityUI() {
       statusMsg.style.color = '#ef4444';
       statusMsg.style.borderColor = 'rgba(239, 68, 68, 0.3)';
     }
+  }
+}
+
+export function initDeleteAccountUI() {
+  const modal = document.getElementById('deleteAccountModal');
+  const cancelBtn = document.getElementById('cancelDeleteAccountBtn');
+  const closeBtn = document.getElementById('closeDeleteAccountModalBtn');
+  const form = document.getElementById('deleteAccountForm');
+  const pwdGroup = document.getElementById('deleteAccountPasswordGroup');
+  const pwdInput = document.getElementById('deleteAccountPassword');
+  const confirmGroup = document.getElementById('deleteAccountConfirmGroup');
+  const confirmInput = document.getElementById('deleteAccountConfirmText');
+  const statusMsg = document.getElementById('deleteAccountStatusMsg');
+  const submitBtn = document.getElementById('confirmDeleteAccountBtn');
+  const spinner = document.getElementById('deleteAccountSpinner');
+
+  if (!modal || !form) return;
+
+  function closeModal() {
+    modal.classList.remove('active');
+    setTimeout(() => {
+      if (!modal.classList.contains('active')) {
+        modal.style.display = 'none';
+      }
+    }, 200);
+    form.reset();
+    if (statusMsg) statusMsg.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+    if (spinner) spinner.style.display = 'none';
+  }
+
+  function openModal() {
+    let hasPassword = true;
+    try {
+      const rawUser = localStorage.getItem('dayflow_user');
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        hasPassword = u.hasPassword !== false;
+      }
+    } catch (e) {}
+
+    if (hasPassword) {
+      if (pwdGroup) pwdGroup.style.display = 'block';
+      if (pwdInput) {
+        pwdInput.required = true;
+        pwdInput.value = '';
+      }
+      if (confirmGroup) confirmGroup.style.display = 'none';
+      if (confirmInput) {
+        confirmInput.required = false;
+        confirmInput.value = '';
+      }
+    } else {
+      if (pwdGroup) pwdGroup.style.display = 'none';
+      if (pwdInput) {
+        pwdInput.required = false;
+        pwdInput.value = '';
+      }
+      if (confirmGroup) confirmGroup.style.display = 'block';
+      if (confirmInput) {
+        confirmInput.required = true;
+        confirmInput.value = '';
+      }
+    }
+
+    if (statusMsg) statusMsg.style.display = 'none';
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+      modal.classList.add('active');
+      if (hasPassword && pwdInput) {
+        pwdInput.focus();
+      } else if (!hasPassword && confirmInput) {
+        confirmInput.focus();
+      }
+    });
+  }
+
+  // Direct element binding if present
+  const openBtn = document.getElementById('openDeleteAccountModalBtn');
+  if (openBtn) {
+    openBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal();
+    });
+  }
+
+  // Document-level event delegation ensures clicks always trigger openModal
+  document.addEventListener('click', (e) => {
+    const target = e.target.closest('#openDeleteAccountModalBtn');
+    if (target) {
+      e.preventDefault();
+      openModal();
+    }
+  });
+
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('active')) {
+      closeModal();
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (statusMsg) statusMsg.style.display = 'none';
+
+    let user = null;
+    try {
+      user = JSON.parse(localStorage.getItem('dayflow_user') || '{}');
+    } catch (e) {}
+
+    const payload = {};
+    const hasPassword = user?.hasPassword !== false;
+
+    if (hasPassword) {
+      const pwd = pwdInput ? pwdInput.value : '';
+      if (!pwd) {
+        showError('Please enter your password to confirm.');
+        return;
+      }
+      payload.password = pwd;
+    } else {
+      const text = confirmInput ? confirmInput.value.trim() : '';
+      if (text.toUpperCase() !== 'DELETE' && text.toLowerCase() !== (user?.email || '').toLowerCase()) {
+        showError('Please type "DELETE" to confirm.');
+        return;
+      }
+      payload.confirmation = text;
+    }
+
+    if (submitBtn) submitBtn.disabled = true;
+    if (spinner) spinner.style.display = 'inline';
+
+    try {
+      await ApiClient.deleteAccount(payload);
+
+      // Permanently clear client localStorage, cookies, and memory state
+      purgeAllUserData(user?.id, user?.email);
+
+      closeModal();
+      showToast('Your DayFlow account and all data have been permanently deleted.', 'info', 6000);
+
+      // Cleanly reload to landing login screen without lingering #settings hash
+      setTimeout(() => {
+        window.location.href = window.location.pathname;
+      }, 700);
+    } catch (err) {
+      showError(err.message || 'Failed to delete account.');
+      if (submitBtn) submitBtn.disabled = false;
+      if (spinner) spinner.style.display = 'none';
+    }
+  });
+
+  function showError(msg) {
+    if (!statusMsg) return;
+    statusMsg.textContent = msg;
+    statusMsg.style.display = 'block';
+    statusMsg.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+    statusMsg.style.color = '#ef4444';
+    statusMsg.style.borderColor = 'rgba(239, 68, 68, 0.3)';
   }
 }
 

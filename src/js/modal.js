@@ -2,10 +2,10 @@
  * DayFlow Task Editor Modal Controller
  * Implements Planned vs Actual Task distinction, clear slot button, & time-lock rules
  */
-import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction, markSlotPendingSave, clearSlotPendingSave, isCategoryProductive } from './state.js?v=2.9.29';
-import { ApiClient } from './apiClient.js?v=2.9.29';
-import { clearSlotSelection } from './grid.js?v=2.9.29';
-import { isSlotProductive, USER_SETTINGS } from './settings.js?v=2.9.29';
+import { STATE, getCurrentWeekData, isSlotTimePassed, saveStateToStorage, getWeekKey, recordUndoAction, markSlotPendingSave, clearSlotPendingSave, isCategoryProductive } from './state.js?v=2.10.4';
+import { ApiClient } from './apiClient.js?v=2.10.4';
+import { clearSlotSelection } from './grid.js?v=2.10.4';
+import { isSlotProductive, USER_SETTINGS } from './settings.js?v=2.10.4';
 
 let modalElements = {};
 let renderCallback = null;

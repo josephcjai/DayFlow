@@ -28,12 +28,31 @@ export function isDemoMode() {
 }
 
 function checkUnauthorized(res) {
-  if (res && res.status === 401) {
+  if (res && (res.status === 401 || res.status === 403)) {
     if (isDemoMode()) {
-      return true; // Ignore 401 in demo mode, never trigger session expiry
+      return true; // Ignore in demo mode, never trigger session expiry
     }
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('dayflow:session-expired'));
+      const isSuspended = res.status === 403;
+      const defaultMsg = isSuspended
+        ? 'This account has been suspended. Please contact support.'
+        : 'Session expired or invalidated. Please sign in again.';
+
+      // Immediately dispatch session-expired event so lockout is instant
+      window.dispatchEvent(new CustomEvent('dayflow:session-expired', {
+        detail: { status: res.status, message: defaultMsg, isSuspended }
+      }));
+
+      // If server response contains specific error message, update message
+      if (typeof res.clone === 'function') {
+        res.clone().json().then(data => {
+          if (data?.error && data.error !== defaultMsg) {
+            window.dispatchEvent(new CustomEvent('dayflow:session-expired', {
+              detail: { status: res.status, message: data.error, isSuspended }
+            }));
+          }
+        }).catch(() => {});
+      }
     }
     return true;
   }
@@ -116,6 +135,19 @@ export const ApiClient = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to change password');
+    return data;
+  },
+
+  async deleteAccount(credentials = {}) {
+    if (isDemoMode()) return { message: 'Demo account deleted' };
+    const res = await fetch(`${API_BASE}/auth/account`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(credentials)
+    });
+    if (checkUnauthorized(res)) return null;
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete account');
     return data;
   },
 
