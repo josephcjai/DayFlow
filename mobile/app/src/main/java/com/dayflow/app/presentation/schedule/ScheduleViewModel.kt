@@ -251,6 +251,7 @@ class ScheduleViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             templateRepository.seedDefaultTemplates()
+            _uiState.update { it.copy(isAnalyticsExpanded = tokenManager.isAnalyticsExpanded()) }
         }
         viewModelScope.launch {
             syncManager.syncStatus.collect { status ->
@@ -467,6 +468,32 @@ class ScheduleViewModel @Inject constructor(
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(errorMessage = error.localizedMessage ?: "Failed to save template")
+                    }
+                }
+            )
+        }
+    }
+
+    fun updateTemplate(
+        templateId: String,
+        name: String,
+        description: String,
+        slots: Map<String, com.dayflow.app.domain.model.TemplateSlot>
+    ) {
+        viewModelScope.launch {
+            val result = templateRepository.updateTemplate(templateId, name, description, slots)
+            result.fold(
+                onSuccess = { updated ->
+                    _uiState.update {
+                        it.copy(
+                            templateFeedbackMessage = "Updated template '${updated.name}'"
+                        )
+                    }
+                    templateRepository.refreshTemplates()
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(errorMessage = error.localizedMessage ?: "Failed to update template")
                     }
                 }
             )

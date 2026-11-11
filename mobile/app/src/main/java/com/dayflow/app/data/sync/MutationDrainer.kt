@@ -4,6 +4,7 @@ import android.util.Log
 import com.dayflow.app.data.local.MutationQueueDao
 import com.dayflow.app.data.local.MutationQueueEntity
 import com.dayflow.app.data.model.CategoryDto
+import com.dayflow.app.data.model.DayTemplateDto
 import com.dayflow.app.data.model.CreateTodoRequest
 import com.dayflow.app.data.model.DeleteSlotRequest
 import com.dayflow.app.data.model.LogHabitRequest
@@ -12,6 +13,7 @@ import com.dayflow.app.data.model.SaveSlotRequest
 import com.dayflow.app.data.model.UpdateTodoRequest
 import com.dayflow.app.data.remote.DayFlowApiService
 import com.dayflow.app.data.remote.TokenManager
+import com.dayflow.app.domain.util.DateTimeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -90,7 +92,13 @@ class MutationDrainer @Inject constructor(
             }
             endpoint == "schedule/slot" && method == "DELETE" -> {
                 val req = json.decodeFromString<DeleteSlotRequest>(payload)
-                val resp = apiService.deleteSlot(req)
+                val normalizedReq = if (req.weekStart.isNullOrBlank()) {
+                    val (slotDate, _) = DateTimeUtils.parseSlotKey(req.slotKey)
+                    req.copy(weekStart = DateTimeUtils.getWeekKey(slotDate))
+                } else {
+                    req
+                }
+                val resp = apiService.deleteSlot(normalizedReq)
                 resp.isSuccessful || resp.code() in 400..499
             }
 
@@ -138,6 +146,24 @@ class MutationDrainer @Inject constructor(
             endpoint == "todos/notes" && method == "POST" -> {
                 val req = json.decodeFromString<SaveNotesRequest>(payload)
                 val resp = apiService.saveNotes(req)
+                resp.isSuccessful || resp.code() in 400..499
+            }
+
+            // Template mutations
+            endpoint == "templates" && method == "POST" -> {
+                val req = json.decodeFromString<DayTemplateDto>(payload)
+                val resp = apiService.createTemplate(req)
+                resp.isSuccessful || resp.code() in 400..499
+            }
+            endpoint.startsWith("templates/") && method == "PUT" -> {
+                val templateId = endpoint.removePrefix("templates/")
+                val req = json.decodeFromString<DayTemplateDto>(payload)
+                val resp = apiService.updateTemplate(templateId, req)
+                resp.isSuccessful || resp.code() in 400..499
+            }
+            endpoint.startsWith("templates/") && method == "DELETE" -> {
+                val templateId = endpoint.removePrefix("templates/")
+                val resp = apiService.deleteTemplate(templateId)
                 resp.isSuccessful || resp.code() in 400..499
             }
 

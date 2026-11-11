@@ -37,6 +37,19 @@ import com.dayflow.app.domain.model.TodoPriority
 import com.dayflow.app.presentation.theme.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import com.dayflow.app.domain.util.DateTimeUtils
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +61,9 @@ fun TodosScreen(
     val allTodos by viewModel.allTodos.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val activeFilter by viewModel.activeFilter.collectAsState()
+    val selectedDate by viewModel.selectedDate.collectAsState()
+    val currentWeekStart by viewModel.currentWeekStart.collectAsState()
+    val weekDays by viewModel.weekDays.collectAsState()
 
     // Note Sheets & Markdown State
     val noteSheets by viewModel.noteSheets.collectAsState()
@@ -69,6 +85,7 @@ fun TodosScreen(
     var deletingTodo by remember { mutableStateOf<TodoEntity?>(null) }
 
     // Dialog state for custom note sheet
+    var showDatePicker by remember { mutableStateOf(false) }
     var showAddSheetDialog by remember { mutableStateOf(false) }
     var pendingDeleteSheet by remember { mutableStateOf<NoteSheet?>(null) }
 
@@ -130,7 +147,108 @@ fun TodosScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ==========================================
+            // Week & Date Navigation Bar (Historical Access)
+            // ==========================================
+            val monday = DateTimeUtils.getMondayOfWeek(selectedDate)
+            val sunday = monday.plusDays(6)
+            val dateFormatter = DateTimeFormatter.ofPattern("MMM d")
+            val yearFormatter = DateTimeFormatter.ofPattern("yyyy")
+            val weekRangeLabel = if (monday.year == sunday.year) {
+                "${monday.format(dateFormatter)} – ${sunday.format(dateFormatter)}, ${monday.format(yearFormatter)}"
+            } else {
+                "${monday.format(dateFormatter)}, ${monday.format(yearFormatter)} – ${sunday.format(dateFormatter)}, ${sunday.format(yearFormatter)}"
+            }
+            val isCurrentWeek = DateTimeUtils.getWeekKey(LocalDate.now()) == currentWeekStart
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { viewModel.previousWeek() },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Previous Week",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Surface(
+                    modifier = Modifier.clickable { showDatePicker = true },
+                    color = SurfaceDark,
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.35f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = "Open Date Picker",
+                            tint = DayFlowPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = weekRangeLabel,
+                            color = TextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!isCurrentWeek) {
+                        Surface(
+                            modifier = Modifier.clickable { viewModel.selectToday() },
+                            color = DayFlowPrimary.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.4f))
+                        ) {
+                            Text(
+                                text = "This Week",
+                                color = DayFlowPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.nextWeek() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Next Week",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             if (selectedTab == 0) {
                 // ==========================================
@@ -500,6 +618,7 @@ fun TodosScreen(
                             noteSheets.forEach { sheet ->
                                 val isSheetActive = sheet.id == activeSheetId
                                 Surface(
+                                    modifier = Modifier.clickable { viewModel.selectSheet(sheet.id) },
                                     color = if (isSheetActive) DayFlowPrimary.copy(alpha = 0.2f) else SurfaceElevated,
                                     shape = RoundedCornerShape(10.dp),
                                     border = if (isSheetActive) BorderStroke(1.5.dp, DayFlowPrimary) else BorderStroke(1.dp, SurfaceElevated)
@@ -508,19 +627,14 @@ fun TodosScreen(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            modifier = Modifier.clickable { viewModel.selectSheet(sheet.id) },
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(sheet.icon, fontSize = 12.sp)
-                                            Spacer(modifier = Modifier.width(5.dp))
-                                            Text(
-                                                text = sheet.title,
-                                                fontSize = 11.sp,
-                                                fontWeight = if (isSheetActive) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSheetActive) DayFlowPrimary else TextPrimary
-                                            )
-                                        }
+                                        Text(sheet.icon, fontSize = 12.sp)
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            text = sheet.title,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSheetActive) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSheetActive) DayFlowPrimary else TextPrimary
+                                        )
 
                                         // Delete icon for non-default sheets
                                         if (!sheet.isDefault) {
@@ -557,6 +671,63 @@ fun TodosScreen(
                                     Icon(Icons.Default.Add, contentDescription = "Add Sheet", tint = DayFlowPrimary, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Add Sheet", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DayFlowPrimary)
+                                }
+                            }
+                        }
+
+                        // Daily Journal 7-Day Quick Switcher Strip
+                        if (activeSheetId == "daily_journal") {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                weekDays.forEach { date ->
+                                    val isSelected = date == selectedDate
+                                    val isToday = date == LocalDate.now()
+                                    val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                                    val dayNum = date.dayOfMonth.toString()
+                                    val dateKey = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                                    val currentDailySheet = noteSheets.find { it.id == "daily_journal" }
+                                    val hasContentForDay = !currentDailySheet?.dailyContent?.get(dateKey).isNullOrBlank()
+
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 2.dp)
+                                            .clickable { viewModel.selectDate(date) },
+                                        color = if (isSelected) DayFlowPrimary else SurfaceElevated,
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = if (!isSelected && isToday) BorderStroke(1.2.dp, DayFlowPrimary) else null
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(vertical = 6.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = dayName,
+                                                fontSize = 10.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) BackgroundDark else TextMuted
+                                            )
+                                            Text(
+                                                text = dayNum,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) BackgroundDark else TextPrimary
+                                            )
+                                            if (hasContentForDay && !isSelected) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .padding(top = 2.dp)
+                                                        .size(4.dp)
+                                                        .background(DayFlowPrimary, CircleShape)
+                                                )
+                                            } else {
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -800,6 +971,64 @@ fun TodosScreen(
                 }
             }
         )
+    }
+
+    // Dialog: Material 3 Calendar Date Picker to access historical notes & weeks
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val picked = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneId.of("UTC"))
+                                .toLocalDate()
+                            viewModel.selectDate(picked)
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Select", color = DayFlowPrimary, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            },
+            colors = DatePickerDefaults.colors(
+                containerColor = Color(0xFF0F172A)
+            )
+        ) {
+            Surface(
+                color = Color(0xFF0F172A),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                DatePicker(
+                    state = datePickerState,
+                    colors = DatePickerDefaults.colors(
+                        containerColor = Color(0xFF0F172A),
+                        titleContentColor = TextPrimary,
+                        headlineContentColor = TextPrimary,
+                        weekdayContentColor = TextMuted,
+                        subheadContentColor = TextPrimary,
+                        yearContentColor = TextPrimary,
+                        currentYearContentColor = DayFlowPrimary,
+                        selectedYearContentColor = BackgroundDark,
+                        selectedYearContainerColor = DayFlowPrimary,
+                        dayContentColor = TextPrimary,
+                        selectedDayContentColor = BackgroundDark,
+                        selectedDayContainerColor = DayFlowPrimary,
+                        todayContentColor = DayFlowPrimary,
+                        todayDateBorderColor = DayFlowPrimary
+                    )
+                )
+            }
+        }
     }
 }
 

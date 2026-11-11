@@ -5,6 +5,7 @@ import com.dayflow.app.data.local.DayTemplateEntity
 import com.dayflow.app.data.local.MutationQueueDao
 import com.dayflow.app.data.local.MutationQueueEntity
 import com.dayflow.app.data.model.DayTemplateDto
+import com.dayflow.app.data.model.TemplateUpsertResponse
 import com.dayflow.app.data.model.TemplateSlotDto
 import com.dayflow.app.data.remote.DayFlowApiService
 import com.dayflow.app.data.remote.TokenManager
@@ -25,6 +26,7 @@ interface TemplateRepository {
     fun getTemplates(): Flow<List<DayTemplate>>
     suspend fun refreshTemplates(): Result<Unit>
     suspend fun createTemplate(name: String, description: String, slots: Map<String, TemplateSlot>): Result<DayTemplate>
+    suspend fun updateTemplate(id: String, name: String, description: String, slots: Map<String, TemplateSlot>): Result<DayTemplate>
     suspend fun deleteTemplate(id: String): Result<Unit>
     suspend fun seedDefaultTemplates()
 }
@@ -119,8 +121,8 @@ class TemplateRepositoryImpl @Inject constructor(
 
         try {
             val response = apiService.createTemplate(request)
-            if (response.isSuccessful && response.body() != null) {
-                val serverTemplate = response.body()!!
+            val serverTemplate = response.body()?.template
+            if (response.isSuccessful && serverTemplate != null) {
                 val confirmed = entity.copy(id = serverTemplate.id, isSyncPending = false)
                 dayTemplateDao.deleteTemplate(tempId)
                 dayTemplateDao.upsertTemplate(confirmed)
@@ -131,6 +133,63 @@ class TemplateRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             enqueueMutation("templates", "POST", json.encodeToString(request))
+            Result.success(entity.toDomain())
+        }
+    }
+
+    override suspend fun updateTemplate(
+        id: String,
+        name: String,
+        description: String,
+        slots: Map<String, TemplateSlot>
+    ): Result<DayTemplate> = withContext(Dispatchers.IO) {
+        val dtoJsonMap = slots.mapValues { (_, s) ->
+            TemplateSlotDto(
+                title = s.title,
+                plannedTask = s.plannedTask,
+                category = s.category,
+                planned = s.planned
+            )
+        }
+        val slotsJson = json.encodeToString(dtoJsonMap)
+
+        val entity = DayTemplateEntity(
+            id = id,
+            name = name.trim(),
+            description = description.trim(),
+            slotsJson = slotsJson,
+            isDefault = false,
+            isSyncPending = true
+        )
+        dayTemplateDao.upsertTemplate(entity)
+
+        if (tokenManager.isDemoMode()) {
+            val confirmed = entity.copy(isSyncPending = false)
+            dayTemplateDao.upsertTemplate(confirmed)
+            return@withContext Result.success(confirmed.toDomain())
+        }
+
+        val request = DayTemplateDto(
+            id = id,
+            name = name.trim(),
+            description = description.trim(),
+            slots = dtoJsonMap,
+            isDefault = false
+        )
+
+        try {
+            val response = apiService.updateTemplate(id, request)
+            val serverTemplate = response.body()?.template
+            if (response.isSuccessful && serverTemplate != null) {
+                val confirmed = entity.copy(id = serverTemplate.id, isSyncPending = false)
+                dayTemplateDao.upsertTemplate(confirmed)
+                Result.success(confirmed.toDomain())
+            } else {
+                enqueueMutation("templates/$id", "PUT", json.encodeToString(request))
+                Result.success(entity.toDomain())
+            }
+        } catch (e: Exception) {
+            enqueueMutation("templates/$id", "PUT", json.encodeToString(request))
             Result.success(entity.toDomain())
         }
     }

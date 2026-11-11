@@ -60,6 +60,12 @@ data class ChangePasswordRequest(
 )
 
 @Serializable
+data class DeleteAccountRequest(
+    val password: String? = null,
+    val confirmation: String? = null
+)
+
+@Serializable
 data class ForgotPasswordRequest(
     val email: String
 )
@@ -252,4 +258,10 @@ data class DayTemplateDto(
 @Serializable
 data class TemplatesResponse(
     val templates: List<DayTemplateDto> = emptyList()
+)
+
+@Serializable
+data class TemplateUpsertResponse(
+    val message: String? = null,
+    val template: DayTemplateDto? = null
 )

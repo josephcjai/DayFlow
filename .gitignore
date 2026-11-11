@@ -20,6 +20,9 @@ mobile/local.properties
 mobile/.idea/
 *.apk
 *.aab
+*.jks
+*.keystore
+**/key.properties
 
 
 # IDE & Editor Configurations

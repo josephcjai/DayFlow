@@ -301,7 +301,7 @@ fun parseInlineMarkdown(text: String): AnnotatedString {
                 text.startsWith("**", i) -> {
                     val end = text.indexOf("**", i + 2)
                     if (end != -1) {
-                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary))
+                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
                         append(text.substring(i + 2, end))
                         pop()
                         i = end + 2
@@ -333,7 +333,7 @@ fun parseInlineMarkdown(text: String): AnnotatedString {
                 text[i] == '*' -> {
                     val end = text.indexOf('*', i + 1)
                     if (end != -1) {
-                        pushStyle(SpanStyle(fontStyle = FontStyle.Italic, color = TextSecondary))
+                        pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
                         append(text.substring(i + 1, end))
                         pop()
                         i = end + 1

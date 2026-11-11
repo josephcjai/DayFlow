@@ -1,4 +1,4 @@
-﻿package com.dayflow.app.presentation.auth
+package com.dayflow.app.presentation.auth
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -113,8 +113,6 @@ fun AuthScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
-
-    val currentMonday = remember { DateTimeUtils.getWeekKey(LocalDate.now()) }
 
     androidx.compose.runtime.LaunchedEffect(uiState.isAuthenticated) {
         if (uiState.isAuthenticated) {
@@ -554,56 +552,54 @@ fun AuthScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Divider with OR
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.weight(1f).height(1.dp).background(SurfaceElevated))
-                Text("  OR  ", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                Box(modifier = Modifier.weight(1f).height(1.dp).background(SurfaceElevated))
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
 
-            // INSTANT DEMO MODE CARD
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.enterDemoMode(currentMonday) },
-                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
-                shape = RoundedCornerShape(16.dp)
+            // Legal Transparency Links (Google Play Policy Compliance)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Explore in Demo Mode",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DayFlowSecondary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Instant 1-tap guest access with local mock data.",
-                            fontSize = 12.sp,
-                            color = TextMuted
-                        )
+                Text(
+                    text = "Privacy Policy",
+                    fontSize = 11.sp,
+                    color = TextMuted,
+                    modifier = Modifier.clickable {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/privacy.html"))
+                        context.startActivity(intent)
                     }
-                    Text(
-                        text = "Try Now →",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DayFlowPrimary
-                    )
-                }
+                )
+                Text(
+                    text = " • ",
+                    fontSize = 11.sp,
+                    color = TextMuted
+                )
+                Text(
+                    text = "Terms of Service",
+                    fontSize = 11.sp,
+                    color = TextMuted,
+                    modifier = Modifier.clickable {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/terms.html"))
+                        context.startActivity(intent)
+                    }
+                )
+                Text(
+                    text = " • ",
+                    fontSize = 11.sp,
+                    color = TextMuted
+                )
+                Text(
+                    text = "About",
+                    fontSize = 11.sp,
+                    color = TextMuted,
+                    modifier = Modifier.clickable {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/about.html"))
+                        context.startActivity(intent)
+                    }
+                )
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
         }
 
         // Forgot Password Dialog

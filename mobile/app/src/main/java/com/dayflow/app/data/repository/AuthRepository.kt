@@ -20,6 +20,8 @@ interface AuthRepository {
     suspend fun getCurrentUser(): Result<UserDto>
     suspend fun forgotPassword(email: String): Result<String>
     suspend fun changePassword(currentPassword: String, newPassword: String): Result<String>
+    suspend fun deleteAccount(password: String? = null, confirmation: String? = null): Result<String>
+    fun hasPassword(): Boolean
     fun isLoggedIn(): Boolean
     fun isDemoMode(): Boolean
     fun enableDemoMode()
@@ -60,6 +62,7 @@ class AuthRepositoryImpl @Inject constructor(
                 tokenManager.saveToken(authBody.token)
                 tokenManager.saveUserEmail(authBody.user.email)
                 tokenManager.saveDisplayName(authBody.user.displayName)
+                tokenManager.saveHasPassword(authBody.user.hasPassword)
                 tokenManager.setDemoMode(false)
                 Result.success(authBody.user)
             } else {
@@ -92,6 +95,7 @@ class AuthRepositoryImpl @Inject constructor(
                 tokenManager.saveToken(authBody.token)
                 tokenManager.saveUserEmail(authBody.user.email)
                 tokenManager.saveDisplayName(authBody.user.displayName)
+                tokenManager.saveHasPassword(authBody.user.hasPassword)
                 tokenManager.setDemoMode(false)
                 Result.success(authBody.user)
             } else {
@@ -121,6 +125,7 @@ class AuthRepositoryImpl @Inject constructor(
                 tokenManager.saveToken(authBody.token)
                 tokenManager.saveUserEmail(authBody.user.email)
                 tokenManager.saveDisplayName(authBody.user.displayName)
+                tokenManager.saveHasPassword(authBody.user.hasPassword)
                 tokenManager.setDemoMode(false)
                 Result.success(authBody.user)
             } else {
@@ -146,7 +151,9 @@ class AuthRepositoryImpl @Inject constructor(
         try {
             val response = apiService.getCurrentUser()
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!.user)
+                val u = response.body()!!.user
+                tokenManager.saveHasPassword(u.hasPassword)
+                Result.success(u)
             } else {
                 Result.failure(Exception("Failed to fetch user profile"))
             }
@@ -206,6 +213,38 @@ class AuthRepositoryImpl @Inject constructor(
         tokenManager.setDemoMode(true)
         tokenManager.saveUserEmail("demo@dayflowlive.com")
         tokenManager.saveDisplayName("Demo Explorer")
+    }
+
+    override fun hasPassword(): Boolean {
+        return tokenManager.hasPassword()
+    }
+
+    override suspend fun deleteAccount(
+        password: String?,
+        confirmation: String?
+    ): Result<String> = withContext(Dispatchers.IO) {
+        if (tokenManager.isDemoMode()) {
+            logout()
+            return@withContext Result.success("Demo account session cleared.")
+        }
+        try {
+            val response = apiService.deleteAccount(
+                com.dayflow.app.data.model.DeleteAccountRequest(
+                    password = password?.trim()?.ifBlank { null },
+                    confirmation = confirmation?.trim()?.ifBlank { null }
+                )
+            )
+            if (response.isSuccessful) {
+                val msg = response.body()?.message ?: "Account permanently deleted."
+                logout()
+                Result.success(msg)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), "Failed to delete account (${response.code()})")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override fun logout() {

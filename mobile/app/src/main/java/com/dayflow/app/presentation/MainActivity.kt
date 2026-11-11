@@ -78,6 +78,9 @@ import com.dayflow.app.presentation.settings.SettingsBottomSheet
 import com.dayflow.app.presentation.settings.SettingsViewModel
 import androidx.compose.material.icons.filled.Settings
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import com.dayflow.app.data.remote.TokenManager
+import com.dayflow.app.presentation.theme.DayFlowThemeMode
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -101,11 +104,18 @@ import com.dayflow.app.presentation.util.BiometricHelper
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
+    @Inject
+    lateinit var tokenManager: TokenManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            DayFlowTheme {
+            val themeModeStr by tokenManager.themeModeFlow.collectAsState()
+            val activeThemeMode = remember(themeModeStr) {
+                DayFlowThemeMode.fromKey(themeModeStr)
+            }
+            DayFlowTheme(themeMode = activeThemeMode) {
                 val navController = rememberNavController()
                 val authViewModel: AuthViewModel = hiltViewModel()
                 val authState by authViewModel.uiState.collectAsState()
@@ -541,7 +551,12 @@ fun DashboardScreen(
     if (showSettingsSheet) {
         SettingsBottomSheet(
             viewModel = settingsViewModel,
-            onDismiss = { showSettingsSheet = false }
+            onDismiss = { showSettingsSheet = false },
+            onAccountDeleted = {
+                showSettingsSheet = false
+                SlotNotificationScheduler.cancelReminder(context)
+                onLogout()
+            }
         )
     }
 }

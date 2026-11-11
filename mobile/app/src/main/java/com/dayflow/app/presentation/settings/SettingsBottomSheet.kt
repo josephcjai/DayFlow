@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -42,6 +43,14 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import com.dayflow.app.presentation.theme.DayFlowThemeMode
+import com.dayflow.app.presentation.theme.DayFlowPalette
+import com.dayflow.app.presentation.theme.MidnightPalette
+import com.dayflow.app.presentation.theme.OledPalette
+import com.dayflow.app.presentation.theme.EmeraldPalette
+import com.dayflow.app.presentation.theme.LightPalette
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -91,7 +100,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsBottomSheet(
     viewModel: SettingsViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onAccountDeleted: () -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val state by viewModel.uiState.collectAsState()
@@ -101,6 +111,7 @@ fun SettingsBottomSheet(
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var exportSuccessSummary by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
@@ -155,7 +166,101 @@ fun SettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // SECTION 1: NOTIFICATION INTELLIGENCE (v2.9.0 PARITY)
+            // SECTION 1: VISUAL THEME & PALETTE (DAYFLOW WEB PARITY)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🎨 Visual Theme & Palette",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DayFlowPrimary
+                )
+                Text(
+                    text = when (state.themeMode) {
+                        "oled" -> "OLED Black"
+                        "emerald" -> "Emerald Forest"
+                        "light" -> "Clean Light"
+                        else -> "Deep Midnight"
+                    },
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextSecondary
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceElevated.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = "Curated Aesthetic Themes",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Match your focus environment with midnight slate, true OLED black, botanical emerald, or clean daytime light mode.",
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        lineHeight = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            ThemeCardItem(
+                                theme = DayFlowThemeMode.DARK,
+                                palette = MidnightPalette,
+                                isSelected = state.themeMode == "dark",
+                                modifier = Modifier.weight(1f),
+                                onClick = { viewModel.setThemeMode("dark") }
+                            )
+                            ThemeCardItem(
+                                theme = DayFlowThemeMode.OLED,
+                                palette = OledPalette,
+                                isSelected = state.themeMode == "oled",
+                                modifier = Modifier.weight(1f),
+                                onClick = { viewModel.setThemeMode("oled") }
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            ThemeCardItem(
+                                theme = DayFlowThemeMode.EMERALD,
+                                palette = EmeraldPalette,
+                                isSelected = state.themeMode == "emerald",
+                                modifier = Modifier.weight(1f),
+                                onClick = { viewModel.setThemeMode("emerald") }
+                            )
+                            ThemeCardItem(
+                                theme = DayFlowThemeMode.LIGHT,
+                                palette = LightPalette,
+                                isSelected = state.themeMode == "light",
+                                modifier = Modifier.weight(1f),
+                                onClick = { viewModel.setThemeMode("light") }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // SECTION 2: NOTIFICATION INTELLIGENCE (v2.9.0 PARITY)
             Text(
                 text = "🔔 Notification Intelligence",
                 fontSize = 14.sp,
@@ -688,6 +793,88 @@ fun SettingsBottomSheet(
                             Text("Change", color = DayFlowPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Delete Account Row (Google Play Compliance)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(
+                                text = "Delete Account",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = StatusMissed
+                            )
+                            Text(
+                                text = "Permanently remove your account, cloud data, habits, and schedules",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                        }
+
+                        Button(
+                            onClick = { showDeleteAccountDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = StatusMissed.copy(alpha = 0.15f)),
+                            border = BorderStroke(1.dp, StatusMissed.copy(alpha = 0.5f))
+                        ) {
+                            Text("Delete", color = StatusMissed, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Legal & Transparency Links
+                    Text(
+                        text = "Legal & Privacy Transparency",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "Privacy Policy",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = DayFlowPrimary,
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/privacy.html"))
+                                context.startActivity(intent)
+                            }
+                        )
+                        Text(
+                            text = "Terms of Service",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = DayFlowPrimary,
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/terms.html"))
+                                context.startActivity(intent)
+                            }
+                        )
+                        Text(
+                            text = "About DayFlow",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = DayFlowPrimary,
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/about.html"))
+                                context.startActivity(intent)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -771,6 +958,20 @@ fun SettingsBottomSheet(
             onSuccess = { msg ->
                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                 showChangePasswordDialog = false
+            }
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        DeleteAccountDialog(
+            viewModel = viewModel,
+            hasPassword = state.hasPassword,
+            userEmail = state.userEmail,
+            onDismiss = { showDeleteAccountDialog = false },
+            onSuccess = { msg ->
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                showDeleteAccountDialog = false
+                onAccountDeleted()
             }
         )
     }
@@ -1316,6 +1517,272 @@ private fun AddCategoryDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary)
                     ) {
                         Text("Create", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeCardItem(
+    theme: DayFlowThemeMode,
+    palette: DayFlowPalette,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        color = SurfaceElevated.copy(alpha = if (isSelected) 0.85f else 0.45f),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) DayFlowPrimary else SurfaceElevated
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp)
+        ) {
+            // Preview Mockup box
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(palette.background)
+                    .border(1.dp, palette.surfaceElevated, RoundedCornerShape(8.dp))
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Header bar preview
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(14.dp)
+                            .background(palette.surface)
+                            .padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(DayFlowPrimary)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(20.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(palette.textMuted.copy(alpha = 0.5f))
+                        )
+                    }
+
+                    // Content preview rows
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.7f)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(palette.textPrimary.copy(alpha = 0.8f))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.45f)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(palette.surfaceElevated)
+                        )
+                    }
+                }
+
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(DayFlowPrimary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = theme.displayName,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected) DayFlowPrimary else TextPrimary
+            )
+            Text(
+                text = theme.subtitle,
+                fontSize = 10.sp,
+                color = TextMuted,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun DeleteAccountDialog(
+    viewModel: SettingsViewModel,
+    hasPassword: Boolean,
+    userEmail: String?,
+    onDismiss: () -> Unit,
+    onSuccess: (String) -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+    var confirmation by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = SurfaceDark,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = StatusMissed,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Delete DayFlow Account",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StatusMissed
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "This action is permanent and cannot be undone. All your schedule blocks, focus analytics, habit logs, and todos will be immediately and irreversibly erased from DayFlow servers.",
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (hasPassword) {
+                    Text(
+                        text = "Enter your current password to confirm deletion:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextMuted
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it; errorMessage = null },
+                        placeholder = { Text("Account Password", color = TextMuted) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = StatusMissed,
+                            unfocusedBorderColor = SurfaceElevated,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
+                    )
+                } else {
+                    Text(
+                        text = "Type DELETE or your email (${userEmail ?: ""}) to confirm:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextMuted
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = confirmation,
+                        onValueChange = { confirmation = it; errorMessage = null },
+                        placeholder = { Text("DELETE", color = TextMuted) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = StatusMissed,
+                            unfocusedBorderColor = SurfaceElevated,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
+                    )
+                }
+
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = errorMessage ?: "", color = StatusMissed, fontSize = 11.sp)
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceElevated),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Cancel", color = TextPrimary)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    val canSubmit = if (hasPassword) password.isNotBlank() else confirmation.isNotBlank()
+                    Button(
+                        onClick = {
+                            isSubmitting = true
+                            errorMessage = null
+                            viewModel.deleteAccount(
+                                password = if (hasPassword) password else null,
+                                confirmation = if (!hasPassword) confirmation else null
+                            ) { success, msg ->
+                                isSubmitting = false
+                                if (success) {
+                                    onSuccess(msg)
+                                } else {
+                                    errorMessage = msg
+                                }
+                            }
+                        },
+                        enabled = canSubmit && !isSubmitting,
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusMissed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text("Delete Account", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

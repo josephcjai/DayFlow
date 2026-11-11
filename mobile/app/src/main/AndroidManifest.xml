@@ -19,9 +19,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.DayFlow"
-        android:usesCleartextTraffic="true">
-        <!-- usesCleartextTraffic="true" permits local dev testing with http://10.0.2.2:5000 -->
+        android:theme="@style/Theme.DayFlow">
 
         <activity
             android:name=".presentation.MainActivity"

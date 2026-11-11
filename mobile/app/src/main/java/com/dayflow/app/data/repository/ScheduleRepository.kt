@@ -8,6 +8,7 @@ import com.dayflow.app.data.model.DeleteSlotRequest
 import com.dayflow.app.data.model.SaveSlotRequest
 import com.dayflow.app.data.remote.DayFlowApiService
 import com.dayflow.app.data.remote.TokenManager
+import com.dayflow.app.domain.util.DateTimeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -121,10 +122,12 @@ class ScheduleRepositoryImpl @Inject constructor(
             return@withContext Result.success(Unit)
         }
 
-        val deleteRequest = DeleteSlotRequest(slotKey = slotKey)
+        val (slotDate, _) = DateTimeUtils.parseSlotKey(slotKey)
+        val computedWeekStart = DateTimeUtils.getWeekKey(slotDate)
+        val deleteRequest = DeleteSlotRequest(weekStart = computedWeekStart, slotKey = slotKey)
         try {
             val response = apiService.deleteSlot(deleteRequest)
-            if (!response.isSuccessful) {
+            if (!response.isSuccessful && response.code() != 404) {
                 enqueueMutation("schedule/slot", "DELETE", json.encodeToString(deleteRequest))
             }
             Result.success(Unit)

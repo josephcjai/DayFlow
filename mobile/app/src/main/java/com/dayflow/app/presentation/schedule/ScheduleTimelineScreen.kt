@@ -26,7 +26,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -620,8 +622,9 @@ fun ScheduleTimelineScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
                             .padding(horizontal = 10.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (uiState.selectedSlotKeys.size == 1) {
@@ -636,7 +639,7 @@ fun ScheduleTimelineScreen(
                                 ) {
                                     Text("📋", fontSize = 12.sp)
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Copy", color = DayFlowPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Copy", color = DayFlowPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                 }
                             }
                         }
@@ -650,7 +653,7 @@ fun ScheduleTimelineScreen(
                             ) {
                                 Text("📥", fontSize = 12.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Paste", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Paste", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                         }
 
@@ -658,48 +661,48 @@ fun ScheduleTimelineScreen(
                             onClick = { viewModel.bulkMarkAsDone() },
                             colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary.copy(alpha = 0.15f)),
                             shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
                                 tint = DayFlowPrimary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Done", color = DayFlowPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Done", color = DayFlowPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
 
                         Button(
                             onClick = { viewModel.openBulkCategoryPicker() },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B).copy(alpha = 0.15f)),
                             shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = null,
                                 tint = Color(0xFFF59E0B),
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Category", color = Color(0xFFF59E0B), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Category", color = Color(0xFFF59E0B), fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
 
                         Button(
                             onClick = { viewModel.bulkClearSlots() },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444).copy(alpha = 0.15f)),
                             shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = null,
                                 tint = Color(0xFFEF4444),
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Clear", color = Color(0xFFEF4444), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Clear", color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
                     }
                 }
@@ -738,9 +741,11 @@ fun ScheduleTimelineScreen(
         ApplyTemplateBottomSheet(
             selectedDate = uiState.selectedDate,
             templates = templates,
+            categories = categories,
             currentDaySlots = daySlots,
             onApplyTemplate = { tmpl -> viewModel.applyTemplate(tmpl) },
             onSaveDayAsTemplate = { name, desc -> viewModel.saveCurrentDayAsTemplate(name, desc) },
+            onUpdateTemplate = { id, name, desc, slots -> viewModel.updateTemplate(id, name, desc, slots) },
             onDeleteTemplate = { tmplId -> viewModel.deleteTemplate(tmplId) },
             onDismiss = { viewModel.closeTemplateSheet() }
         )
@@ -1053,13 +1058,13 @@ fun DailyEffectivenessCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 3.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceDark),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             // Header Row: Scope Selector & Expand Toggle
             Row(
@@ -1069,20 +1074,39 @@ fun DailyEffectivenessCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
                     Text(
                         text = if (analytics.scope == AnalyticsScope.DAY) "Daily Focus Analytics" else "Weekly Focus Analytics",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = TextPrimary
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (isExpanded) "Collapse" else "Expand",
-                        tint = TextMuted,
-                        modifier = Modifier.size(18.dp)
+                        contentDescription = if (isExpanded) "Minimise" else "Expand",
+                        tint = DayFlowPrimary,
+                        modifier = Modifier.size(16.dp)
                     )
+
+                    if (!isExpanded) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = SurfaceElevated,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "${analytics.plannedHours}h • ${analytics.completionScore}%",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DayFlowPrimary,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                 }
 
                 // Scope selector toggle
@@ -1105,49 +1129,55 @@ fun DailyEffectivenessCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // KPI Metrics Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Planned
-                Column {
-                    Text("Planned", fontSize = 11.sp, color = TextMuted)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("${analytics.plannedHours}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                }
-                // Actual
-                Column {
-                    Text("Actual", fontSize = 11.sp, color = TextMuted)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("${analytics.actualHours}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                }
-                // Score
-                Column {
-                    Text("Score", fontSize = 11.sp, color = TextMuted)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("${analytics.completionScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DayFlowPrimary)
-                }
-                // Work Effectiveness
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Work Effectiveness", fontSize = 11.sp, color = Color(0xFFF59E0B))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("${analytics.effectivenessScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
-                    Text("${analytics.productiveHours}h of ${analytics.actualHours}h logged", fontSize = 10.sp, color = TextMuted)
-                }
-            }
-
-            // Expandable Category Distribution & 7-Day Consistency Trend
+            // Expandable Content: KPI Metrics + Category Distribution & 7-Day Consistency Trend
             AnimatedVisibility(visible = isExpanded) {
-                Column(modifier = Modifier.padding(top = 12.dp)) {
+                Column(modifier = Modifier.padding(top = 10.dp)) {
                     HorizontalDivider(
                         modifier = Modifier.fillMaxWidth(),
                         thickness = 1.dp,
                         color = SurfaceElevated
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // KPI Metrics Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Planned
+                        Column {
+                            Text("Planned", fontSize = 11.sp, color = TextMuted)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("${analytics.plannedHours}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        }
+                        // Actual
+                        Column {
+                            Text("Actual", fontSize = 11.sp, color = TextMuted)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("${analytics.actualHours}h", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        }
+                        // Score
+                        Column {
+                            Text("Score", fontSize = 11.sp, color = TextMuted)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("${analytics.completionScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DayFlowPrimary)
+                        }
+                        // Work Effectiveness
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("Work Effectiveness", fontSize = 11.sp, color = Color(0xFFF59E0B))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("${analytics.effectivenessScore}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
+                            Text("${analytics.productiveHours}h of ${analytics.actualHours}h logged", fontSize = 10.sp, color = TextMuted)
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.fillMaxWidth(),
+                        thickness = 1.dp,
+                        color = SurfaceElevated
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // 1. Category Focus Distribution
                     Text(
@@ -1189,7 +1219,7 @@ fun DailyEffectivenessCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Showing daily logged focus hours (🎯 = Selected Day)",
+                        text = "Showing daily logged focus hours (⭐ = Selected Day)",
                         fontSize = 10.sp,
                         color = TextMuted
                     )

@@ -5,9 +5,11 @@ import com.dayflow.app.data.model.CategoriesResponse
 import com.dayflow.app.data.model.CategoryDto
 import com.dayflow.app.data.model.DayTemplateDto
 import com.dayflow.app.data.model.TemplatesResponse
+import com.dayflow.app.data.model.TemplateUpsertResponse
 import com.dayflow.app.data.model.CreateTodoRequest
 import com.dayflow.app.data.model.DeleteSlotRequest
 import com.dayflow.app.data.model.ChangePasswordRequest
+import com.dayflow.app.data.model.DeleteAccountRequest
 import com.dayflow.app.data.model.ForgotPasswordRequest
 import com.dayflow.app.data.model.HabitLogDto
 import com.dayflow.app.data.model.LogHabitRequest
@@ -32,6 +34,7 @@ import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface DayFlowApiService {
@@ -60,6 +63,9 @@ interface DayFlowApiService {
 
     @POST("auth/forgot-password")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<MessageResponse>
+
+    @HTTP(method = "DELETE", path = "auth/account", hasBody = true)
+    suspend fun deleteAccount(@Body request: DeleteAccountRequest): Response<MessageResponse>
 
     // ==========================================
     // 2. Schedule Endpoints
@@ -127,7 +133,13 @@ interface DayFlowApiService {
     suspend fun getTemplates(): Response<TemplatesResponse>
 
     @POST("templates")
-    suspend fun createTemplate(@Body request: DayTemplateDto): Response<DayTemplateDto>
+    suspend fun createTemplate(@Body request: DayTemplateDto): Response<TemplateUpsertResponse>
+
+    @PUT("templates/{id}")
+    suspend fun updateTemplate(
+        @Path("id") id: String,
+        @Body request: DayTemplateDto
+    ): Response<TemplateUpsertResponse>
 
     @DELETE("templates/{id}")
     suspend fun deleteTemplate(@Path("id") id: String): Response<Unit>

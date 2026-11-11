@@ -1,0 +1,9 @@
+# Template for production signing credentials
+# DO NOT commit real passwords or key files to version control!
+# Copy this file to key.properties and configure your release keystore details:
+#
+# storePassword=YOUR_KEYSTORE_PASSWORD
+# keyPassword=YOUR_KEY_PASSWORD
+# keyAlias=dayflow_release
+# storeFile=../release-keystore.jks
+

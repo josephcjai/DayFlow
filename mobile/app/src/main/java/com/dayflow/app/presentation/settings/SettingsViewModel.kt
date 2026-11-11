@@ -26,6 +26,7 @@ data class SettingsUiState(
     val muteWeekends: Boolean = false,
     val onlyProductive: Boolean = false,
     val timeFormat: String = "12h",
+    val themeMode: String = "dark",
     val biometricsEnabled: Boolean = false,
     val dailyPointsTarget: Int = 50,
     val timelineStartHour: Int = 0,
@@ -34,7 +35,9 @@ data class SettingsUiState(
     val isLoading: Boolean = false,
     val statusMessage: String? = null,
     val errorMessage: String? = null,
-    val backupInspection: BackupInspectionResult? = null
+    val backupInspection: BackupInspectionResult? = null,
+    val userEmail: String? = null,
+    val hasPassword: Boolean = true
 )
 
 @HiltViewModel
@@ -54,10 +57,13 @@ class SettingsViewModel @Inject constructor(
             muteWeekends = tokenManager.isMuteWeekends(),
             onlyProductive = tokenManager.isOnlyProductive(),
             timeFormat = tokenManager.getTimeFormat(),
+            themeMode = tokenManager.getThemeMode(),
             biometricsEnabled = tokenManager.isBiometricsEnabled(),
             dailyPointsTarget = tokenManager.getDailyPointsTarget(),
             timelineStartHour = tokenManager.getTimelineStartHour(),
-            timelineEndHour = tokenManager.getTimelineEndHour()
+            timelineEndHour = tokenManager.getTimelineEndHour(),
+            userEmail = tokenManager.getUserEmail(),
+            hasPassword = tokenManager.hasPassword()
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -71,7 +77,20 @@ class SettingsViewModel @Inject constructor(
 
         viewModelScope.launch {
             categoryRepository.refreshCategories()
+            val profileResult = authRepository.getCurrentUser()
+            if (profileResult.isSuccess) {
+                val u = profileResult.getOrNull()!!
+                _uiState.value = _uiState.value.copy(
+                    userEmail = u.email,
+                    hasPassword = u.hasPassword
+                )
+            }
         }
+    }
+
+    fun setThemeMode(mode: String) {
+        tokenManager.setThemeMode(mode)
+        _uiState.value = _uiState.value.copy(themeMode = mode)
     }
 
     fun setTimeFormat(format: String) {
@@ -193,6 +212,25 @@ class SettingsViewModel @Inject constructor(
                 onComplete(true, result.getOrNull() ?: "Password updated successfully!")
             } else {
                 onComplete(false, result.exceptionOrNull()?.message ?: "Failed to change password")
+            }
+        }
+    }
+
+    fun deleteAccount(
+        password: String?,
+        confirmation: String?,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            val result = authRepository.deleteAccount(password, confirmation)
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            if (result.isSuccess) {
+                onComplete(true, result.getOrNull() ?: "Account permanently deleted.")
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "Failed to delete account"
+                _uiState.value = _uiState.value.copy(errorMessage = err)
+                onComplete(false, err)
             }
         }
     }

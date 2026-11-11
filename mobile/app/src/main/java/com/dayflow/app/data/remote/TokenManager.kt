@@ -73,6 +73,14 @@ open class TokenManager @Inject constructor(
         prefs.edit().putString(KEY_DISPLAY_NAME, name).apply()
     }
 
+    open fun saveHasPassword(hasPassword: Boolean) {
+        prefs.edit().putBoolean(KEY_HAS_PASSWORD, hasPassword).apply()
+    }
+
+    open fun hasPassword(): Boolean {
+        return prefs.getBoolean(KEY_HAS_PASSWORD, true)
+    }
+
     open fun getDisplayName(): String? {
         return prefs.getString(KEY_DISPLAY_NAME, null)
     }
@@ -174,6 +182,7 @@ open class TokenManager @Inject constructor(
         private const val KEY_TOKEN = "jwt_token"
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_DISPLAY_NAME = "display_name"
+        private const val KEY_HAS_PASSWORD = "has_password"
         private const val KEY_IS_DEMO = "is_demo_mode"
         private const val KEY_HABIT_PRESETS = "custom_habit_presets"
         private const val KEY_NOTE_SHEETS_PREFIX = "note_sheets_"
@@ -182,6 +191,20 @@ open class TokenManager @Inject constructor(
         private const val KEY_DAILY_POINTS_TARGET = "daily_points_target"
         private const val KEY_TIMELINE_START_HOUR = "timeline_start_hour"
         private const val KEY_TIMELINE_END_HOUR = "timeline_end_hour"
+        private const val KEY_ANALYTICS_EXPANDED = "key_analytics_expanded"
+        private const val KEY_THEME_MODE = "key_theme_mode"
+    }
+
+    private val _themeModeFlow = MutableStateFlow(if (context != null) (prefs.getString(KEY_THEME_MODE, "dark") ?: "dark") else "dark")
+    open val themeModeFlow: StateFlow<String> = _themeModeFlow.asStateFlow()
+
+    open fun getThemeMode(): String {
+        return _themeModeFlow.value
+    }
+
+    open fun setThemeMode(mode: String) {
+        if (context != null) prefs.edit().putString(KEY_THEME_MODE, mode).apply()
+        _themeModeFlow.value = mode
     }
 
     private val _timeFormatFlow = MutableStateFlow(if (context != null) (prefs.getString(KEY_TIME_FORMAT, "12h") ?: "12h") else "12h")
@@ -194,6 +217,14 @@ open class TokenManager @Inject constructor(
     open fun setTimeFormat(format: String) {
         if (context != null) prefs.edit().putString(KEY_TIME_FORMAT, format).apply()
         _timeFormatFlow.value = format
+    }
+
+    open fun isAnalyticsExpanded(): Boolean {
+        return if (context != null) prefs.getBoolean(KEY_ANALYTICS_EXPANDED, false) else false
+    }
+
+    open fun setAnalyticsExpanded(expanded: Boolean) {
+        if (context != null) prefs.edit().putBoolean(KEY_ANALYTICS_EXPANDED, expanded).apply()
     }
 
     open fun isBiometricsEnabled(): Boolean {

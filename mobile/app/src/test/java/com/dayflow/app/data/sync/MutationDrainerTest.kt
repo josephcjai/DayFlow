@@ -5,10 +5,12 @@ import com.dayflow.app.data.local.MutationQueueEntity
 import com.dayflow.app.data.model.AuthResponse
 import com.dayflow.app.data.model.DayTemplateDto
 import com.dayflow.app.data.model.TemplatesResponse
+import com.dayflow.app.data.model.TemplateUpsertResponse
 import com.dayflow.app.data.model.CategoriesResponse
 import com.dayflow.app.data.model.CategoryDto
 import com.dayflow.app.data.model.CreateTodoRequest
 import com.dayflow.app.data.model.DeleteSlotRequest
+import com.dayflow.app.data.model.DeleteAccountRequest
 import com.dayflow.app.data.model.ForgotPasswordRequest
 import com.dayflow.app.data.model.HabitLogDto
 import com.dayflow.app.data.model.LogHabitRequest
@@ -307,13 +309,23 @@ class FakeDayFlowApiService : DayFlowApiService {
     }
     override suspend fun getTemplates(): Response<TemplatesResponse> = TODO()
 
-    override suspend fun createTemplate(request: DayTemplateDto): Response<DayTemplateDto> {
+    override suspend fun createTemplate(request: DayTemplateDto): Response<TemplateUpsertResponse> {
         if (shouldThrowNetworkError) throw IOException("Network error")
-        return Response.success(request)
+        return Response.success(TemplateUpsertResponse(template = request))
+    }
+
+    override suspend fun updateTemplate(id: String, request: DayTemplateDto): Response<TemplateUpsertResponse> {
+        if (shouldThrowNetworkError) throw IOException("Network error")
+        return Response.success(TemplateUpsertResponse(template = request))
     }
 
     override suspend fun deleteTemplate(id: String): Response<Unit> {
         if (shouldThrowNetworkError) throw IOException("Network error")
         return Response.success(Unit)
+    }
+
+    override suspend fun deleteAccount(request: DeleteAccountRequest): Response<MessageResponse> {
+        if (shouldThrowNetworkError) throw IOException("Network error")
+        return Response.success(MessageResponse("Account deleted"))
     }
 }
