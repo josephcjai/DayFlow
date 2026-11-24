@@ -1,0 +1,31 @@
+package com.dayflowapp.mobile.data.local
+
+import androidx.room.Database
+import androidx.room.RoomDatabase
+
+@Database(
+    entities = [
+        ScheduleSlotEntity::class,
+        HabitLogEntity::class,
+        TodoEntity::class,
+        WeeklyNotesEntity::class,
+        MutationQueueEntity::class,
+        CategoryEntity::class,
+        DayTemplateEntity::class
+    ],
+    version = 5,
+    exportSchema = false
+)
+abstract class DayFlowDatabase : RoomDatabase() {
+    abstract fun scheduleSlotDao(): ScheduleSlotDao
+    abstract fun habitLogDao(): HabitLogDao
+    abstract fun todoDao(): TodoDao
+    abstract fun weeklyNotesDao(): WeeklyNotesDao
+    abstract fun mutationQueueDao(): MutationQueueDao
+    abstract fun categoryDao(): CategoryDao
+    abstract fun dayTemplateDao(): DayTemplateDao
+
+    companion object {
+        const val DATABASE_NAME = "dayflow_database"
+    }
+}

@@ -47,7 +47,7 @@
             android:name=".notification.SlotAlertReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.dayflow.app.ACTION_SLOT_REMINDER" />
+                <action android:name="com.dayflowapp.mobile.ACTION_SLOT_REMINDER" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>

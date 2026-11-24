@@ -1,0 +1,690 @@
+package com.dayflowapp.mobile.presentation.auth
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.CustomCredential
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.launch
+import com.dayflowapp.mobile.R
+import androidx.fragment.app.FragmentActivity
+import com.dayflowapp.mobile.domain.util.DateTimeUtils
+import com.dayflowapp.mobile.presentation.theme.BackgroundDark
+import com.dayflowapp.mobile.presentation.theme.DayFlowPrimary
+import com.dayflowapp.mobile.presentation.theme.DayFlowSecondary
+import com.dayflowapp.mobile.presentation.theme.StatusMissed
+import com.dayflowapp.mobile.presentation.theme.StatusDone
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LockReset
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import com.dayflowapp.mobile.presentation.theme.SurfaceDark
+import com.dayflowapp.mobile.presentation.theme.SurfaceElevated
+import com.dayflowapp.mobile.presentation.theme.TextMuted
+import com.dayflowapp.mobile.presentation.theme.TextPrimary
+import com.dayflowapp.mobile.presentation.theme.TextSecondary
+import java.time.LocalDate
+
+@Composable
+fun AuthScreen(
+    viewModel: AuthViewModel,
+    onAuthSuccess: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Sign In, 1 = Register
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var displayName by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
+
+    androidx.compose.runtime.LaunchedEffect(uiState.isAuthenticated) {
+        if (uiState.isAuthenticated) {
+            onAuthSuccess()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundDark)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Branding Header
+            Text(
+                text = "DayFlow",
+                fontSize = 38.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = DayFlowPrimary,
+                letterSpacing = (-1).sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Focus-Driven Daily Schedule & Habit Enforcement",
+                fontSize = 13.sp,
+                color = TextSecondary,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Main Auth Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    // Tabs: Sign In / Create Account
+                    TabRow(
+                        selectedTabIndex = selectedTab,
+                        containerColor = Color.Transparent,
+                        contentColor = DayFlowPrimary,
+                        indicator = { tabPositions ->
+                            TabRowDefaults.SecondaryIndicator(
+                                Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                color = DayFlowPrimary
+                            )
+                        },
+                        divider = {}
+                    ) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = {
+                                selectedTab = 0
+                                viewModel.clearMessages()
+                            },
+                            text = {
+                                Text(
+                                    "Sign In",
+                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 15.sp
+                                )
+                            }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = {
+                                selectedTab = 1
+                                viewModel.clearMessages()
+                            },
+                            text = {
+                                Text(
+                                    "Register",
+                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 15.sp
+                                )
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Success Message Banner
+                    AnimatedVisibility(visible = uiState.successMessage != null) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 14.dp),
+                            color = StatusDone.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, StatusDone.copy(alpha = 0.35f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = "Success",
+                                    tint = StatusDone,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = uiState.successMessage ?: "",
+                                    color = StatusDone,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = { viewModel.clearMessages() },
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Dismiss",
+                                        tint = StatusDone.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Error Message Banner
+                    AnimatedVisibility(visible = uiState.errorMessage != null) {
+                        val displayMsg = uiState.errorMessage?.let { msg ->
+                            val trimmed = msg.trim()
+                            if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+                                try {
+                                    val obj = org.json.JSONObject(trimmed)
+                                    when {
+                                        obj.has("error") -> obj.getString("error")
+                                        obj.has("message") -> obj.getString("message")
+                                        else -> trimmed
+                                    }
+                                } catch (e: Exception) {
+                                    trimmed
+                                }
+                            } else trimmed
+                        } ?: ""
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 14.dp),
+                            color = StatusMissed.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, StatusMissed.copy(alpha = 0.35f)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.ErrorOutline,
+                                    contentDescription = "Error",
+                                    tint = StatusMissed,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = displayMsg,
+                                    color = StatusMissed,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = { viewModel.clearMessages() },
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Dismiss",
+                                        tint = StatusMissed.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Display Name (Register only)
+                    if (selectedTab == 1) {
+                        OutlinedTextField(
+                            value = displayName,
+                            onValueChange = { displayName = it },
+                            label = { Text("Display Name") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Person, contentDescription = null, tint = TextMuted)
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = customTextFieldColors()
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
+
+                    // Email Field
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text("Email Address") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Email, contentDescription = null, tint = TextMuted)
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = customTextFieldColors()
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Password Field
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = TextMuted)
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = TextMuted
+                                )
+                            }
+                        },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = {
+                            focusManager.clearFocus()
+                            if (selectedTab == 0) {
+                                viewModel.login(email, password)
+                            } else {
+                                viewModel.register(email, password, displayName)
+                            }
+                        }),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = customTextFieldColors()
+                    )
+
+                    // Forgot Password link (Sign In tab only)
+                    if (selectedTab == 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    resetEmail = email.trim()
+                                    showForgotPasswordDialog = true
+                                    viewModel.clearMessages()
+                                },
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Forgot password?",
+                                    color = DayFlowPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    } else {
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    // Action Button
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus()
+                            if (selectedTab == 0) {
+                                viewModel.login(email, password)
+                            } else {
+                                viewModel.register(email, password, displayName)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary),
+                        enabled = !uiState.isLoading
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                if (selectedTab == 0) "Sign In" else "Create Account",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Divider: or continue with
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(1f).height(1.dp).background(SurfaceElevated.copy(alpha = 0.5f)))
+                        Text(
+                            text = "  or  ",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Box(modifier = Modifier.weight(1f).height(1.dp).background(SurfaceElevated.copy(alpha = 0.5f)))
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Native Google Sign-In Button
+                    OutlinedButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            coroutineScope.launch {
+                                try {
+                                    val credentialManager = CredentialManager.create(context)
+                                    val serverClientId = viewModel.getGoogleClientId()
+
+                                    val googleIdOption = GetGoogleIdOption.Builder()
+                                        .setFilterByAuthorizedAccounts(false)
+                                        .setServerClientId(serverClientId)
+                                        .setAutoSelectEnabled(false)
+                                        .build()
+
+                                    val request = GetCredentialRequest.Builder()
+                                        .addCredentialOption(googleIdOption)
+                                        .build()
+
+                                    val result = credentialManager.getCredential(
+                                        request = request,
+                                        context = context
+                                    )
+
+                                    val credential = result.credential
+                                    if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                                        viewModel.loginWithGoogle(googleIdTokenCredential.idToken)
+                                    } else {
+                                        viewModel.setErrorMessage("Unexpected credential type received")
+                                    }
+                                } catch (e: GetCredentialCancellationException) {
+                                    android.util.Log.w("AuthScreen", "Google Sign-In sheet dismissed or cancelled: " + e.message)
+                                } catch (e: GetCredentialException) {
+                                    viewModel.setErrorMessage(e.localizedMessage ?: "Google Sign-In failed")
+                                } catch (e: Exception) {
+                                    viewModel.setErrorMessage(e.localizedMessage ?: "Google Sign-In error")
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFF1E2638),
+                            contentColor = TextPrimary
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated),
+                        enabled = !uiState.isLoading
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_google_logo),
+                            contentDescription = "Google Logo",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = if (selectedTab == 0) "Sign in with Google" else "Continue with Google",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                    }
+
+                    // Biometric Unlock Button (If supported on device)
+                    if (selectedTab == 0 && BiometricHelper.isBiometricAvailable(context)) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick = {
+                                (context as? FragmentActivity)?.let { activity ->
+                                    BiometricHelper.showBiometricPrompt(
+                                        activity = activity,
+                                        onSuccess = { viewModel.checkSession() },
+                                        onError = { /* fallback */ }
+                                    )
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
+                        ) {
+                            Icon(Icons.Default.Fingerprint, contentDescription = null, modifier = Modifier.size(20.dp), tint = DayFlowSecondary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Unlock with Biometrics", fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Legal Transparency Links (Google Play Policy Compliance)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Privacy Policy",
+                    fontSize = 11.sp,
+                    color = TextMuted,
+                    modifier = Modifier.clickable {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/privacy.html"))
+                        context.startActivity(intent)
+                    }
+                )
+                Text(
+                    text = " • ",
+                    fontSize = 11.sp,
+                    color = TextMuted
+                )
+                Text(
+                    text = "Terms of Service",
+                    fontSize = 11.sp,
+                    color = TextMuted,
+                    modifier = Modifier.clickable {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/terms.html"))
+                        context.startActivity(intent)
+                    }
+                )
+                Text(
+                    text = " • ",
+                    fontSize = 11.sp,
+                    color = TextMuted
+                )
+                Text(
+                    text = "About",
+                    fontSize = 11.sp,
+                    color = TextMuted,
+                    modifier = Modifier.clickable {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/about.html"))
+                        context.startActivity(intent)
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        // Forgot Password Dialog
+        if (showForgotPasswordDialog) {
+            AlertDialog(
+                onDismissRequest = { showForgotPasswordDialog = false },
+                containerColor = SurfaceDark,
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.LockReset,
+                            contentDescription = null,
+                            tint = DayFlowPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Reset Password",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = TextPrimary
+                        )
+                    }
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Enter your registered email address. We'll send instructions to reset your password.",
+                            fontSize = 13.sp,
+                            color = TextMuted,
+                            lineHeight = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = resetEmail,
+                            onValueChange = { resetEmail = it },
+                            label = { Text("Email Address") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Email, contentDescription = null, tint = TextMuted)
+                            },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Done
+                            ),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = customTextFieldColors()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (resetEmail.isNotBlank()) {
+                                viewModel.forgotPassword(resetEmail)
+                                showForgotPasswordDialog = false
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary),
+                        shape = RoundedCornerShape(10.dp),
+                        enabled = resetEmail.isNotBlank() && !uiState.isLoading
+                    ) {
+                        Text("Send Reset Link", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showForgotPasswordDialog = false }
+                    ) {
+                        Text("Cancel", color = TextMuted)
+                    }
+                },
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun customTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = DayFlowPrimary,
+    unfocusedBorderColor = SurfaceElevated,
+    focusedLabelColor = DayFlowPrimary,
+    unfocusedLabelColor = TextMuted,
+    focusedTextColor = TextPrimary,
+    unfocusedTextColor = TextPrimary,
+    cursorColor = DayFlowPrimary
+)

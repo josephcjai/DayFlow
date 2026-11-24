@@ -18,11 +18,11 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.dayflow.app"
+    namespace = "com.dayflowapp.mobile"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.dayflow.app"
+        applicationId = "com.dayflowapp.mobile"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

@@ -2,7 +2,7 @@
 
 > **Document Version:** 1.0.0  
 > **Prepared:** November 24, 2026  
-> **Application ID:** `com.dayflow.app`  
+> **Application ID:** `com.dayflowapp.mobile`  
 > **Version Code / Version Name:** `1` / `"1.0.0"`  
 > **Target / Min SDK:** `targetSdk = 35` (Android 15) / `minSdk = 26` (Android 8.0)  
 > **Production Backend URL:** `https://dayflowlive.com/api/`
@@ -23,13 +23,13 @@ All mobile production build files, signing configurations, and generated artifac
 | **Gradle Build Config** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\app\build.gradle.kts` | Tracked | Defines `versionCode`, `versionName`, `signingConfigs.release`, and `BuildConfig.API_BASE_URL`. |
 | **Production Manifest** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\app\src\main\AndroidManifest.xml` | Tracked | Enforces HTTPS-only traffic in production and declares app permissions/receivers. |
 | **Debug-Only Manifest** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\app\src\debug\AndroidManifest.xml` | Tracked | Enables cleartext traffic strictly for local emulator debugging. |
-| **Release TLS Config** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\app\src\release\java\com\dayflow\app\di\SslConfigHelper.kt` | Tracked | Enforces strict standard X.509 TLS verification in release builds (no debug trust managers in release DEX). |
+| **Release TLS Config** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\app\src\release\java\com\dayflowapp\mobile\di\SslConfigHelper.kt` | Tracked | Enforces strict standard X.509 TLS verification in release builds (no debug trust managers in release DEX). |
 
 ---
 
 ## 2. Production Keystore & Signing Details
 
-> ⚠️ **CRITICAL BACKUP REQUIREMENT:** Store a copy of `mobile/release-key.jks` and `mobile/key.properties` in a secure password vault (e.g., 1Password / Bitwarden / offline encrypted backup). Every future update to `com.dayflow.app` on Google Play must be signed with this exact `dayflow_release` upload key.
+> ⚠️ **CRITICAL BACKUP REQUIREMENT:** Store a copy of `mobile/release-key.jks` and `mobile/key.properties` in a secure password vault (e.g., 1Password / Bitwarden / offline encrypted backup). Every future update to `com.dayflowapp.mobile` on Google Play must be signed with this exact `dayflow_release` upload key.
 
 - **Keystore Location:** `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\release-key.jks`
 - **Key Alias:** `dayflow_release`
@@ -63,10 +63,10 @@ DayFlow uses **Android Credential Manager** (`GetGoogleIdOption`) for native 1-t
    - **Client ID:** `1033021313424-jm6ke98n03tjl3ti7gndk10fv2pphq8p.apps.googleusercontent.com`
    - Used as `GOOGLE_SERVER_CLIENT_ID` in `DayFlowApiService.kt` and verified by the Node.js backend (`POST /api/auth/google`).
 2. **`DayFlow Android`** (*Android — Debug Key*):
-   - **Package name:** `com.dayflow.app`
+   - **Package name:** `com.dayflowapp.mobile`
    - **Purpose:** Authorizes Google Sign-In on local debug/emulator builds (`~/.android/debug.keystore`).
 3. **`DayFlow Android (Production Release)`** (*Android — Release Upload Key*):
-   - **Package name:** `com.dayflow.app`
+   - **Package name:** `com.dayflowapp.mobile`
    - **SHA-1:** `3B:82:3A:10:25:30:6A:71:21:74:95:29:07:36:C4:E7:1D:6E:87:33`
    - **Purpose:** Authorizes Google Sign-In on builds signed directly with `release-key.jks` (`app-release.apk` and upload testing).
 
@@ -77,7 +77,7 @@ When you upload `app-release.aab` to Google Play Console, Google Play re-signs t
 3. Open https://console.cloud.google.com/apis/credentials?project=1033021313424.
 4. Click **`+ CREATE CREDENTIALS` → `OAuth client ID` → `Android`**:
    - **Name:** `DayFlow Android (Google Play Store Signing Key)`
-   - **Package name:** `com.dayflow.app`
+   - **Package name:** `com.dayflowapp.mobile`
    - **SHA-1 certificate fingerprint:** *(Paste the App signing key SHA-1 from Google Play Console)*
 5. Click **CREATE**. *(No app rebuild is needed—Google Play Services picks this up automatically.)*
 

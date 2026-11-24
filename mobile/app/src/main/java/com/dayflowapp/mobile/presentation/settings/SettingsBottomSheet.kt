@@ -1,0 +1,1799 @@
+package com.dayflowapp.mobile.presentation.settings
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import com.dayflowapp.mobile.presentation.theme.DayFlowThemeMode
+import com.dayflowapp.mobile.presentation.theme.DayFlowPalette
+import com.dayflowapp.mobile.presentation.theme.MidnightPalette
+import com.dayflowapp.mobile.presentation.theme.OledPalette
+import com.dayflowapp.mobile.presentation.theme.EmeraldPalette
+import com.dayflowapp.mobile.presentation.theme.LightPalette
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.dayflowapp.mobile.domain.model.CategoryItem
+import com.dayflowapp.mobile.presentation.theme.DayFlowPrimary
+import com.dayflowapp.mobile.presentation.theme.DayFlowSecondary
+import com.dayflowapp.mobile.presentation.theme.StatusDone
+import com.dayflowapp.mobile.presentation.theme.StatusMissed
+import com.dayflowapp.mobile.presentation.theme.SurfaceDark
+import com.dayflowapp.mobile.presentation.theme.SurfaceElevated
+import com.dayflowapp.mobile.presentation.theme.TextMuted
+import com.dayflowapp.mobile.presentation.theme.TextPrimary
+import com.dayflowapp.mobile.presentation.theme.TextSecondary
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsBottomSheet(
+    viewModel: SettingsViewModel,
+    onDismiss: () -> Unit,
+    onAccountDeleted: () -> Unit = {}
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    var showRestoreDialog by remember { mutableStateOf(false) }
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var exportSuccessSummary by remember { mutableStateOf<String?>(null) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = SurfaceDark,
+        tonalElevation = 8.dp,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 36.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = null,
+                        tint = DayFlowPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "DayFlow Settings",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                }
+
+                Surface(
+                    color = DayFlowPrimary.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "v2.9.0",
+                        color = DayFlowPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // SECTION 1: VISUAL THEME & PALETTE (DAYFLOW WEB PARITY)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🎨 Visual Theme & Palette",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DayFlowPrimary
+                )
+                Text(
+                    text = when (state.themeMode) {
+                        "oled" -> "OLED Black"
+                        "emerald" -> "Emerald Forest"
+                        "light" -> "Clean Light"
+                        else -> "Deep Midnight"
+                    },
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextSecondary
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceElevated.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = "Curated Aesthetic Themes",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Match your focus environment with midnight slate, true OLED black, botanical emerald, or clean daytime light mode.",
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        lineHeight = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            ThemeCardItem(
+                                theme = DayFlowThemeMode.DARK,
+                                palette = MidnightPalette,
+                                isSelected = state.themeMode == "dark",
+                                modifier = Modifier.weight(1f),
+                                onClick = { viewModel.setThemeMode("dark") }
+                            )
+                            ThemeCardItem(
+                                theme = DayFlowThemeMode.OLED,
+                                palette = OledPalette,
+                                isSelected = state.themeMode == "oled",
+                                modifier = Modifier.weight(1f),
+                                onClick = { viewModel.setThemeMode("oled") }
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            ThemeCardItem(
+                                theme = DayFlowThemeMode.EMERALD,
+                                palette = EmeraldPalette,
+                                isSelected = state.themeMode == "emerald",
+                                modifier = Modifier.weight(1f),
+                                onClick = { viewModel.setThemeMode("emerald") }
+                            )
+                            ThemeCardItem(
+                                theme = DayFlowThemeMode.LIGHT,
+                                palette = LightPalette,
+                                isSelected = state.themeMode == "light",
+                                modifier = Modifier.weight(1f),
+                                onClick = { viewModel.setThemeMode("light") }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // SECTION 2: NOTIFICATION INTELLIGENCE (v2.9.0 PARITY)
+            Text(
+                text = "🔔 Notification Intelligence",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = DayFlowPrimary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceElevated.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    SettingsToggleRow(
+                        title = "Slot Boundary Reminders",
+                        subtitle = "Alert 5 minutes before focus slot ends",
+                        checked = state.notificationsEnabled,
+                        onCheckedChange = { viewModel.setNotificationsEnabled(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SettingsToggleRow(
+                        title = "Active Hours Window",
+                        subtitle = if (state.activeWindowEnabled)
+                            "Quiet Hours active outside ${String.format("%02d:00", state.startHour)} – ${String.format("%02d:00", state.endHour)}"
+                        else "Notifications active 24/7 (Quiet hours disabled)",
+                        checked = state.activeWindowEnabled,
+                        onCheckedChange = { viewModel.setActiveWindowEnabled(it) }
+                    )
+
+                    AnimatedVisibility(visible = state.activeWindowEnabled) {
+                        Column(modifier = Modifier.padding(top = 12.dp)) {
+                            Text(
+                                text = "Quick Window Presets",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                PresetPill("Standard (8-22)", state.startHour == 8 && state.endHour == 22, Modifier.weight(1f)) {
+                                    viewModel.setHours(8, 22)
+                                }
+                                PresetPill("Work (9-18)", state.startHour == 9 && state.endHour == 18, Modifier.weight(1f)) {
+                                    viewModel.setHours(9, 18)
+                                }
+                                PresetPill("24/7", state.startHour == 0 && state.endHour == 24, Modifier.weight(1f)) {
+                                    viewModel.setHours(0, 24)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SettingsToggleRow(
+                        title = "Weekend Silence",
+                        subtitle = "Mute notifications automatically on Sat & Sun",
+                        checked = state.muteWeekends,
+                        onCheckedChange = { viewModel.setMuteWeekends(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SettingsToggleRow(
+                        title = "Productive-Only Filter",
+                        subtitle = "Only notify for tasks marked as productive",
+                        checked = state.onlyProductive,
+                        onCheckedChange = { viewModel.setOnlyProductive(it) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // SECTION 2: CATEGORY MANAGEMENT (v2.9.0 PARITY)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🏷️ Custom Categories",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DayFlowPrimary
+                )
+
+                Surface(
+                    modifier = Modifier.clickable { showAddCategoryDialog = true },
+                    color = DayFlowPrimary.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = DayFlowPrimary, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("+ Add Category", color = DayFlowPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceElevated.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    state.categories.forEachIndexed { index, cat ->
+                        CategoryRowItem(
+                            category = cat,
+                            onDelete = { viewModel.deleteCategory(cat.id) }
+                        )
+                        if (index < state.categories.size - 1) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // SECTION 3: TIME & SCHEDULE PREFERENCES (12h vs 24h PARITY)
+            Text(
+                text = "⏰ Time & Display Formatting",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = DayFlowPrimary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceElevated.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Timeline Time Format",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Affects schedule grid slot labels & timeblocks",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        PresetPill(
+                            label = "12-Hour (AM/PM)",
+                            isSelected = state.timeFormat == "12h",
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            viewModel.setTimeFormat("12h")
+                            Toast.makeText(context, "Switched to 12-Hour format (AM/PM)", Toast.LENGTH_SHORT).show()
+                        }
+
+                        PresetPill(
+                            label = "24-Hour (Military)",
+                            isSelected = state.timeFormat == "24h",
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            viewModel.setTimeFormat("24h")
+                            Toast.makeText(context, "Switched to 24-Hour format", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Timeline Active Hours Window
+                    Text(
+                        text = "⏰ Timeline Window (Active Hours)",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Customize the visible timeline hours displayed on the schedule grid",
+                        fontSize = 11.sp,
+                        color = TextMuted
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Preset Window Chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PresetPill(
+                            label = "Full 24h",
+                            isSelected = state.timelineStartHour == 0 && state.timelineEndHour == 23,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            viewModel.setTimelineWindow(0, 23)
+                            Toast.makeText(context, "Showing full 24-hour day (48 slots)", Toast.LENGTH_SHORT).show()
+                        }
+
+                        PresetPill(
+                            label = "Workday (8-18)",
+                            isSelected = state.timelineStartHour == 8 && state.timelineEndHour == 18,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            viewModel.setTimelineWindow(8, 18)
+                            Toast.makeText(context, "Window set to 08:00 - 18:00 (22 slots)", Toast.LENGTH_SHORT).show()
+                        }
+
+                        PresetPill(
+                            label = "Waking (6-22)",
+                            isSelected = state.timelineStartHour == 6 && state.timelineEndHour == 22,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            viewModel.setTimelineWindow(6, 22)
+                            Toast.makeText(context, "Window set to 06:00 - 22:00 (34 slots)", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Stepper / Selectors for Start Hour and End Hour
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Start Hour Stepper
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Start Hour", fontSize = 11.sp, color = TextMuted)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(
+                                color = SurfaceDark,
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            if (state.timelineStartHour > 0) {
+                                                viewModel.setTimelineWindow(state.timelineStartHour - 1, state.timelineEndHour)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                        enabled = state.timelineStartHour > 0
+                                    ) {
+                                        Text("-", color = if (state.timelineStartHour > 0) DayFlowPrimary else TextMuted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+
+                                    Text(
+                                        text = String.format("%02d:00", state.timelineStartHour),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            if (state.timelineStartHour < state.timelineEndHour) {
+                                                viewModel.setTimelineWindow(state.timelineStartHour + 1, state.timelineEndHour)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                        enabled = state.timelineStartHour < state.timelineEndHour
+                                    ) {
+                                        Text("+", color = if (state.timelineStartHour < state.timelineEndHour) DayFlowPrimary else TextMuted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        // End Hour Stepper
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("End Hour", fontSize = 11.sp, color = TextMuted)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(
+                                color = SurfaceDark,
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceElevated)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            if (state.timelineEndHour > state.timelineStartHour) {
+                                                viewModel.setTimelineWindow(state.timelineStartHour, state.timelineEndHour - 1)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                        enabled = state.timelineEndHour > state.timelineStartHour
+                                    ) {
+                                        Text("-", color = if (state.timelineEndHour > state.timelineStartHour) DayFlowPrimary else TextMuted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+
+                                    Text(
+                                        text = String.format("%02d:00", state.timelineEndHour),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            if (state.timelineEndHour < 23) {
+                                                viewModel.setTimelineWindow(state.timelineStartHour, state.timelineEndHour + 1)
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                        enabled = state.timelineEndHour < 23
+                                    ) {
+                                        Text("+", color = if (state.timelineEndHour < 23) DayFlowPrimary else TextMuted, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    val slotCount = (state.timelineEndHour - state.timelineStartHour + 1) * 2
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Showing $slotCount slots per day (${String.format("%02d:00", state.timelineStartHour)} to ${String.format("%02d:30", state.timelineEndHour)})",
+                        fontSize = 11.sp,
+                        color = DayFlowPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "🎯 Daily Points Goal",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Gamification target for daily habit routines & completed tasks",
+                        fontSize = 11.sp,
+                        color = TextMuted
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(30, 50, 75, 100).forEach { targetPts ->
+                            PresetPill(
+                                label = "$targetPts pts",
+                                isSelected = state.dailyPointsTarget == targetPts,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                viewModel.setDailyPointsTarget(targetPts)
+                                Toast.makeText(context, "Daily goal set to $targetPts pts", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // SECTION 4: DATA BACKUP & RESTORE (DayFlow Cross-Platform JSON Parity)
+            Text(
+                text = "💾 Data Backup & Restore",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = DayFlowPrimary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceElevated.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Cross-Platform JSON Portability",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Export your full schedule, habits, todos, and categories as standard DayFlow JSON, or restore from an existing backup file.",
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        lineHeight = 15.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Export Button
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    val json = viewModel.exportBackupJson()
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("DayFlow_Backup.json", json)
+                                    clipboard.setPrimaryClip(clip)
+
+                                    // Open Android Share Intent
+                                    val sendIntent = Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        putExtra(Intent.EXTRA_TEXT, json)
+                                        type = "text/plain"
+                                    }
+                                    val shareIntent = Intent.createChooser(sendIntent, "Share or Save DayFlow Backup")
+                                    context.startActivity(shareIntent)
+
+                                    exportSuccessSummary = "Backup exported (${json.length} characters)! Copied to clipboard and share dialog launched."
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary)
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Export JSON", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Restore Button
+                        Button(
+                            onClick = { showRestoreDialog = true },
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
+                            border = BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.5f))
+                        ) {
+                            Icon(Icons.Default.Upload, contentDescription = null, tint = DayFlowPrimary, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore Data", color = DayFlowPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // SECTION 5: ACCOUNT & APP SECURITY
+            Text(
+                text = "🛡️ Account & App Security",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = DayFlowPrimary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceElevated.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Biometric Lock
+                    SettingsToggleRow(
+                        title = "Biometric App Lock",
+                        subtitle = "Require fingerprint or face unlock to access DayFlow",
+                        checked = state.biometricsEnabled,
+                        onCheckedChange = {
+                            viewModel.setBiometricsEnabled(it)
+                            Toast.makeText(
+                                context,
+                                if (it) "Biometric Lock enabled" else "Biometric Lock disabled",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Change Password Action
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(
+                                text = "Account Password",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Change password for cloud sync authentication",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                        }
+
+                        Button(
+                            onClick = { showChangePasswordDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
+                            border = BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.4f))
+                        ) {
+                            Text("Change", color = DayFlowPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Delete Account Row (Google Play Compliance)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(
+                                text = "Delete Account",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = StatusMissed
+                            )
+                            Text(
+                                text = "Permanently remove your account, cloud data, habits, and schedules",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                        }
+
+                        Button(
+                            onClick = { showDeleteAccountDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = StatusMissed.copy(alpha = 0.15f)),
+                            border = BorderStroke(1.dp, StatusMissed.copy(alpha = 0.5f))
+                        ) {
+                            Text("Delete", color = StatusMissed, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SurfaceDark))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Legal & Transparency Links
+                    Text(
+                        text = "Legal & Privacy Transparency",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "Privacy Policy",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = DayFlowPrimary,
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/privacy.html"))
+                                context.startActivity(intent)
+                            }
+                        )
+                        Text(
+                            text = "Terms of Service",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = DayFlowPrimary,
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/terms.html"))
+                                context.startActivity(intent)
+                            }
+                        )
+                        Text(
+                            text = "About DayFlow",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = DayFlowPrimary,
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://dayflowlive.com/about.html"))
+                                context.startActivity(intent)
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Close Button
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().height(46.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = SurfaceElevated)
+            ) {
+                Text("Close Settings", color = TextPrimary, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+
+    // Modal Dialogs
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            onDismiss = { showAddCategoryDialog = false },
+            onAdd = { name, color, icon, isProd ->
+                viewModel.addCategory(name, color, icon, isProd)
+                showAddCategoryDialog = false
+            }
+        )
+    }
+
+    if (exportSuccessSummary != null) {
+        Dialog(onDismissRequest = { exportSuccessSummary = null }) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = SurfaceDark,
+                tonalElevation = 6.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = StatusDone, modifier = Modifier.size(40.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Backup Export Ready", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = exportSuccessSummary ?: "",
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { exportSuccessSummary = null },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Done", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showRestoreDialog) {
+        RestoreBackupDialog(
+            viewModel = viewModel,
+            onDismiss = {
+                viewModel.clearBackupInspection()
+                showRestoreDialog = false
+            },
+            onRestored = { countMsg ->
+                Toast.makeText(context, countMsg, Toast.LENGTH_LONG).show()
+                viewModel.clearBackupInspection()
+                showRestoreDialog = false
+            }
+        )
+    }
+
+    if (showChangePasswordDialog) {
+        ChangePasswordDialog(
+            viewModel = viewModel,
+            onDismiss = { showChangePasswordDialog = false },
+            onSuccess = { msg ->
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                showChangePasswordDialog = false
+            }
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        DeleteAccountDialog(
+            viewModel = viewModel,
+            hasPassword = state.hasPassword,
+            userEmail = state.userEmail,
+            onDismiss = { showDeleteAccountDialog = false },
+            onSuccess = { msg ->
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                showDeleteAccountDialog = false
+                onAccountDeleted()
+            }
+        )
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text(text = subtitle, fontSize = 11.sp, color = TextMuted, lineHeight = 15.sp)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = DayFlowPrimary,
+                uncheckedThumbColor = TextMuted,
+                uncheckedTrackColor = SurfaceDark
+            )
+        )
+    }
+}
+
+@Composable
+private fun PresetPill(
+    label: String,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier.clickable { onClick() },
+        color = if (isSelected) DayFlowPrimary.copy(alpha = 0.25f) else SurfaceDark,
+        shape = RoundedCornerShape(8.dp),
+        border = if (isSelected) BorderStroke(1.dp, DayFlowPrimary) else BorderStroke(0.5.dp, SurfaceElevated)
+    ) {
+        Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp), contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) DayFlowPrimary else TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryRowItem(
+    category: CategoryItem,
+    onDelete: () -> Unit
+) {
+    val catColor = try {
+        Color(android.graphics.Color.parseColor(category.hexColor))
+    } catch (e: Exception) {
+        DayFlowPrimary
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = category.icon, fontSize = 16.sp)
+            Spacer(modifier = Modifier.width(8.dp))
+            val isStarterDefault = !category.isSystem && CategoryItem.DEFAULTS.any {
+                it.name.equals(category.name, ignoreCase = true)
+            }
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = category.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    if (category.isSystem) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(color = TextMuted.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
+                            Text("System", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                        }
+                    } else if (isStarterDefault) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(color = DayFlowPrimary.copy(alpha = 0.12f), shape = RoundedCornerShape(4.dp)) {
+                            Text("Starter", color = DayFlowPrimary, fontSize = 9.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                        }
+                    }
+                }
+                Text(
+                    text = if (category.isProductive) "⚡ Productive" else "Standard task",
+                    fontSize = 10.sp,
+                    color = if (category.isProductive) Color(0xFFF59E0B) else TextMuted
+                )
+            }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(12.dp).background(catColor, CircleShape)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            if (!category.isSystem) {
+                IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = StatusMissed, modifier = Modifier.size(16.dp))
+                }
+            } else {
+                Icon(Icons.Default.Lock, contentDescription = "Protected", tint = TextMuted.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoreBackupDialog(
+    viewModel: SettingsViewModel,
+    onDismiss: () -> Unit,
+    onRestored: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val state by viewModel.uiState.collectAsState()
+    var jsonText by remember { mutableStateOf("") }
+    var wipeExisting by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = SurfaceDark,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "📥 Restore Data from Backup",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Paste your DayFlow JSON backup string below. Works with Web and Mobile backup archives.",
+                    fontSize = 11.sp,
+                    color = TextMuted
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = jsonText,
+                    onValueChange = {
+                        jsonText = it
+                        if (it.isNotBlank()) {
+                            viewModel.inspectBackup(it)
+                        } else {
+                            viewModel.clearBackupInspection()
+                        }
+                    },
+                    placeholder = { Text("Paste DayFlow JSON backup here...", color = TextMuted, fontSize = 11.sp) },
+                    modifier = Modifier.fillMaxWidth().height(140.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DayFlowPrimary,
+                        unfocusedBorderColor = SurfaceElevated,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clipText = clipboard.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
+                            if (clipText.isNotBlank()) {
+                                jsonText = clipText
+                                viewModel.inspectBackup(clipText)
+                            } else {
+                                Toast.makeText(context, "Clipboard is empty", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceElevated)
+                    ) {
+                        Text("Paste from Clipboard", fontSize = 11.sp, color = DayFlowPrimary)
+                    }
+
+                    if (jsonText.isNotBlank()) {
+                        Text(
+                            text = "${jsonText.length} chars",
+                            fontSize = 10.sp,
+                            color = TextMuted
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Live Validation Preview Banner
+                val insp = state.backupInspection
+                if (insp != null) {
+                    if (insp.isValid) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = StatusDone.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, StatusDone),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = StatusDone, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Valid DayFlow Backup", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = StatusDone)
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Found: ${insp.slotCount} slots, ${insp.habitCount} habits, ${insp.todoCount} todos, ${insp.categoryCount} categories",
+                                    fontSize = 11.sp,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = StatusMissed.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, StatusMissed),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = StatusMissed, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(insp.errorMessage ?: "Invalid JSON format", fontSize = 11.sp, color = StatusMissed)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Wipe existing data checkbox
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clickable { wipeExisting = !wipeExisting }
+                ) {
+                    Checkbox(
+                        checked = wipeExisting,
+                        onCheckedChange = { wipeExisting = it },
+                        colors = CheckboxDefaults.colors(checkedColor = StatusMissed)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Wipe existing data before restore (Clean Replace)",
+                        fontSize = 11.sp,
+                        color = if (wipeExisting) StatusMissed else TextSecondary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceElevated)
+                    ) {
+                        Text("Cancel", color = TextSecondary)
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.restoreBackup(jsonText, wipeExisting) { success, msg ->
+                                if (success) {
+                                    onRestored(msg)
+                                } else {
+                                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        },
+                        enabled = (insp?.isValid == true) && !state.isLoading,
+                        modifier = Modifier.weight(1f).height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary)
+                    ) {
+                        if (state.isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text("Confirm Restore", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChangePasswordDialog(
+    viewModel: SettingsViewModel,
+    onDismiss: () -> Unit,
+    onSuccess: (String) -> Unit
+) {
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = SurfaceDark,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "🔑 Change Account Password", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Password must be at least 6 characters long.", fontSize = 11.sp, color = TextMuted)
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it; errorMessage = null },
+                    placeholder = { Text("Current Password", color = TextMuted) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DayFlowPrimary,
+                        unfocusedBorderColor = SurfaceElevated,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it; errorMessage = null },
+                    placeholder = { Text("New Password (min 6 chars)", color = TextMuted) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DayFlowPrimary,
+                        unfocusedBorderColor = SurfaceElevated,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it; errorMessage = null },
+                    placeholder = { Text("Confirm New Password", color = TextMuted) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DayFlowPrimary,
+                        unfocusedBorderColor = SurfaceElevated,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = errorMessage ?: "", color = StatusMissed, fontSize = 11.sp)
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceElevated)
+                    ) {
+                        Text("Cancel", color = TextSecondary)
+                    }
+
+                    Button(
+                        onClick = {
+                            when {
+                                currentPassword.isBlank() -> errorMessage = "Please enter your current password"
+                                newPassword.length < 6 -> errorMessage = "New password must be at least 6 characters"
+                                newPassword != confirmPassword -> errorMessage = "New passwords do not match"
+                                else -> {
+                                    isSubmitting = true
+                                    viewModel.changePassword(currentPassword, newPassword) { success, msg ->
+                                        isSubmitting = false
+                                        if (success) {
+                                            onSuccess(msg)
+                                        } else {
+                                            errorMessage = msg
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !isSubmitting,
+                        modifier = Modifier.weight(1f).height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary)
+                    ) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text("Update", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddCategoryDialog(
+    onDismiss: () -> Unit,
+    onAdd: (name: String, color: String, icon: String, isProd: Boolean) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedIcon by remember { mutableStateOf("📋") }
+    var selectedColor by remember { mutableStateOf("#3B82F6") }
+    var isProductive by remember { mutableStateOf(false) }
+
+    val emojis = listOf("📋", "💼", "📚", "🏋️", "💡", "🎨", "🧘", "🎯", "💻", "👥", "🍎", "🔥", "🚀", "✈️")
+    val colors = listOf("#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EC4899", "#06B6D4", "#64748B", "#EF4444", "#14B8A6", "#F97316")
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = SurfaceDark,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(text = "Add Custom Category", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    placeholder = { Text("Category Name (e.g. Reading)", color = TextMuted) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DayFlowPrimary,
+                        unfocusedBorderColor = SurfaceElevated,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(text = "Choose Icon", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    emojis.forEach { emoji ->
+                        val isSelected = selectedIcon == emoji
+                        Surface(
+                            modifier = Modifier.clickable { selectedIcon = emoji },
+                            color = if (isSelected) DayFlowPrimary.copy(alpha = 0.25f) else SurfaceElevated,
+                            shape = RoundedCornerShape(8.dp),
+                            border = if (isSelected) BorderStroke(1.5.dp, DayFlowPrimary) else null
+                        ) {
+                            Text(text = emoji, fontSize = 16.sp, modifier = Modifier.padding(6.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(text = "Choose Color", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    colors.take(7).forEach { hex ->
+                        val col = Color(android.graphics.Color.parseColor(hex))
+                        val isSelected = selectedColor == hex
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(col, CircleShape)
+                                .clickable { selectedColor = hex },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Box(modifier = Modifier.size(10.dp).background(Color.White, CircleShape))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Classify as Productive", fontSize = 13.sp, color = TextPrimary)
+                    Switch(
+                        checked = isProductive,
+                        onCheckedChange = { isProductive = it },
+                        colors = SwitchDefaults.colors(checkedTrackColor = DayFlowPrimary)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceElevated)
+                    ) {
+                        Text("Cancel", color = TextSecondary)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                onAdd(name.trim(), selectedColor, selectedIcon, isProductive)
+                            }
+                        },
+                        enabled = name.isNotBlank(),
+                        modifier = Modifier.weight(1f).height(42.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary)
+                    ) {
+                        Text("Create", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeCardItem(
+    theme: DayFlowThemeMode,
+    palette: DayFlowPalette,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        color = SurfaceElevated.copy(alpha = if (isSelected) 0.85f else 0.45f),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) DayFlowPrimary else SurfaceElevated
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp)
+        ) {
+            // Preview Mockup box
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(palette.background)
+                    .border(1.dp, palette.surfaceElevated, RoundedCornerShape(8.dp))
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Header bar preview
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(14.dp)
+                            .background(palette.surface)
+                            .padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(DayFlowPrimary)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(20.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(palette.textMuted.copy(alpha = 0.5f))
+                        )
+                    }
+
+                    // Content preview rows
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.7f)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(palette.textPrimary.copy(alpha = 0.8f))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.45f)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(palette.surfaceElevated)
+                        )
+                    }
+                }
+
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(DayFlowPrimary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = theme.displayName,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected) DayFlowPrimary else TextPrimary
+            )
+            Text(
+                text = theme.subtitle,
+                fontSize = 10.sp,
+                color = TextMuted,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun DeleteAccountDialog(
+    viewModel: SettingsViewModel,
+    hasPassword: Boolean,
+    userEmail: String?,
+    onDismiss: () -> Unit,
+    onSuccess: (String) -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+    var confirmation by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = SurfaceDark,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = StatusMissed,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Delete DayFlow Account",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StatusMissed
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "This action is permanent and cannot be undone. All your schedule blocks, focus analytics, habit logs, and todos will be immediately and irreversibly erased from DayFlow servers.",
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (hasPassword) {
+                    Text(
+                        text = "Enter your current password to confirm deletion:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextMuted
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it; errorMessage = null },
+                        placeholder = { Text("Account Password", color = TextMuted) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = StatusMissed,
+                            unfocusedBorderColor = SurfaceElevated,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
+                    )
+                } else {
+                    Text(
+                        text = "Type DELETE or your email (${userEmail ?: ""}) to confirm:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextMuted
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = confirmation,
+                        onValueChange = { confirmation = it; errorMessage = null },
+                        placeholder = { Text("DELETE", color = TextMuted) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = StatusMissed,
+                            unfocusedBorderColor = SurfaceElevated,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
+                    )
+                }
+
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = errorMessage ?: "", color = StatusMissed, fontSize = 11.sp)
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceElevated),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Cancel", color = TextPrimary)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    val canSubmit = if (hasPassword) password.isNotBlank() else confirmation.isNotBlank()
+                    Button(
+                        onClick = {
+                            isSubmitting = true
+                            errorMessage = null
+                            viewModel.deleteAccount(
+                                password = if (hasPassword) password else null,
+                                confirmation = if (!hasPassword) confirmation else null
+                            ) { success, msg ->
+                                isSubmitting = false
+                                if (success) {
+                                    onSuccess(msg)
+                                } else {
+                                    errorMessage = msg
+                                }
+                            }
+                        },
+                        enabled = canSubmit && !isSubmitting,
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusMissed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text("Delete Account", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
