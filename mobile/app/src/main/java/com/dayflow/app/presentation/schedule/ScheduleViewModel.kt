@@ -1,4 +1,4 @@
-﻿package com.dayflow.app.presentation.schedule
+package com.dayflow.app.presentation.schedule
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -547,7 +547,11 @@ class ScheduleViewModel @Inject constructor(
     }
 
     fun selectAllCurrentDaySlots() {
-        val dayKeys = DateTimeUtils.generateDaySlotKeys(_uiState.value.selectedDate).toSet()
+        val dayKeys = DateTimeUtils.generateDaySlotKeys(
+            date = _uiState.value.selectedDate,
+            startHour = tokenManager.getTimelineStartHour(),
+            endHour = tokenManager.getTimelineEndHour()
+        ).toSet()
         _uiState.update {
             it.copy(
                 isSelectionMode = true,

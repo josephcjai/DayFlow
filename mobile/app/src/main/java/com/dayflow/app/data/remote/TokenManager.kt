@@ -227,12 +227,16 @@ open class TokenManager @Inject constructor(
         if (context != null) prefs.edit().putBoolean(KEY_ANALYTICS_EXPANDED, expanded).apply()
     }
 
+    private val _biometricsEnabledFlow = MutableStateFlow(if (context != null) prefs.getBoolean(KEY_BIOMETRICS_ENABLED, false) else false)
+    open val biometricsEnabledFlow: StateFlow<Boolean> = _biometricsEnabledFlow.asStateFlow()
+
     open fun isBiometricsEnabled(): Boolean {
-        return if (context != null) prefs.getBoolean(KEY_BIOMETRICS_ENABLED, false) else false
+        return _biometricsEnabledFlow.value
     }
 
     open fun setBiometricsEnabled(enabled: Boolean) {
         if (context != null) prefs.edit().putBoolean(KEY_BIOMETRICS_ENABLED, enabled).apply()
+        _biometricsEnabledFlow.value = enabled
     }
 
     private val _dailyPointsTargetFlow = MutableStateFlow(if (context != null) prefs.getInt(KEY_DAILY_POINTS_TARGET, 50) else 50)

@@ -1,4 +1,4 @@
-﻿package com.dayflow.app.presentation
+package com.dayflow.app.presentation
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -178,10 +178,12 @@ fun DashboardScreen(
     val activity = context as? FragmentActivity
     var selectedNavIndex by remember { mutableIntStateOf(0) } // 0 = Schedule, 1 = Habits, 2 = Todos
     val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val settingsState by settingsViewModel.uiState.collectAsState()
     var showSettingsSheet by remember { mutableStateOf(false) }
 
     val hasBiometrics = remember { BiometricHelper.isBiometricAvailable(context) }
-    var isUnlocked by rememberSaveable { mutableStateOf(!hasBiometrics) }
+    val isBiometricLockEnabled = settingsState.biometricsEnabled
+    var isUnlocked by rememberSaveable { mutableStateOf(!(isBiometricLockEnabled && hasBiometrics)) }
     var biometricError by remember { mutableStateOf<String?>(null) }
 
     // Request notification permission and start slot boundary scheduler
@@ -197,8 +199,8 @@ fun DashboardScreen(
         }
         SlotNotificationScheduler.scheduleNextReminder(context)
 
-        // Trigger biometric prompt on entry if locked
-        if (hasBiometrics && !isUnlocked && activity != null) {
+        // Trigger biometric prompt on entry if Biometric App Lock is enabled in Settings
+        if (isBiometricLockEnabled && hasBiometrics && !isUnlocked && activity != null) {
             BiometricHelper.authenticate(
                 activity = activity,
                 onSuccess = {
@@ -290,7 +292,7 @@ fun DashboardScreen(
                             )
                         }
 
-                        if (hasBiometrics) {
+                        if (isBiometricLockEnabled || hasBiometrics) {
                             Surface(
                                 modifier = Modifier.clickable {
                                     isUnlocked = false
@@ -452,7 +454,7 @@ fun DashboardScreen(
             }
 
             // Biometric Quick-Resume Lock Overlay
-            if (hasBiometrics && !isUnlocked) {
+            if ((isBiometricLockEnabled || hasBiometrics) && !isUnlocked) {
                 Surface(
                     color = BackgroundDark.copy(alpha = 0.98f),
                     modifier = Modifier.fillMaxSize()
@@ -510,7 +512,7 @@ fun DashboardScreen(
 
                         Button(
                             onClick = {
-                                if (activity != null) {
+                                if (hasBiometrics && activity != null) {
                                     BiometricHelper.authenticate(
                                         activity = activity,
                                         onSuccess = {
@@ -521,6 +523,9 @@ fun DashboardScreen(
                                             biometricError = err
                                         }
                                     )
+                                } else {
+                                    isUnlocked = true
+                                    biometricError = null
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = DayFlowPrimary),

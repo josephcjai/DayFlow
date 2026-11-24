@@ -1049,6 +1049,9 @@ private fun CategoryRowItem(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = category.icon, fontSize = 16.sp)
             Spacer(modifier = Modifier.width(8.dp))
+            val isStarterDefault = !category.isSystem && CategoryItem.DEFAULTS.any {
+                it.name.equals(category.name, ignoreCase = true)
+            }
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = category.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
@@ -1056,6 +1059,11 @@ private fun CategoryRowItem(
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(color = TextMuted.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
                             Text("System", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                        }
+                    } else if (isStarterDefault) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(color = DayFlowPrimary.copy(alpha = 0.12f), shape = RoundedCornerShape(4.dp)) {
+                            Text("Starter", color = DayFlowPrimary, fontSize = 9.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
                         }
                     }
                 }

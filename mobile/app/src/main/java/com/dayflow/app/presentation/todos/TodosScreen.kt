@@ -608,14 +608,12 @@ fun TodosScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         // Note Sheets Sub-Navigation Tab Bar
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            noteSheets.forEach { sheet ->
+                            items(noteSheets, key = { it.id }) { sheet ->
                                 val isSheetActive = sheet.id == activeSheetId
                                 Surface(
                                     modifier = Modifier.clickable { viewModel.selectSheet(sheet.id) },
@@ -658,19 +656,21 @@ fun TodosScreen(
                             }
 
                             // "+ Add Sheet" Action Pill
-                            Surface(
-                                modifier = Modifier.clickable { showAddSheetDialog = true },
-                                color = SurfaceElevated.copy(alpha = 0.6f),
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.5f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            item(key = "add_sheet_pill") {
+                                Surface(
+                                    modifier = Modifier.clickable { showAddSheetDialog = true },
+                                    color = SurfaceElevated.copy(alpha = 0.6f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, DayFlowPrimary.copy(alpha = 0.5f))
                                 ) {
-                                    Icon(Icons.Default.Add, contentDescription = "Add Sheet", tint = DayFlowPrimary, modifier = Modifier.size(14.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Add Sheet", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DayFlowPrimary)
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add Sheet", tint = DayFlowPrimary, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Add Sheet", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DayFlowPrimary)
+                                    }
                                 }
                             }
                         }

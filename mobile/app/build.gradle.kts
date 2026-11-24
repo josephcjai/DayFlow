@@ -49,6 +49,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            val releaseApiUrl = (project.findProperty("apiBaseUrl") as String?) ?: "https://dayflowlive.com/api/"
+            buildConfigField("String", "API_BASE_URL", "\"$releaseApiUrl\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -61,6 +63,8 @@ android {
         }
         debug {
             isDebuggable = true
+            val debugApiUrl = (project.findProperty("apiBaseUrl") as String?) ?: "https://10.0.2.2/api/"
+            buildConfigField("String", "API_BASE_URL", "\"$debugApiUrl\"")
         }
     }
 
