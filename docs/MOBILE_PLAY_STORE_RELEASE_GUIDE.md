@@ -24,6 +24,12 @@ All mobile production build files, signing configurations, and generated artifac
 | **Production Manifest** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\app\src\main\AndroidManifest.xml` | Tracked | Enforces HTTPS-only traffic in production and declares app permissions/receivers. |
 | **Debug-Only Manifest** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\app\src\debug\AndroidManifest.xml` | Tracked | Enables cleartext traffic strictly for local emulator debugging. |
 | **Release TLS Config** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\app\src\release\java\com\dayflowapp\mobile\di\SslConfigHelper.kt` | Tracked | Enforces strict standard X.509 TLS verification in release builds (no debug trust managers in release DEX). |
+| **Play Store App Icon (`512×512`)** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\ic_launcher-web.png` | Tracked | High-res `512×512` PNG app icon exported from adaptive icon vectors (`10.5 KB`). |
+| **Play Store Feature Graphic (`1024×500`)** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\feature-graphic-1024x500.png` | Tracked | `1024×500` PNG Play Store top banner graphic (`84.2 KB`). |
+| **Phone Screenshot 1 (`1080×2400`)** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\01-schedule-timeline.png` | Tracked | Real `Pixel_6` capture: 30-Minute Schedule Timeline (`259.3 KB`). |
+| **Phone Screenshot 2 (`1080×2400`)** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\02-daily-focus-analytics.png` | Tracked | Real `Pixel_6` capture: Daily Focus Analytics & 7-Day Consistency (`195.9 KB`). |
+| **Phone Screenshot 3 (`1080×2400`)** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\03-habits-tracker.png` | Tracked | Real `Pixel_6` capture: Habits Tracker & Daily Discipline Goal (`196.1 KB`). |
+| **Phone Screenshot 4 (`1080×2400`)** | `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\04-settings-theme-selector.png` | Tracked | Real `Pixel_6` capture: Settings & 4-Theme Live Selector (`211.4 KB`). |
 
 ---
 
@@ -185,10 +191,16 @@ In the left sidebar, go to **Grow users → Store presence → Main store listin
   • 4 Dynamic Aesthetic Themes: Choose between Deep Midnight, pure OLED Black, Emerald Forest, and Clean Light.
   • Offline-First & Cloud Sync: Works seamlessly offline with automatic background mutation syncing and JSON backup/restore.
   ```
-- **Graphics Required:**
-  - **App icon:** `512 x 512 px` PNG (up to 1 MB)
-  - **Feature graphic:** `1024 x 500 px` PNG or JPEG
-  - **Phone screenshots:** At least 2–4 screenshots (`16:9` or `9:16`, e.g. `1080 x 2400 px` captured from the `Pixel_6` emulator showing the Schedule Timeline, Focus Analytics, Habits, and Settings/Theme selector)
+- **Graphics Required (Ready in `mobile/playstore-assets/`):**
+  - **App icon (`512 × 512 px` PNG, `10.5 KB`):**
+    `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\ic_launcher-web.png`
+  - **Feature graphic (`1024 × 500 px` PNG, `84.2 KB`):**
+    `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\feature-graphic-1024x500.png`
+  - **Phone screenshots (4 real `1080 × 2400 px` PNG captures from `Pixel_6`):**
+    1. `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\01-schedule-timeline.png` *(Schedule Timeline)*
+    2. `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\02-daily-focus-analytics.png` *(Daily Focus Analytics)*
+    3. `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\03-habits-tracker.png` *(Habits Tracker)*
+    4. `c:\githubrepo\myrepos\DayFlow-Mobile\mobile\playstore-assets\04-settings-theme-selector.png` *(Settings / Theme Selector)*
 
 ---
 
